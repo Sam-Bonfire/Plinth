@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+echo "Checking Rust clippy..."
+cargo clippy --workspace --all-targets -- -D warnings
+
+echo "Checking TypeScript linting..."
+pnpm -r lint
+
+echo "Checking tests..."
+pnpm -r test
+cargo test --workspace
+
+echo "✅ All pre-commit checks passed!"

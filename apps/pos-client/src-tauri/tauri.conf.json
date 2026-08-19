@@ -1,0 +1,20 @@
+{
+  "productName": "PlinthOS POS",
+  "version": "0.1.0",
+  "identifier": "com.plinth.pos",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PlinthOS POS",
+        "width": 1280,
+        "height": 800
+      }
+    ]
+  }
+}

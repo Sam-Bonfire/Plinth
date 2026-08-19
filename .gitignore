@@ -1,0 +1,26 @@
+# Build and output directories
+target/
+dist/
+build/
+.next/
+out/
+.wrangler/
+
+# Dependency directories
+node_modules/
+.pnpm-store/
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Logs and environment variables
+*.log
+.env
+.env.local
+.env.*.local
+
+# Tauri artifacts
+apps/pos-client/src-tauri/target/
