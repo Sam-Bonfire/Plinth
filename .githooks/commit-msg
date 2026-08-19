@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# Commit message file path passed by git as first argument
+COMMIT_MSG_FILE="$1"
+
+# Ignore merge or fixup commits
+if grep -qE "^(Merge|fixup!|squash!)" "$COMMIT_MSG_FILE"; then
+  exit 0
+fi
+
+# Extract first line (header)
+HEADER=$(head -n 1 "$COMMIT_MSG_FILE")
+
+# Header regex pattern
+HEADER_PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-zA-Z0-9_.\/-]+\))?: .+"
+
+if ! [[ "$HEADER" =~ $HEADER_PATTERN ]]; then
+  echo "❌ Error: Invalid commit message header structure."
+  echo ""
+  echo "Expected format:"
+  echo "  <type>(<scope>): <short summary>"
+  echo ""
+  echo "Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore"
+  echo "Example:"
+  echo "  feat(ordering): implement order validation logic"
+  echo ""
+  echo "Your header was:"
+  echo "  $HEADER"
+  exit 1
+fi
+
+exit 0

@@ -1,0 +1,12 @@
+[package]
+name = "pos-client-tauri"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+core-domain = { path = "../../../packages/core-domain" }
+sync-protocol = { path = "../../../packages/sync-protocol" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
