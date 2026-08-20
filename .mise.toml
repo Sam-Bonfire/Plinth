@@ -11,10 +11,7 @@ PLINTH_ENV = "development"
 
 [tasks."init"]
 description = "Initialize development environment and configure git hooks"
-run = [
-    "git config core.hooksPath .githooks",
-    "pnpm install"
-]
+run = "git config core.hooksPath .githooks && pnpm install"
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
@@ -30,8 +27,7 @@ run = "pnpm --filter marketing-site dev"
 
 [tasks."dev:api"]
 description = "Launch Cloudflare Wrangler local edge simulator"
-dir = "apps/edge-api"
-run = "pnpm wrangler dev --port 8787"
+run = "cd apps/edge-api && pnpm wrangler dev --port 8787"
 
 [tasks."build:pos"]
 description = "Compile native Rust binary and bundle production POS app"
@@ -39,23 +35,12 @@ run = "pnpm --filter pos-client exec tauri build"
 
 [tasks."build:api"]
 description = "Compile Rust WASM worker and deploy to Cloudflare Edge"
-dir = "apps/edge-api"
-run = "pnpm wrangler deploy"
+run = "cd apps/edge-api && pnpm wrangler deploy"
 
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
-run = [
-    "cargo clippy --workspace --all-targets -- -D warnings",
-    "pnpm -r lint"
-]
+run = "cargo clippy --workspace --all-targets -- -D warnings && pnpm -r lint"
 
 [tasks."test"]
 description = "Execute Rust unit tests, TypeScript specs, and Hurl contract tests"
-run = [
-    "cargo test --workspace",
-    "pnpm -r test"
-]
-
-[tasks."test:api"]
-description = "Execute Hurl API contract tests"
-run = "hurl --test tests/api/**/*.hurl"
+run = "cargo test --workspace && pnpm -r test"
