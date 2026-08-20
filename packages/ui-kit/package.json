@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit && jest --config jest.config.cjs"
   },
   "dependencies": {
     "antd": "^5.20.0",

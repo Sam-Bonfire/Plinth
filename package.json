@@ -5,16 +5,23 @@
   "description": "PlinthOS Enterprise Restaurant Operating System Monorepo",
   "scripts": {
     "init": "git config core.hooksPath .githooks && pnpm install",
+    "init:hooks": "git config core.hooksPath .githooks",
     "lint": "pnpm -r --parallel lint",
     "test": "pnpm -r --parallel test",
     "build": "pnpm -r build"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "20",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.32.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
     "prettier": "^3.3.3",
+    "ts-jest": "^29.4.12",
     "typescript": "^5.5.4"
   },
   "packageManager": "pnpm@9.4.0",
