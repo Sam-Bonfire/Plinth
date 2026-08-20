@@ -12,7 +12,7 @@ fi
 HEADER=$(head -n 1 "$COMMIT_MSG_FILE")
 
 # Header regex pattern
-HEADER_PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-zA-Z0-9_.\/-]+\))?: .+"
+HEADER_PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore)(\([a-z0-9_-]+\))?: .{1,50}$"
 
 if ! [[ "$HEADER" =~ $HEADER_PATTERN ]]; then
   echo "❌ Error: Invalid commit message header structure."
