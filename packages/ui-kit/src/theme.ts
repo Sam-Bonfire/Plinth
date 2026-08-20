@@ -1,5 +1,5 @@
-import React from 'react';
 import { ConfigProvider, ThemeConfig, theme } from 'antd';
+import React from 'react';
 
 export const getPlinthTheme = (isDark: boolean = false): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
