@@ -7,7 +7,8 @@ export const getPlinthTheme = (isDark: boolean = false): ThemeConfig => ({
     colorPrimary: 'var(--primary-color)',
     colorBorder: 'var(--white-opacity-8)',
     borderRadius: 8,
-    fontFamily: 'var(--indai-font-sans)',
+    fontFamily: 'var(--font)',
+    fontFamilyCode: 'var(--mono)',
   },
   components: {
     Button: {
