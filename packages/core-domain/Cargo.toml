@@ -6,6 +6,9 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-rust_decimal = "1.36"
-serde = { version = "1.0", features = ["derive"] }
+rust_decimal = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 thiserror = "1.0"
+
+[lints]
+workspace = true
