@@ -1,7 +1,9 @@
 [tools]
-node = "20.15.0"
-pnpm = "9.4.0"
-rust = "1.80.0"
+node = "24"
+pnpm = "latest"
+rust = "stable"
+hurl = "8"
+"cargo:tauri-cli" = "2.0.0"
 
 [env]
 CARGO_TERM_COLOR = "always"

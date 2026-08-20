@@ -220,12 +220,12 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 
 - **Task & Environment Engine**: `mise` (Tool version manager + Task runner).
 - **Workspace Engine**: Cargo Workspaces (Rust) + pnpm Workspaces (JS/TS).
-- **API Testing Harness**: `hurl` (v4.3.0+).
+- **API Testing Harness**: `hurl` (v8.0+).
 
 ### B. Client POS Terminal & KDS (`apps/pos-client`)
 
 - **Desktop/Tablet Shell**: Tauri v2.0+ (Stable).
-- **Core Engine**: Rust 1.80+ (Edition 2021).
+- **Core Engine**: Rust (stable channel, Edition 2021).
 - **Local Database**: SQLite 3.45+ accessed natively via Rust `rusqlite` (v0.31+) with bundled WAL mode (`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;`).
 - **UI Presentation Layer**: React 18.3+, TypeScript 5.5+, Vite 5.4+.
 - **UI Component Engine**: Ant Design 5.x (`antd` & `@ant-design/pro-components`).
@@ -255,11 +255,10 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 
 ```toml
 [tools]
-node = "20.15.0"
-pnpm = "9.4.0"
-rust = "1.80.0"
-wasm-pack = "0.12.1"
-hurl = "4.3.0"
+node = "24"
+pnpm = "latest"
+rust = "stable"
+hurl = "8"
 "cargo:tauri-cli" = "2.0.0"
 
 [env]
