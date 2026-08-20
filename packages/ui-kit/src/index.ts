@@ -7,58 +7,58 @@ export * from "./tokens.js";
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
   token: {
-    colorPrimary: "var(--primary-color)",
-    colorBorder: "var(--white-opacity-8)",
+    colorPrimary: "var(--acc)",
+    colorBorder: "var(--b1)",
     borderRadius: 8,
     fontFamily: "var(--font)",
   },
   components: {
     Button: {
-      colorPrimary: "var(--primary-color)",
-      colorBorder: "var(--white-opacity-8)",
+      colorPrimary: "var(--acc)",
+      colorBorder: "var(--b1)",
     },
     Input: {
-      colorPrimary: "var(--primary-color)",
-      colorBorder: "var(--white-opacity-8)",
+      colorPrimary: "var(--acc)",
+      colorBorder: "var(--b1)",
     },
     Select: {
-      colorPrimary: "var(--primary-color)",
-      colorBorder: "var(--white-opacity-8)",
+      colorPrimary: "var(--acc)",
+      colorBorder: "var(--b1)",
     },
     Tabs: {
-      colorPrimary: "var(--foreground-rgb)",
+      colorPrimary: "var(--acc)",
     },
     Table: {
-      headerColor: "var(--secondary-color)",
-      headerBg: "var(--white-opacity-4)",
+      headerColor: "var(--s2)",
+      headerBg: "var(--b1)",
       headerSplitColor: "transparent",
-      colorSplit: "var(--white-opacity-8)",
+      colorSplit: "var(--b1)",
       controlItemBgHover: "transparent",
       headerFilterHoverBg: "transparent",
-      rowHoverBg: "var(--table-hover-bg)",
+      rowHoverBg: "var(--s2)",
       cellPaddingBlock: 12,
       cellPaddingInline: 16,
       borderRadius: 8,
     },
     Pagination: {
       itemBg: "transparent",
-      itemActiveBg: "var(--white-opacity-8)",
-      colorText: "var(--foreground-rgb)",
-      colorPrimary: "var(--primary-color)",
+      itemActiveBg: "var(--b1)",
+      colorText: "var(--acc)",
+      colorPrimary: "var(--acc)",
       borderRadius: 4,
     },
     Checkbox: {
-      colorPrimary: "var(--foreground-rgb)",
+      colorPrimary: "var(--acc)",
       borderRadiusSM: 2,
     },
     Radio: {
-      colorPrimary: "var(--foreground-rgb)",
+      colorPrimary: "var(--acc)",
     },
     Drawer: {
-      colorBgElevated: "var(--custom-drawer-bg)",
+      colorBgElevated: "var(--bg)",
     },
     Modal: {
-      colorBgElevated: "var(--custom-modal-bg)",
+      colorBgElevated: "var(--bg)",
     },
   },
 });
