@@ -11,6 +11,7 @@ export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
     colorBorder: "var(--b1)",
     borderRadius: 8,
     fontFamily: "var(--font)",
+    fontFamilyCode: "var(--mono)",
   },
   components: {
     Button: {
