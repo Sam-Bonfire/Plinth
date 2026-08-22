@@ -135,6 +135,8 @@ importers:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@26.2.0)
 
+  packages/core-domain: {}
+
   packages/ui-kit:
     dependencies:
       antd:
