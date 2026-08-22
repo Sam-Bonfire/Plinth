@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "PlinthOS Enterprise Restaurant Operating System Monorepo",
   "scripts": {
-    "init": "git config core.hooksPath .githooks && pnpm install",
+    "init": "mise run init",
     "init:hooks": "git config core.hooksPath .githooks",
     "lint": "pnpm -r --parallel lint",
     "test": "pnpm -r --parallel test",

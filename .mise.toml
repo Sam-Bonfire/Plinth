@@ -10,8 +10,13 @@ CARGO_TERM_COLOR = "always"
 PLINTH_ENV = "development"
 
 [tasks."init"]
-description = "Initialize development environment and configure git hooks"
-run = "pnpm run init"
+description = "Initialize development environment, install toolchains, and configure git hooks"
+run = [
+    "mise trust",
+    "mise install",
+    "git config core.hooksPath .githooks",
+    "pnpm install"
+]
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
