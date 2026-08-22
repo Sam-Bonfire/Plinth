@@ -15,7 +15,14 @@
     "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@plinth/ui-kit": ["../../packages/ui-kit/src"],
+      "@plinth/sync-protocol": ["../../packages/sync-protocol/src"],
+      "@plinth/core-domain": ["../../packages/core-domain/src"],
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }
