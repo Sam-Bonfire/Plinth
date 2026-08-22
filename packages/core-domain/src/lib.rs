@@ -8,6 +8,11 @@ use rust_decimal::Decimal;
 use wasm_bindgen::prelude::*;
 use std::str::FromStr;
 
+/// Validates if the given amount string is a valid positive decimal.
+///
+/// # Errors
+///
+/// Returns a `JsValue` error if the string is not a valid decimal format.
 #[wasm_bindgen]
 pub fn validate_amount(amount_str: &str) -> Result<bool, JsValue> {
     match Decimal::from_str(amount_str) {
@@ -16,6 +21,11 @@ pub fn validate_amount(amount_str: &str) -> Result<bool, JsValue> {
     }
 }
 
+/// Calculates the tax given an amount and a tax rate.
+///
+/// # Errors
+///
+/// Returns a `JsValue` error if the amount or tax rate string is not a valid decimal format.
 #[wasm_bindgen]
 pub fn calculate_tax(amount_str: &str, tax_rate_str: &str) -> Result<String, JsValue> {
     let amount = Decimal::from_str(amount_str)
