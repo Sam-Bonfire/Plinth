@@ -6,6 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
+    "./fonts/loader.js": "./src/fonts/loader.ts",
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css"
   },
