@@ -16,3 +16,6 @@ core-domain = { path = "../../packages/core-domain" }
 
 [lints]
 workspace = true
+
+[lints.rust]
+unsafe_code = "deny"

@@ -6,7 +6,8 @@
     "dev": "wrangler dev --port 8787",
     "deploy": "wrangler deploy",
     "lint": "echo 'No TS files to lint in edge-api'",
-    "test": "cargo test"
+    "test": "cargo test",
+    "d1:migrations:apply": "wrangler d1 migrations apply plinth_cellar --local"
   },
   "devDependencies": {
     "wrangler": "^3.60.0"
