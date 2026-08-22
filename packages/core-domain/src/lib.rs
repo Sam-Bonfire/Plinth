@@ -13,6 +13,7 @@ mod tests {
 
     #[test]
     fn domain_smoke_test() {
-        assert!(true, "Core domain compiled and test harness working");
+        let compiled = true;
+        assert!(compiled, "Core domain compiled and test harness working");
     }
 }

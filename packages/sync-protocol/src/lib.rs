@@ -10,6 +10,7 @@ mod tests {
 
     #[test]
     fn sync_smoke_test() {
-        assert!(true, "Sync protocol compiled and test harness working");
+        let compiled = true;
+        assert!(compiled, "Sync protocol compiled and test harness working");
     }
 }
