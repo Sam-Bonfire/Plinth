@@ -1,15 +1,33 @@
-root = true
+﻿root = true
 
+# Default rules for all files
 [*]
+charset = utf-8
+end_of_line = lf
 indent_style = space
 indent_size = 2
-end_of_line = lf
-charset = utf-8
-trim_trailing_whitespace = true
 insert_final_newline = true
+trim_trailing_whitespace = true
 
+# Rust source files (Rustfmt 4-space standard)
 [*.rs]
+indent_style = space
 indent_size = 4
 
+# Makefiles (Tabs required by make syntax)
+[Makefile]
+indent_style = tab
+
+# Shell scripts (Strict LF to prevent \r runtime syntax errors in Linux/CI)
+[*.{sh,bash}]
+end_of_line = lf
+indent_size = 2
+
+# Markdown documentation (Preserve trailing spaces for markdown line breaks)
 [*.md]
+trim_trailing_whitespace = false
+
+# WebAssembly and Binary Assets
+[*.{wasm,png,jpg,jpeg,ico,webp,woff,woff2,ttf}]
+insert_final_newline = false
 trim_trailing_whitespace = false
