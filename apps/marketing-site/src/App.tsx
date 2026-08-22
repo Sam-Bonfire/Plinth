@@ -1,7 +1,7 @@
-import React from 'react';
-import { ConfigProvider } from 'antd';
 import { getThemeConfig } from '@plinth/ui-kit';
 import { useFontsLoaded } from '@plinth/ui-kit/fonts/loader.js';
+import { ConfigProvider } from 'antd';
+import React from 'react';
 
 const PlinthThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const themeConfig = getThemeConfig(false);
