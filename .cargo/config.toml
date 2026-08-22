@@ -1,0 +1,8 @@
+[alias]
+test-fast = "test --workspace -- --nocapture"
+test-unit = "test --workspace --lib"
+check-all = "check --workspace --all-targets"
+clippy-all = "clippy --workspace --all-targets -- -D warnings"
+
+[term]
+color = "always"
