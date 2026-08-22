@@ -11,10 +11,7 @@ PLINTH_ENV = "development"
 
 [tasks."init"]
 description = "Initialize development environment and configure git hooks"
-run = [
-    "git config core.hooksPath .githooks",
-    "pnpm install"
-]
+run = "pnpm run init"
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
