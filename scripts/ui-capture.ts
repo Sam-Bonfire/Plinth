@@ -1,5 +1,5 @@
 ﻿import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import { createServer } from 'vite';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -22,35 +22,21 @@ const SCENES = [
   { id: 'shift-reconciliation', title: 'Shift Till Reconciliation & Z-Report', theme: 'light' },
 ];
 
-async function waitForServer(url: string, maxAttempts = 30): Promise<boolean> {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return true;
-    } catch {
-      // Retry after delay
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return false;
-}
-
 async function main() {
   const outputDir = path.resolve(process.cwd(), 'artifacts/screenshots');
   await fs.mkdir(outputDir, { recursive: true });
 
-  console.log('🚀 Starting POS client dev server for UI capture...');
-  const devServer = spawn('pnpm', ['--filter', 'pos-client', 'dev', '--port', '5173'], {
-    shell: true,
-    stdio: 'pipe',
+  console.log('🚀 Starting programmatic Vite server for UI capture...');
+  const server = await createServer({
+    root: path.resolve(process.cwd(), 'apps/pos-client'),
+    server: {
+      port: 5173,
+      strictPort: true,
+    },
+    logLevel: 'error',
   });
-
-  const serverReady = await waitForServer('http://localhost:5173');
-  if (!serverReady) {
-    devServer.kill();
-    console.error('❌ Failed to reach local Vite server on port 5173');
-    process.exit(1);
-  }
+  await server.listen();
+  console.log('🌐 Vite server ready at http://localhost:5173');
 
   console.log('🌐 Launching headless browser...');
   const browser = await chromium.launch({ headless: true });
@@ -64,7 +50,7 @@ async function main() {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       const targetUrl = `http://localhost:5173/?scene=${scene.id}&theme=${scene.theme}`;
       await page.goto(targetUrl, { waitUntil: 'networkidle' });
-      await page.waitForTimeout(500); // Allow render settlement
+      await page.waitForTimeout(300);
 
       const filename = `${scene.id}-${vp.name}.png`;
       const filePath = path.join(outputDir, filename);
@@ -76,7 +62,7 @@ async function main() {
   }
 
   await browser.close();
-  devServer.kill();
+  await server.close();
 
   console.log(`\n✅ Generated ${generatedScreenshots.length} UI snapshot(s) in ${outputDir}`);
 
@@ -94,6 +80,8 @@ async function main() {
 
   const summaryPath = path.join(outputDir, 'summary.md');
   await fs.writeFile(summaryPath, summaryLines.join('\n'), 'utf-8');
+
+  process.exit(0);
 }
 
 main().catch((err) => {

@@ -16,6 +16,7 @@ jobs:
   detect-changes:
     name: Detect Changed Paths
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -60,6 +61,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -105,6 +107,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -146,6 +149,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.ui_visual == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
