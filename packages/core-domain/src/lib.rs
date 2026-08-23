@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+pub mod ids;
+pub mod value_objects;
+pub mod enums;
+pub mod events;
 pub mod models;
 pub mod ports;
 pub mod services;
