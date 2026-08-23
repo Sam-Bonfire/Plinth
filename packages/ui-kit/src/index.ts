@@ -3,6 +3,7 @@ import { theme } from "antd";
 import "./tokens.css";
 
 export * from "./tokens.js";
+export { PlinthThemeProvider } from "./theme/PlinthThemeProvider.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
