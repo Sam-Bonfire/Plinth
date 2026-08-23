@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod crdt;
+
 #[cfg(test)]
 mod tests {
     #[test]
