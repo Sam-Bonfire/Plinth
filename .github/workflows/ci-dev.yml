@@ -1,12 +1,12 @@
-﻿name: Staging Pipeline (Dev Branch)
+name: Staging Pipeline (Dev Branch)
 
 on:
   push:
     branches: [ dev ]
 
 concurrency:
-  group: ci-staging-dev
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

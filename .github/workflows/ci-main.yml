@@ -1,10 +1,14 @@
-﻿name: Production Validation (Main Branch)
+name: Production Validation (Main Branch)
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
