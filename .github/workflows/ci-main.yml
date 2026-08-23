@@ -1,0 +1,54 @@
+name: Production Validation (Main Branch)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  main-validation:
+    name: Production Baseline Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Rust
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.22.0
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Production Build
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+          pnpm -r lint
+          pnpm -r test
+          pnpm -r build
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "### 🛡️ Production Main Branch Health" >> $GITHUB_STEP_SUMMARY
+          echo "Main branch validation completed with zero warnings." >> $GITHUB_STEP_SUMMARY

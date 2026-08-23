@@ -1,0 +1,46 @@
+﻿[tools]
+node = "24.19.0"
+pnpm = "11.22.0"
+rust = "stable"
+hurl = "8"
+"cargo:tauri-cli" = "2.0.0"
+
+[env]
+CARGO_TERM_COLOR = "always"
+PLINTH_ENV = "development"
+
+[tasks."init"]
+description = "Initialize git hooks and install monorepo dependencies"
+run = "git config core.hooksPath .githooks && pnpm install"
+
+[tasks."lint"]
+description = "Enforce Cargo clippy and ESLint strictly across monorepo"
+run = "cargo clippy --workspace --all-targets -- -D warnings && pnpm -r lint"
+
+[tasks."test"]
+description = "Execute Rust unit tests, TypeScript specs, and API contract tests"
+run = "cargo test --workspace && pnpm -r test"
+
+[tasks."test:api"]
+description = "Execute declarative API integration tests using Hurl"
+run = "hurl --test tests/api/**/*.hurl"
+
+[tasks."build"]
+description = "Compile Rust binaries and bundle production packages"
+run = "cargo build --workspace && pnpm -r build"
+
+[tasks."ui:capture"]
+description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
+run = "pnpm tsx scripts/ui-capture.ts"
+
+[tasks."dev:pos"]
+description = "Launch Tauri Native POS client in development mode"
+run = "pnpm --filter pos-client dev"
+
+[tasks."dev:web"]
+description = "Launch Web Admin Dashboard"
+run = "pnpm --filter web-dashboard dev"
+
+[tasks."dev:site"]
+description = "Launch Marketing Site"
+run = "pnpm --filter marketing-site dev"

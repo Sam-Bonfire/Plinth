@@ -1,0 +1,27 @@
+﻿changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - bot-commit
+  categories:
+    - title: "🚀 New Features"
+      labels:
+        - feature
+        - feat
+    - title: "🐛 Bug Fixes"
+      labels:
+        - fix
+        - bugfix
+    - title: "🏗️ Architecture & Domain"
+      labels:
+        - domain
+        - refactor
+    - title: "🎨 UI & Frontend"
+      labels:
+        - pos-client
+        - web-dashboard
+        - ui-kit
+    - title: "⚙️ Infrastructure & CI/CD"
+      labels:
+        - ci
+        - chore

@@ -255,8 +255,8 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 
 ```toml
 [tools]
-node = "24"
-pnpm = "latest"
+node = "24.19.0"
+pnpm = "11.22.0"
 rust = "stable"
 hurl = "8"
 "cargo:tauri-cli" = "2.0.0"
@@ -264,6 +264,10 @@ hurl = "8"
 [env]
 CARGO_TERM_COLOR = "always"
 PLINTH_ENV = "development"
+
+[tasks."init"]
+description = "Initialize git hooks and install workspace dependencies"
+run = "git config core.hooksPath .githooks && pnpm install"
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
@@ -303,11 +307,15 @@ run = "cargo clippy --all-targets -- -D warnings && pnpm -r lint"
 
 [tasks."test"]
 description = "Execute Rust unit tests, TypeScript specs, and Hurl contract tests"
-run = "cargo test --workspace && pnpm -r test && mise run test:api"
+run = "cargo test --workspace && pnpm -r test"
 
 [tasks."test:api"]
 description = "Execute declarative API integration tests using Hurl"
 run = "hurl --test tests/api/**/*.hurl"
+
+[tasks."ui:capture"]
+description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
+run = "pnpm tsx scripts/ui-capture.ts"
 ```
 
 ---

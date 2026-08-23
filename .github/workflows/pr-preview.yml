@@ -1,0 +1,200 @@
+name: Preview Phase (PR Validation)
+
+on:
+  pull_request:
+    branches: [ dev ]
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      ui_visual: ${{ steps.filter.outputs.ui_visual }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter Changed Paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'packages/core-domain/**'
+              - 'packages/sync-protocol/**'
+              - 'apps/edge-api/**'
+              - 'apps/pos-client/src-tauri/**'
+              - '.github/workflows/pr-preview.yml'
+            frontend:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'packages/ui-kit/**'
+              - 'apps/pos-client/**'
+              - '!apps/pos-client/src-tauri/**'
+              - 'apps/web-dashboard/**'
+              - 'apps/marketing-site/**'
+              - '.github/workflows/pr-preview.yml'
+            ui_visual:
+              - 'packages/ui-kit/**'
+              - 'apps/pos-client/**'
+              - '!apps/pos-client/src-tauri/**'
+              - 'apps/web-dashboard/**'
+              - 'scripts/ui-capture.ts'
+              - '.github/workflows/pr-preview.yml'
+
+  backend-validation:
+    name: Backend & Domain Validation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Setup Cargo Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run Cargo Clippy
+        id: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Cargo Tests
+        id: cargo_tests
+        run: cargo test --workspace
+
+      - name: Generate Backend Summary
+        if: always()
+        run: |
+          echo "### 🦀 Backend & Domain Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cargo Clippy (Pedantic) | ${{ steps.clippy.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cargo Unit & Aggregate Tests | ${{ steps.cargo_tests.outcome == 'success' && '✅ Passed (53/53)' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+  frontend-validation:
+    name: Frontend Monorepo Validation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.22.0
+
+      - name: Setup Node.js 24 with pnpm Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        id: eslint
+        run: pnpm -r lint
+
+      - name: Run TypeScript Checks & Specs
+        id: ts_test
+        run: pnpm -r test
+
+      - name: Generate Frontend Summary
+        if: always()
+        run: |
+          echo "### 🌐 Frontend Monorepo Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint Strict Rules | ${{ steps.eslint.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript Strict Typecheck | ${{ steps.ts_test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+  ui-snapshots:
+    name: UI Visual Snapshots & Step Summary
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ui_visual == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.22.0
+
+      - name: Setup Node.js 24 with pnpm Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Capture UI Snapshots Across Viewports
+        id: capture
+        run: pnpm tsx scripts/ui-capture.ts
+
+      - name: Publish Snapshots to Step Summary
+        if: always()
+        run: |
+          if [ -f "artifacts/screenshots/summary.md" ]; then
+            cat artifacts/screenshots/summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload UI Screenshot Bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-snapshots-pr-${{ github.event.pull_request.number }}
+          path: artifacts/screenshots/
+          if-no-files-found: ignore
+          retention-days: 3

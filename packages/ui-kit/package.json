@@ -11,7 +11,7 @@
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint": "eslint src",
     "test": "tsc --noEmit && jest --config jest.config.cjs"
   },
   "dependencies": {

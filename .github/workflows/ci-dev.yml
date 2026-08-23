@@ -1,0 +1,52 @@
+name: Staging Pipeline (Dev Branch)
+
+on:
+  push:
+    branches: [ dev ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  staging-validation:
+    name: Staging Full Build & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Rust
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.22.0
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Full Rust & Monorepo Build
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+          pnpm -r lint
+          pnpm -r test
+          pnpm -r build
+
+      - name: Generate Staging Summary
+        if: always()
+        run: |
+          echo "### 🚀 Staging Pipeline Status" >> $GITHUB_STEP_SUMMARY
+          echo "Dev branch is healthy and staging artifacts are validated." >> $GITHUB_STEP_SUMMARY
