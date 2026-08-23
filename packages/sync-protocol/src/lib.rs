@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+pub mod clock;
+pub use clock::*;
+
 #[cfg(test)]
 mod tests {
     #[test]
