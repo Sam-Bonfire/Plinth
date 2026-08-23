@@ -44,6 +44,11 @@ description = "Compile Rust WASM worker and deploy to Cloudflare Edge"
 dir = "apps/edge-api"
 run = "pnpm wrangler deploy"
 
+[tasks."build:wasm"]
+description = "Compile Rust core-domain to WebAssembly"
+dir = "packages/core-domain"
+run = "wasm-pack build --target bundler --out-dir pkg"
+
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
 run = [
