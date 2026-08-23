@@ -1,0 +1,22 @@
+﻿domain:
+  - 'packages/core-domain/**/*'
+  - 'packages/sync-protocol/**/*'
+
+pos-client:
+  - 'apps/pos-client/**/*'
+
+web-dashboard:
+  - 'apps/web-dashboard/**/*'
+
+marketing-site:
+  - 'apps/marketing-site/**/*'
+
+edge-api:
+  - 'apps/edge-api/**/*'
+
+ui-kit:
+  - 'packages/ui-kit/**/*'
+
+ci:
+  - '.github/**/*'
+  - 'mise.toml'

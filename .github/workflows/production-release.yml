@@ -1,0 +1,46 @@
+﻿name: Production Release & Rollback
+
+on:
+  workflow_run:
+    workflows: ["Tag Release"]
+    types: [completed]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to release or roll back to (e.g. v1.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Generate Changelog with Git-Cliff
+        uses: orhun/git-cliff-action@v3
+        with:
+          args: --verbose --latest --strip header
+        env:
+          OUTPUT: CHANGELOG_RELEASE.md
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --title "PlinthOS Release $TAG_NAME" \
+            --notes-file CHANGELOG_RELEASE.md \
+            --verify-tag

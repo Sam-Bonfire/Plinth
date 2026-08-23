@@ -1,0 +1,52 @@
+﻿name: Store Showcase Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      store:
+        description: 'Target Store Format'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - google-play
+          - apple-app-store
+          - desktop-pos
+
+permissions:
+  contents: read
+
+jobs:
+  capture-store-assets:
+    name: Generate Store Showcase Assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.22.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Capture Store Matrix Assets
+        run: pnpm tsx scripts/ui-capture.ts
+
+      - name: Upload Store Asset Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-showcase-assets-${{ inputs.store }}
+          path: artifacts/screenshots/
+          retention-days: 14

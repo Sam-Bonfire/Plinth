@@ -1,0 +1,73 @@
+﻿name: Tag Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'SemVer release bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_tag:
+        description: 'Custom tag name (if custom chosen above, e.g. v1.2.0)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Generate SemVer Release Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate and Push Tag
+        id: create_tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          if [ "${{ inputs.version_type }}" = "custom" ]; then
+            new_tag="${{ inputs.custom_tag }}"
+          else
+            # Extract numbers
+            version="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$version"
+            major=${major:-0}
+            minor=${minor:-0}
+            patch=${patch:-0}
+
+            if [ "${{ inputs.version_type }}" = "major" ]; then
+              major=$((major + 1))
+              minor=0
+              patch=0
+            elif [ "${{ inputs.version_type }}" = "minor" ]; then
+              minor=$((minor + 1))
+              patch=0
+            else
+              patch=$((patch + 1))
+            fi
+            new_tag="v${major}.${minor}.${patch}"
+          fi
+
+          echo "New tag: $new_tag"
+          git tag "$new_tag"
+          git push origin "$new_tag"
+          echo "tag=$new_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Tag to Step Summary
+        if: always()
+        run: |
+          echo "### 🏷️ Release Tag Created" >> $GITHUB_STEP_SUMMARY
+          echo "Generated and pushed release tag **${{ steps.create_tag.outputs.tag }}**." >> $GITHUB_STEP_SUMMARY
