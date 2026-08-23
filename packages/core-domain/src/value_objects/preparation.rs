@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Represents the operational SLA status for kitchen items
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SlaStatus {
     /// Well within limits
     OnTime,
@@ -12,7 +13,7 @@ pub enum SlaStatus {
 }
 
 /// Defines service level agreements for food preparation
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreparationSla {
     /// Duration after which warning status is triggered
     pub threshold_warning: Duration,

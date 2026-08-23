@@ -1,11 +1,12 @@
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Specific seat identifier on a table
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SeatNumber(u16);
 
 /// Details of a restaurant floor section
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FloorSection {
     /// Name of the section (e.g. "Patio")
     pub name: String,

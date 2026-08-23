@@ -1,9 +1,10 @@
 use crate::value_objects::money::Money;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
 /// A specific choice inside a modifier group
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModifierOption {
     /// Unique ID of this option
     pub id: Uuid,
@@ -14,7 +15,7 @@ pub struct ModifierOption {
 }
 
 /// Constraints for modifier groups
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ModifierGroupType {
     /// Customer must choose exactly one (if required) or at most one (if optional)
     SingleChoice,
@@ -26,7 +27,7 @@ pub enum ModifierGroupType {
 }
 
 /// A grouping of modifier options (e.g., "Crust Type", "Toppings")
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModifierGroup {
     /// Unique ID of the group
     pub id: Uuid,
@@ -41,7 +42,7 @@ pub struct ModifierGroup {
 }
 
 /// Customer's selection from a modifier group
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModifierSelection {
     /// ID of the `ModifierGroup`
     pub group_id: Uuid,

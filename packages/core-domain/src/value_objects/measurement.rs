@@ -19,8 +19,7 @@ pub enum UnitOfMeasure {
 }
 
 /// Represents an amount of stock
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StockQuantity {
     /// The numeric magnitude
     pub value: Decimal,

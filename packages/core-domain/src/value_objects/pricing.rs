@@ -1,8 +1,9 @@
 use crate::value_objects::money::Money;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// A time-bound price listing
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PricingVersion {
     /// The charged monetary amount
     pub price: Money,

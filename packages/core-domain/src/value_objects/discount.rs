@@ -3,8 +3,10 @@ use crate::value_objects::money::Money;
 use rust_decimal::Decimal;
 use thiserror::Error;
 
+use serde::{Deserialize, Serialize};
+
 /// Type of discount applied
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiscountType {
     /// Percentage discount (0 to 100)
     Percentage(Decimal),
@@ -13,7 +15,7 @@ pub enum DiscountType {
 }
 
 /// Reason for applying a discount
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiscountReason {
     /// Complementary by manager
     ManagerComp,
@@ -30,7 +32,7 @@ pub enum DiscountReason {
 }
 
 /// Represents a discount applied to an order or item
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Discount {
     /// The calculation method of the discount
     pub discount_type: DiscountType,
