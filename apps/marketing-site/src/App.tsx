@@ -1,10 +1,30 @@
+import { getThemeConfig } from '@plinth/ui-kit';
+import { useFontsLoaded } from '@plinth/ui-kit/fonts/loader.js';
+import { ConfigProvider } from 'antd';
 import React from 'react';
 
-const App: React.FC = () => {
+const PlinthThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const themeConfig = getThemeConfig(false);
   return (
-    <div>
-      <h1>PlinthOS Marketing Site</h1>
-    </div>
+    <ConfigProvider theme={themeConfig}>
+      {children}
+    </ConfigProvider>
+  );
+};
+
+const App: React.FC = () => {
+  const fontsLoaded = useFontsLoaded();
+
+  if (!fontsLoaded) {
+    return null; // Or a loading spinner
+  }
+
+  return (
+    <PlinthThemeProvider>
+      <div>
+        <h1>PlinthOS Marketing Site</h1>
+      </div>
+    </PlinthThemeProvider>
   );
 };
 

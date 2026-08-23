@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
@@ -15,7 +16,16 @@
     "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@plinth/ui-kit": ["../../packages/ui-kit/src"],
+      "@plinth/ui-kit/*": ["../../packages/ui-kit/src/*"],
+      "@plinth/sync-protocol": ["../../packages/sync-protocol/src"],
+      "@plinth/sync-protocol/*": ["../../packages/sync-protocol/src/*"],
+      "@plinth/core-domain": ["../../packages/core-domain/src"],
+      "@plinth/core-domain/*": ["../../packages/core-domain/src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts"]
 }
