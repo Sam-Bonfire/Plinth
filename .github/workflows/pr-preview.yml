@@ -13,8 +13,52 @@ permissions:
   pull-requests: write
 
 jobs:
+  detect-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      ui_visual: ${{ steps.filter.outputs.ui_visual }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter Changed Paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'packages/core-domain/**'
+              - 'packages/sync-protocol/**'
+              - 'apps/edge-api/**'
+              - 'apps/pos-client/src-tauri/**'
+              - '.github/workflows/pr-preview.yml'
+            frontend:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'packages/ui-kit/**'
+              - 'apps/pos-client/**'
+              - '!apps/pos-client/src-tauri/**'
+              - 'apps/web-dashboard/**'
+              - 'apps/marketing-site/**'
+              - '.github/workflows/pr-preview.yml'
+            ui_visual:
+              - 'packages/ui-kit/**'
+              - 'apps/pos-client/**'
+              - '!apps/pos-client/src-tauri/**'
+              - 'apps/web-dashboard/**'
+              - 'scripts/ui-capture.ts'
+              - '.github/workflows/pr-preview.yml'
+
   backend-validation:
     name: Backend & Domain Validation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -25,18 +69,10 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Setup Cargo Cache
-        uses: actions/cache@v4
+      - name: Rust Cache Engine
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          shared-key: "plinth-backend-cache"
 
       - name: Run Cargo Clippy
         id: clippy
@@ -58,28 +94,23 @@ jobs:
 
   frontend-validation:
     name: Frontend Monorepo Validation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 11.22.0
 
-      - name: Setup pnpm Cache
-        uses: actions/cache@v4
+      - name: Setup Node.js 24 with pnpm Cache
+        uses: actions/setup-node@v4
         with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -104,29 +135,36 @@ jobs:
 
   ui-snapshots:
     name: UI Visual Snapshots & Step Summary
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ui_visual == 'true'
     runs-on: ubuntu-latest
-    # Only run when UI packages/apps or capture scripts are changed
-    if: >-
-      contains(github.event.pull_request.labels.*.name, 'preview:ui') ||
-      github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 11.22.0
 
+      - name: Setup Node.js 24 with pnpm Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
+
       - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
 
       - name: Capture UI Snapshots Across Viewports
@@ -138,8 +176,6 @@ jobs:
         run: |
           if [ -f "artifacts/screenshots/summary.md" ]; then
             cat artifacts/screenshots/summary.md >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### 📸 UI Visual Verification: Skipped or No Diff" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload UI Screenshot Bundle
