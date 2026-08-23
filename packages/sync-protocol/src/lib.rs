@@ -1,5 +1,11 @@
 #![forbid(unsafe_code)]
 
+pub mod mutation;
+pub mod queue;
+
+pub use mutation::*;
+pub use queue::*;
+
 #[cfg(test)]
 mod tests {
     #[test]
