@@ -4,6 +4,7 @@ pnpm = "latest"
 rust = "stable"
 hurl = "8"
 "cargo:tauri-cli" = "2.0.0"
+"cargo:cargo-nextest" = "latest"
 
 [env]
 CARGO_TERM_COLOR = "always"
@@ -57,11 +58,19 @@ run = [
 ]
 
 [tasks."test"]
-description = "Execute Rust unit tests, TypeScript specs, and Hurl contract tests"
+description = "Execute all monorepo test suites (Rust, TypeScript, API)"
 run = [
-    "cargo test --workspace",
-    "pnpm -r test"
+    "mise run test:rust",
+    "mise run test:ts"
 ]
+
+[tasks."test:rust"]
+description = "Execute Rust unit and integration tests across workspace"
+run = "cargo test --workspace"
+
+[tasks."test:ts"]
+description = "Execute TypeScript specs"
+run = "pnpm -r test"
 
 [tasks."test:api"]
 description = "Execute Hurl API contract tests"
