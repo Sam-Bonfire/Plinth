@@ -1,4 +1,4 @@
-﻿name: Preview Phase (PR Validation)
+name: Preview Phase (PR Validation)
 
 on:
   pull_request:
@@ -69,10 +69,18 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Rust Cache Engine
-        uses: swatinem/rust-cache@v2
+      - name: Setup Cargo Cache
+        uses: actions/cache@v4
         with:
-          shared-key: "plinth-backend-cache"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Run Cargo Clippy
         id: clippy
