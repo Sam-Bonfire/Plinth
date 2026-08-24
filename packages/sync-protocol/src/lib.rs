@@ -5,7 +5,6 @@ pub mod queue;
 
 pub use mutation::*;
 pub use queue::*;
-pub mod crdt;
 
 #[cfg(test)]
 mod tests {
