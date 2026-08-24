@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod clock;
+pub mod crdt;
 pub mod mutation;
 pub mod queue;
 
