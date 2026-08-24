@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 pub mod clock;
-pub use clock::*;
 pub mod crdt;
 
 #[cfg(test)]
