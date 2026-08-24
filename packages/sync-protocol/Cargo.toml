@@ -10,7 +10,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 rust_decimal = { workspace = true, features = ["serde-bincode"] }
 uuid = { workspace = true }
-rust_decimal = { workspace = true }
 
 [dev-dependencies]
 bincode = { workspace = true }
