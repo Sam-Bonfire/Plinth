@@ -12,6 +12,11 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 bincode = { workspace = true }
 thiserror = { workspace = true }
+rust_decimal = { workspace = true }
+
+[dev-dependencies]
+bincode = { workspace = true }
+rust_decimal_macros = "1.40.0"
 
 [lints]
 workspace = true
