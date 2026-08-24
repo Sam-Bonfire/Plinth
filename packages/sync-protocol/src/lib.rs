@@ -1,11 +1,11 @@
 #![forbid(unsafe_code)]
 
 pub mod clock;
+pub mod crdt;
 pub mod framing;
 pub mod mutation;
 
 pub use framing::*;
-pub mod crdt;
 
 #[cfg(test)]
 mod tests {

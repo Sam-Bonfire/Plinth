@@ -334,20 +334,20 @@ mod tests {
     fn test_sync_frame_all_variants_roundtrip() {
         let frames = vec![
             SyncFrame::ClientHello {
-                node_id: ClientNodeId(Uuid::now_v7()),
+                node_id: ClientNodeId(Uuid::now_v7().to_string()),
                 auth_token: "token".to_string(),
                 current_clock: dummy_vector_clock(),
                 protocol_version: 1,
             },
             SyncFrame::ServerWelcome {
-                server_node_id: ClientNodeId(Uuid::now_v7()),
+                server_node_id: ClientNodeId(Uuid::now_v7().to_string()),
                 server_clock: dummy_vector_clock(),
                 session_id: Uuid::now_v7(),
                 server_time: Utc::now(),
             },
             SyncFrame::PushMutations {
                 batch_id: Uuid::now_v7(),
-                sender_node_id: ClientNodeId(Uuid::now_v7()),
+                sender_node_id: ClientNodeId(Uuid::now_v7().to_string()),
                 mutations: vec![
                     MutationRecord { id: Uuid::now_v7(), is_urgent: false },
                 ],
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn test_batch_packer_threshold() {
-        let node_id = ClientNodeId(Uuid::now_v7());
+        let node_id = ClientNodeId(Uuid::now_v7().to_string());
         let mut packer = BatchPacker::new(node_id, 3);
 
         let m1 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_batch_packer_urgency() {
-        let node_id = ClientNodeId(Uuid::now_v7());
+        let node_id = ClientNodeId(Uuid::now_v7().to_string());
         let mut packer = BatchPacker::new(node_id, 50);
 
         let m1 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };

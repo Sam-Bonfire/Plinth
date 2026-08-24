@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use rust_decimal::Decimal;
+
 use serde::{Deserialize, Serialize};
 use crate::clock::ClientNodeId;
 
@@ -74,8 +75,9 @@ impl PNCounter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rust_decimal_macros::dec;
+    use super::*;
+
 
     fn node(id: &str) -> ClientNodeId {
         ClientNodeId(id.to_string())

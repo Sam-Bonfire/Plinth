@@ -8,3 +8,8 @@ impl From<&str> for ClientNodeId {
         ClientNodeId(s.to_string())
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VectorClock {
+    pub entries: std::collections::HashMap<String, u64>,
+}
