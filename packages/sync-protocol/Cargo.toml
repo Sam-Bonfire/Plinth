@@ -9,9 +9,11 @@ license.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 uuid = { workspace = true }
+rust_decimal = { workspace = true }
 
 [dev-dependencies]
 bincode = { workspace = true }
+rust_decimal_macros = "1.40.0"
 
 [lints]
 workspace = true

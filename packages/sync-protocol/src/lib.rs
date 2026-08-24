@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod clock;
 pub mod crdt;
 
 #[cfg(test)]
