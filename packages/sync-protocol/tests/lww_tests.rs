@@ -2,7 +2,11 @@ use sync_protocol::clock::{ClientNodeId, LogicalTimestamp};
 use sync_protocol::crdt::{LwwElementSet, LwwRegister};
 
 fn make_ts(physical: u64, counter: u64, node_id: &str) -> LogicalTimestamp {
-    LogicalTimestamp::new(physical, counter, ClientNodeId(node_id.to_string()))
+    LogicalTimestamp {
+        wall_clock_ms: physical.try_into().unwrap_or(0),
+        counter,
+        node_id: ClientNodeId(node_id.to_string()),
+    }
 }
 
 #[test]
