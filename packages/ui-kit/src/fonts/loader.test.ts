@@ -1,7 +1,4 @@
-/**
- * @jest-environment jsdom
- */
-
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadPlinthFonts, PLINTH_FONTS_CONFIG } from "./loader.js";
 
 describe("Font Loader", () => {
@@ -10,7 +7,7 @@ describe("Font Loader", () => {
     document.head.innerHTML = "";
 
     // Reset spies if needed
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("should inject preconnect and stylesheet link elements to document.head", () => {

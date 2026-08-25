@@ -3,6 +3,7 @@
 pub mod clock;
 pub mod crdt;
 pub mod mutation;
+pub mod framing;
 pub mod queue;
 
 pub use clock::*;

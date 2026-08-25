@@ -1,3 +1,4 @@
+﻿/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import * as path from 'path';
@@ -20,5 +21,10 @@ export default defineConfig({
       '@plinth/core-domain': path.resolve(__dirname, '../../packages/core-domain/src'),
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    setupFiles: [path.resolve(__dirname, '../../setupTests.ts')],
   },
 });
