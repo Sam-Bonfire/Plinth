@@ -2,10 +2,12 @@
 
 pub mod clock;
 pub mod crdt;
-pub mod framing;
 pub mod mutation;
+pub mod framing;
+pub mod queue;
 
-pub use framing::*;
+pub use mutation::*;
+pub use queue::*;
 
 #[cfg(test)]
 mod tests {

@@ -320,14 +320,30 @@ impl DeduplicationCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
     use uuid::Uuid;
     use chrono::Utc;
 
     fn dummy_vector_clock() -> VectorClock {
-        let mut entries = HashMap::new();
-        entries.insert("node_a".to_string(), 1);
-        VectorClock { entries }
+        let mut entries = BTreeMap::new();
+        entries.insert(ClientNodeId("node_a".to_string()), 1);
+
+        VectorClock::new()
+    }
+
+    #[test]
+    fn test_sync_frame_serialization() {
+        let frame = SyncFrame::HeartbeatPing { client_time_ms: 12345 };
+
+        // JSON
+        let json = frame.to_json().expect("Failed to serialize to JSON");
+        let parsed: SyncFrame = SyncFrame::from_json(&json).expect("Failed to deserialize from JSON");
+        assert_eq!(frame, parsed);
+
+        // Bincode
+        let bytes = frame.to_bytes().expect("Failed to serialize to Bincode");
+        let parsed_bytes: SyncFrame = SyncFrame::from_bytes(&bytes).expect("Failed to deserialize from Bincode");
+        assert_eq!(frame, parsed_bytes);
     }
 
     #[test]
@@ -349,7 +365,18 @@ mod tests {
                 batch_id: Uuid::now_v7(),
                 sender_node_id: ClientNodeId(Uuid::now_v7().to_string()),
                 mutations: vec![
-                    MutationRecord { id: Uuid::now_v7(), is_urgent: false },
+                    MutationRecord {
+                        mutation_id: Uuid::now_v7(),
+                        session_id: Uuid::now_v7(),
+                        entity_id: Uuid::now_v7(),
+                        entity_type: crate::mutation::EntityType::Order,
+                        operation: crate::mutation::OperationType::Create,
+                        payload_json: "{}".to_string(),
+                        timestamp: Utc::now(),
+                        is_urgent: false,
+                        logical_clock: 1,
+                        checksum: "test_checksum".to_string(),
+                    },
                 ],
                 is_urgent: false,
             },
@@ -385,9 +412,42 @@ mod tests {
         let node_id = ClientNodeId(Uuid::now_v7().to_string());
         let mut packer = BatchPacker::new(node_id, 3);
 
-        let m1 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };
-        let m2 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };
-        let m3 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };
+        let m1 = MutationRecord {
+            mutation_id: Uuid::now_v7(),
+            session_id: Uuid::now_v7(),
+            entity_id: Uuid::now_v7(),
+            entity_type: crate::mutation::EntityType::Order,
+            operation: crate::mutation::OperationType::Create,
+            payload_json: "{}".to_string(),
+            timestamp: Utc::now(),
+            is_urgent: false,
+            logical_clock: 1,
+                        checksum: "test_checksum".to_string(),
+        };
+        let m2 = MutationRecord {
+            mutation_id: Uuid::now_v7(),
+            session_id: Uuid::now_v7(),
+            entity_id: Uuid::now_v7(),
+            entity_type: crate::mutation::EntityType::Order,
+            operation: crate::mutation::OperationType::Create,
+            payload_json: "{}".to_string(),
+            timestamp: Utc::now(),
+            is_urgent: false,
+            logical_clock: 2,
+            checksum: "test_checksum".to_string(),
+        };
+        let m3 = MutationRecord {
+            mutation_id: Uuid::now_v7(),
+            session_id: Uuid::now_v7(),
+            entity_id: Uuid::now_v7(),
+            entity_type: crate::mutation::EntityType::Order,
+            operation: crate::mutation::OperationType::Create,
+            payload_json: "{}".to_string(),
+            timestamp: Utc::now(),
+            is_urgent: false,
+            logical_clock: 3,
+            checksum: "test_checksum".to_string(),
+        };
 
         // Should return None for the first two
         assert!(packer.push(m1).is_none());
@@ -413,8 +473,30 @@ mod tests {
         let node_id = ClientNodeId(Uuid::now_v7().to_string());
         let mut packer = BatchPacker::new(node_id, 50);
 
-        let m1 = MutationRecord { id: Uuid::now_v7(), is_urgent: false };
-        let m2_urgent = MutationRecord { id: Uuid::now_v7(), is_urgent: true };
+        let m1 = MutationRecord {
+            mutation_id: Uuid::now_v7(),
+            session_id: Uuid::now_v7(),
+            entity_id: Uuid::now_v7(),
+            entity_type: crate::mutation::EntityType::Order,
+            operation: crate::mutation::OperationType::Create,
+            payload_json: "{}".to_string(),
+            timestamp: Utc::now(),
+            is_urgent: false,
+            logical_clock: 1,
+                        checksum: "test_checksum".to_string(),
+        };
+        let m2_urgent = MutationRecord {
+            mutation_id: Uuid::now_v7(),
+            session_id: Uuid::now_v7(),
+            entity_id: Uuid::now_v7(),
+            entity_type: crate::mutation::EntityType::Order,
+            operation: crate::mutation::OperationType::Create,
+            payload_json: "{}".to_string(),
+            timestamp: Utc::now(),
+            is_urgent: true,
+            logical_clock: 2,
+            checksum: "test_checksum".to_string(),
+        };
 
         assert!(packer.push(m1).is_none());
 
