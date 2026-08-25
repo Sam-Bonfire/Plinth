@@ -21,18 +21,18 @@ describe("Font Loader", () => {
 
     const [preconnect1, preconnect2, stylesheet] = Array.from(links);
 
-    expect(preconnect1.rel).toBe("preconnect");
-    expect(preconnect1.href).toContain("fonts.googleapis.com");
+    expect(preconnect1?.rel).toBe("preconnect");
+    expect(preconnect1?.href).toContain("fonts.googleapis.com");
 
-    expect(preconnect2.rel).toBe("preconnect");
-    expect(preconnect2.href).toContain("fonts.gstatic.com");
-    expect(preconnect2.crossOrigin).toBe("anonymous");
+    expect(preconnect2?.rel).toBe("preconnect");
+    expect(preconnect2?.href).toContain("fonts.gstatic.com");
+    expect(preconnect2?.crossOrigin).toBe("anonymous");
 
-    expect(stylesheet.rel).toBe("stylesheet");
-    expect(stylesheet.id).toBe("plinth-fonts");
-    expect(stylesheet.href).toContain("family=IBM+Plex+Mono:wght@400;500;600");
-    expect(stylesheet.href).toContain("family=Instrument+Sans:wght@400;500;600;700");
-    expect(stylesheet.href).toContain("display=swap");
+    expect(stylesheet?.rel).toBe("stylesheet");
+    expect(stylesheet?.id).toBe("plinth-fonts");
+    expect(stylesheet?.href).toContain("family=IBM+Plex+Mono:wght@400;500;600");
+    expect(stylesheet?.href).toContain("family=Instrument+Sans:wght@400;500;600;700");
+    expect(stylesheet?.href).toContain("display=swap");
   });
 
   it("should not inject duplicate stylesheets if already present", () => {
