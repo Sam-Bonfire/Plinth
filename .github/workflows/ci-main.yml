@@ -15,37 +15,16 @@ permissions:
 
 jobs:
   main-validation:
-    name: Production Baseline Checks
+    name: Clean Production Baseline Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup mise toolchains & cache
+      - name: Setup mise toolchains (Clean Build - No Cache)
         uses: jdx/mise-action@v2
         with:
-          cache: true
-
-      - name: Setup Cargo Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Setup pnpm Store Cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          cache: false
 
       - name: Initialize Monorepo Environment
         run: mise run init
@@ -60,4 +39,4 @@ jobs:
         if: always()
         run: |
           echo "### 🛡️ Production Main Branch Health" >> $GITHUB_STEP_SUMMARY
-          echo "Main branch validation completed with zero warnings." >> $GITHUB_STEP_SUMMARY
+          echo "Clean production baseline validation completed with zero warnings without cache dependency." >> $GITHUB_STEP_SUMMARY
