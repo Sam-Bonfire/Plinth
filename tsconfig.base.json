@@ -21,6 +21,9 @@
         "packages/core-domain/src"
       ]
     },
+    "types": [
+      "@testing-library/jest-dom"
+    ],
     "jsx": "react-jsx",
     "skipLibCheck": true
   }

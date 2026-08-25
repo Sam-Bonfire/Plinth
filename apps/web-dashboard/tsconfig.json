@@ -22,7 +22,8 @@
       "@plinth/sync-protocol": ["../../packages/sync-protocol/src"],
       "@plinth/core-domain": ["../../packages/core-domain/src"],
       "@/*": ["src/*"]
-    }
+    },
+    "types": ["@testing-library/jest-dom"]
   },
   "include": ["src", "vite.config.ts"]
 }

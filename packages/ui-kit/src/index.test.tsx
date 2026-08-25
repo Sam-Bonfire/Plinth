@@ -1,6 +1,5 @@
 ﻿import { render, screen } from '@testing-library/react';
 import { Button } from 'antd';
-import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { PlinthThemeProvider, getThemeConfig } from './index';
 

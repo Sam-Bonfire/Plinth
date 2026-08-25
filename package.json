@@ -9,7 +9,7 @@
     "lint": "pnpm -r --parallel lint",
     "test": "pnpm -r --parallel test",
     "test:vitest": "vitest run",
-    "build": "pnpm -r build"
+    "build": "pnpm -r --parallel build"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.5.0",

@@ -66,10 +66,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup mise toolchains & cache
+        uses: jdx/mise-action@v2
         with:
-          components: clippy, rustfmt
+          cache: true
 
       - name: Setup Cargo Cache
         uses: actions/cache@v4
@@ -84,13 +84,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run Cargo Clippy
+      - name: Run Cargo Clippy (mise)
         id: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: mise run lint:rust
 
-      - name: Run Cargo Tests
+      - name: Run Cargo Tests (mise)
         id: cargo_tests
-        run: cargo test --workspace
+        run: mise run test:rust
 
       - name: Generate Backend Summary
         if: always()
@@ -100,7 +100,7 @@ jobs:
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
           echo "| Cargo Clippy (Pedantic) | ${{ steps.clippy.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cargo Unit & Aggregate Tests | ${{ steps.cargo_tests.outcome == 'success' && '✅ Passed (53/53)' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cargo Unit & Aggregate Tests | ${{ steps.cargo_tests.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
   frontend-validation:
     name: Frontend Monorepo Validation
@@ -112,27 +112,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup mise toolchains & cache
+        uses: jdx/mise-action@v2
         with:
-          version: 11.22.0
+          cache: true
 
-      - name: Setup Node.js 24 with pnpm Cache
-        uses: actions/setup-node@v4
+      - name: Setup pnpm Store Cache
+        uses: actions/cache@v4
         with:
-          node-version: '24'
-          cache: 'pnpm'
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Initialize Environment (mise)
+        run: mise run init
 
-      - name: Run ESLint
+      - name: Run ESLint (mise)
         id: eslint
-        run: pnpm -r lint
+        run: mise run lint:ts
 
-      - name: Run TypeScript Checks & Specs
+      - name: Run TypeScript Checks & Specs (mise)
         id: ts_test
-        run: pnpm -r test
+        run: mise run test:ts
 
       - name: Generate Frontend Summary
         if: always()
@@ -142,7 +144,7 @@ jobs:
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
           echo "| ESLint Strict Rules | ${{ steps.eslint.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript Strict Typecheck | ${{ steps.ts_test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript Strict Typecheck & Specs | ${{ steps.ts_test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
   ui-snapshots:
     name: UI Visual Snapshots & Step Summary
@@ -154,19 +156,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup mise toolchains & cache
+        uses: jdx/mise-action@v2
         with:
-          version: 11.22.0
+          cache: true
 
-      - name: Setup Node.js 24 with pnpm Cache
-        uses: actions/setup-node@v4
+      - name: Setup pnpm Store Cache
+        uses: actions/cache@v4
         with:
-          node-version: '24'
-          cache: 'pnpm'
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Initialize Environment (mise)
+        run: mise run init
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
@@ -175,13 +179,13 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
 
-      - name: Install Playwright Chromium
+      - name: Install Playwright Chromium (mise)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+        run: mise run ui:setup
 
-      - name: Capture UI Snapshots Across Viewports
+      - name: Capture UI Snapshots Across Viewports (mise)
         id: capture
-        run: pnpm tsx scripts/ui-capture.ts
+        run: mise run ui:capture
 
       - name: Publish Snapshots to Step Summary
         if: always()
