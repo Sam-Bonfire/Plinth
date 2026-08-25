@@ -5,15 +5,28 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const commonTestConfig = {
+  environment: 'happy-dom' as const,
+  environmentOptions: {
+    happyDOM: {
+      settings: {
+        disableJavaScriptFileLoading: true,
+        disableCSSFileLoading: true,
+        handleDisabledFileLoadingAsSuccess: true,
+      },
+    },
+  },
+  setupFiles: [path.resolve(__dirname, './setupTests.ts')],
+  globals: true,
+};
+
 export default defineWorkspace([
   {
     plugins: [react()],
     test: {
       name: 'ui-kit',
       root: './packages/ui-kit',
-      environment: 'happy-dom',
-      setupFiles: [path.resolve(__dirname, './setupTests.ts')],
-      globals: true,
+      ...commonTestConfig,
     },
     resolve: {
       alias: {
@@ -26,9 +39,7 @@ export default defineWorkspace([
     test: {
       name: 'pos-client',
       root: './apps/pos-client',
-      environment: 'happy-dom',
-      setupFiles: [path.resolve(__dirname, './setupTests.ts')],
-      globals: true,
+      ...commonTestConfig,
     },
     resolve: {
       alias: {
@@ -44,9 +55,7 @@ export default defineWorkspace([
     test: {
       name: 'web-dashboard',
       root: './apps/web-dashboard',
-      environment: 'happy-dom',
-      setupFiles: [path.resolve(__dirname, './setupTests.ts')],
-      globals: true,
+      ...commonTestConfig,
     },
     resolve: {
       alias: {
@@ -60,9 +69,7 @@ export default defineWorkspace([
     test: {
       name: 'marketing-site',
       root: './apps/marketing-site',
-      environment: 'happy-dom',
-      setupFiles: [path.resolve(__dirname, './setupTests.ts')],
-      globals: true,
+      ...commonTestConfig,
     },
     resolve: {
       alias: {
