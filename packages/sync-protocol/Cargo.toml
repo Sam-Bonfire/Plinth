@@ -6,8 +6,23 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+bincode = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+uuid = { workspace = true, features = ["v7", "serde"] }
+chrono = { workspace = true, features = ["serde"] }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+rust_decimal = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+ed25519-dalek = { version = "2.1", features = ["serde", "rand_core"] }
+rand = "0.8"
+
+[dev-dependencies]
+rust_decimal_macros = "1.40.0"
 
 [lints]
 workspace = true

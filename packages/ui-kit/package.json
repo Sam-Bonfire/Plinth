@@ -12,7 +12,7 @@
   },
   "scripts": {
     "lint": "eslint src",
-    "test": "tsc --noEmit && jest --config jest.config.cjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "antd": "^5.20.0",
