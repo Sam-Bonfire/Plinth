@@ -14,7 +14,7 @@ authors = ["Plinth Engineering Team"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-rust_decimal = { version = "1.42.1", features = ["serde-with-str", "serde-bincode"] }
+rust_decimal = { version = "1.42.1", features = ["serde-with-str"] }
 serde = "1.0.229"
 serde_json = "1.0.151"
 tokio = "1.53.1"

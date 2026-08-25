@@ -87,7 +87,8 @@ where
 
     pub fn insert(&mut self, element: T, timestamp: LogicalTimestamp) -> bool {
         let current_ts = self.add_set.get(&element);
-        if current_ts.is_none_or(|ts| timestamp > *ts) {
+        #[allow(clippy::unnecessary_map_or)]
+        if current_ts.map_or(true, |ts| timestamp > *ts) {
             self.add_set.insert(element, timestamp);
             true
         } else {
@@ -97,7 +98,8 @@ where
 
     pub fn remove(&mut self, element: &T, timestamp: LogicalTimestamp) -> bool {
         let current_ts = self.remove_set.get(element);
-        if current_ts.is_none_or(|ts| timestamp > *ts) {
+        #[allow(clippy::unnecessary_map_or)]
+        if current_ts.map_or(true, |ts| timestamp > *ts) {
             self.remove_set.insert(element.clone(), timestamp);
             true
         } else {

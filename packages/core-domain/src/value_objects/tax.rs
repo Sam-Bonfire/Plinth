@@ -3,7 +3,6 @@ use rust_decimal::Decimal;
 
 /// Result of computing tax on a subtotal
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
 pub struct TaxBreakdown {
     /// The total calculated tax
     pub total_tax: Money,
@@ -13,7 +12,6 @@ pub struct TaxBreakdown {
 
 /// A single component of applied tax
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
 pub struct TaxComponent {
     /// The label of the tax (e.g. CGST 9%)
     pub label: String,
@@ -26,7 +24,6 @@ pub struct TaxComponent {
 /// Indian GST rate slabs
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
 pub enum GstRate {
     /// 0% Tax
     Exempt,
@@ -56,7 +53,6 @@ impl GstRate {
 
 /// Whether GST is intra-state (CGST+SGST) or inter-state (IGST)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
 pub enum GstApplicability {
     /// Intra-state transaction attracting CGST + SGST
     IntraState,
