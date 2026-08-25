@@ -2,11 +2,6 @@
 
 pub mod clock;
 pub mod crdt;
-pub mod mutation;
-pub mod queue;
-
-pub use mutation::*;
-pub use queue::*;
 
 #[cfg(test)]
 mod tests {
