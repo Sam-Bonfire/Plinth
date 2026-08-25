@@ -39,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Initialize Environment (mise)
+      - name: Initialize Environment
         run: mise run init
 
       - name: Cache Playwright Browsers
@@ -49,11 +49,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
 
-      - name: Install Playwright Chromium (mise)
+      - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: mise run ui:setup
 
-      - name: Capture Viewports (mise)
+      - name: Capture Viewports
         run: mise run ui:capture
 
       - name: Upload Desktop Screenshots

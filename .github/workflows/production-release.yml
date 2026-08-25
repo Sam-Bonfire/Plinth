@@ -45,7 +45,7 @@ jobs:
       - name: Install Android Rust Targets
         run: rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
-      - name: Initialize Environment (mise)
+      - name: Initialize Environment
         run: mise run init
 
       - name: Build Web & Backend Production Bundles

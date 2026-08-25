@@ -84,11 +84,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run Cargo Clippy (mise)
+      - name: Run Cargo Clippy
         id: clippy
         run: mise run lint:rust
 
-      - name: Run Cargo Tests (mise)
+      - name: Run Cargo Tests
         id: cargo_tests
         run: mise run test:rust
 
@@ -125,14 +125,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Initialize Environment (mise)
+      - name: Initialize Environment
         run: mise run init
 
-      - name: Run ESLint (mise)
+      - name: Run ESLint
         id: eslint
         run: mise run lint:ts
 
-      - name: Run TypeScript Checks & Specs (mise)
+      - name: Run TypeScript Checks & Specs
         id: ts_test
         run: mise run test:ts
 
@@ -169,7 +169,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Initialize Environment (mise)
+      - name: Initialize Environment
         run: mise run init
 
       - name: Cache Playwright Browsers
@@ -179,11 +179,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
 
-      - name: Install Playwright Chromium (mise)
+      - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: mise run ui:setup
 
-      - name: Capture UI Snapshots Across Viewports (mise)
+      - name: Capture UI Snapshots Across Viewports
         id: capture
         run: mise run ui:capture
 

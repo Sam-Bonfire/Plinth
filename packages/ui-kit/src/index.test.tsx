@@ -1,4 +1,4 @@
-﻿import { render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Button } from 'antd';
 import { describe, expect, it } from 'vitest';
 import { PlinthThemeProvider, getThemeConfig } from './index';
@@ -20,6 +20,6 @@ describe('UI Kit Theme & Components', () => {
       </PlinthThemeProvider>
     );
 
-    expect(screen.getByRole('button', { name: 'Plinth Button' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Plinth Button' })).toBeDefined();
   });
 });
