@@ -44,7 +44,7 @@ export const mockMenuItems: MenuItem[] = [
     price: 380,
     gstRate: 5,
     isVeg: false,
-    modifierGroups: [mockModifiers.portion, mockModifiers.spice],
+    modifierGroups: [mockModifiers.portion!, mockModifiers.spice!],
   },
   {
     id: "MI-002",
@@ -52,7 +52,7 @@ export const mockMenuItems: MenuItem[] = [
     price: 280,
     gstRate: 5,
     isVeg: true,
-    modifierGroups: [mockModifiers.spice],
+    modifierGroups: [mockModifiers.spice!],
   },
   {
     id: "MI-003",
@@ -60,7 +60,7 @@ export const mockMenuItems: MenuItem[] = [
     price: 60,
     gstRate: 5,
     isVeg: true,
-    modifierGroups: [mockModifiers.addons],
+    modifierGroups: [mockModifiers.addons!],
   },
   {
     id: "MI-004",
@@ -68,7 +68,7 @@ export const mockMenuItems: MenuItem[] = [
     price: 240,
     gstRate: 5,
     isVeg: true,
-    modifierGroups: [mockModifiers.portion],
+    modifierGroups: [mockModifiers.portion!],
   },
   {
     id: "MI-005",

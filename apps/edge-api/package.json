@@ -10,6 +10,7 @@
     "d1:migrations:apply": "wrangler d1 migrations apply plinth_cellar --local"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260823.1",
     "wrangler": "^3.60.0"
   }
 }

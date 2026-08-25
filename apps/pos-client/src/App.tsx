@@ -1,7 +1,7 @@
 ﻿import { getThemeConfig } from '@plinth/ui-kit';
 import { ConfigProvider } from 'antd';
 import React, { useMemo } from 'react';
-import { ShowcaseView } from './showcase/ShowcaseView';
+import { ShowcaseView } from './showcase/ShowcaseView.js';
 
 export const PlinthThemeProvider: React.FC<{ children: React.ReactNode; isDark?: boolean }> = ({ children, isDark = false }) => {
   return (
