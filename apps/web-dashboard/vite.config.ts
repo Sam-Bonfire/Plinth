@@ -1,3 +1,4 @@
+﻿/// <reference types="vitest" />
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -16,5 +17,10 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     host: true,
+  },
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    setupFiles: [resolve(__dirname, '../../setupTests.ts')],
   },
 });
