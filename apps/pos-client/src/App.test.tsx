@@ -1,0 +1,11 @@
+﻿import { render } from '@testing-library/react';
+import React from 'react';
+import { describe, expect, it } from 'vitest';
+import App from './App';
+
+describe('POS Client App', () => {
+  it('renders without crashing', () => {
+    render(<App />);
+    expect(document.body).toBeDefined();
+  });
+});
