@@ -186,6 +186,84 @@ impl Ord for Money {
     }
 }
 
+impl std::ops::Add for Money {
+    type Output = Money;
+    fn add(self, rhs: Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot add money with different currencies");
+        Money {
+            amount: self.amount + rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::ops::Add<&Money> for Money {
+    type Output = Money;
+    fn add(self, rhs: &Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot add money with different currencies");
+        Money {
+            amount: self.amount + rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::ops::Add for &Money {
+    type Output = Money;
+    fn add(self, rhs: &Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot add money with different currencies");
+        Money {
+            amount: self.amount + rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::ops::Sub for Money {
+    type Output = Money;
+    fn sub(self, rhs: Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot subtract money with different currencies");
+        Money {
+            amount: self.amount - rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::ops::Sub<&Money> for Money {
+    type Output = Money;
+    fn sub(self, rhs: &Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot subtract money with different currencies");
+        Money {
+            amount: self.amount - rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::ops::Sub for &Money {
+    type Output = Money;
+    fn sub(self, rhs: &Money) -> Self::Output {
+        assert!(self.currency == rhs.currency, "Cannot subtract money with different currencies");
+        Money {
+            amount: self.amount - rhs.amount,
+            currency: self.currency,
+        }
+    }
+}
+
+impl std::iter::Sum for Money {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Money::zero(Currency::Inr), |acc, m| acc + m)
+    }
+}
+
+impl<'a> std::iter::Sum<&'a Money> for Money {
+    fn sum<I: Iterator<Item = &'a Money>>(iter: I) -> Self {
+        iter.fold(Money::zero(Currency::Inr), |acc, m| acc + m)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

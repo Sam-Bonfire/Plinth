@@ -156,8 +156,6 @@ mod tests {
     use std::sync::Mutex;
     use crate::ids::{StaffMemberId, TerminalId};
     use crate::enums::OrderChannel;
-    use crate::value_objects::money::{Currency, Money};
-    use crate::value_objects::tax::TaxBreakdown;
 
     #[test]
     fn test_port_error_formatting() {
@@ -219,23 +217,15 @@ mod tests {
             orders: Mutex::new(Vec::new()),
         };
 
-        let order = Order {
-            id: OrderId::new(),
-            tenant_id: TenantId::new(),
-            location_id: LocationId::new(),
-            terminal_id: TerminalId::new(),
-            channel: OrderChannel::DineIn,
-            status: OrderStatus::Draft,
-            items: vec![],
-            subtotal: Money::zero(Currency::Inr),
-            taxes: TaxBreakdown {
-                total_tax: Money::zero(Currency::Inr),
-                components: vec![],
-            },
-            total: Money::zero(Currency::Inr),
-            payment_method: None,
-            created_by: StaffMemberId::new(),
-        };
+        let (order, _) = Order::new(
+            TenantId::new(),
+            LocationId::new(),
+            TerminalId::new(),
+            OrderChannel::DineIn,
+            StaffMemberId::new(),
+            None,
+            None,
+        );
         let id = order.id;
 
         assert!(repo.save(&order).await.is_ok());

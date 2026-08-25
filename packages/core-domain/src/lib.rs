@@ -57,4 +57,3 @@ mod tests {
         assert!(compiled, "Core domain compiled and test harness working");
     }
 }
-pub mod fixtures;

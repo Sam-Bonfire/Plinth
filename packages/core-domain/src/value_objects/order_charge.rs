@@ -1,9 +1,11 @@
 use crate::value_objects::money::Money;
 use rust_decimal::Decimal;
 
+use serde::{Deserialize, Serialize};
+
 /// Types of standard order charges
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChargeType {
     /// Discretionary or mandatory service charge
     ServiceCharge,
@@ -16,7 +18,7 @@ pub enum ChargeType {
 }
 
 /// Represents an extra charge applied to an order
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrderCharge {
     /// Classification of the charge
     pub charge_type: ChargeType,

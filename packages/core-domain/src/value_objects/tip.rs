@@ -2,8 +2,10 @@ use crate::ids::StaffMemberId;
 use crate::value_objects::money::Money;
 use rust_decimal::Decimal;
 
+use serde::{Deserialize, Serialize};
+
 /// Denotes how a tip was calculated
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TipType {
     /// Percentage of the subtotal
     Percentage(Decimal),
@@ -12,7 +14,7 @@ pub enum TipType {
 }
 
 /// Represents a tip given on an order
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TipAmount {
     /// Method of computation
     pub tip_type: TipType,
