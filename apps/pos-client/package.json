@@ -7,10 +7,16 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:pos": "tauri build",
+    "build:pos:android": "tauri android build --apk",
+    "build:pos:ios": "tauri ios build",
+    "dev:pos:android": "tauri android dev",
+    "dev:pos:ios": "tauri ios dev"
   },
   "dependencies": {
     "@plinth/ui-kit": "workspace:*",
+    "@tauri-apps/api": "^2.0.0",
     "antd": "^5.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
