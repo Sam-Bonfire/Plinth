@@ -6,6 +6,8 @@ pub mod mutation;
 pub mod framing;
 pub mod queue;
 
+pub use clock::*;
+pub use crdt::*;
 pub use mutation::*;
 pub use queue::*;
 
