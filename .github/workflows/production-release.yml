@@ -28,6 +28,35 @@ jobs:
           ref: ${{ inputs.tag_name || github.ref_name }}
           fetch-depth: 0
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup mise toolchains (Clean Build - No Cache)
+        uses: jdx/mise-action@v2
+        with:
+          cache: false
+
+      - name: Install Android Rust Targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+      - name: Initialize Environment
+        run: mise run init
+
+      - name: Build Web & Backend Production Bundles
+        run: mise run build
+
+      - name: Initialize Android Template
+        run: pnpm --filter pos-client exec tauri android init
+
+      - name: Build Android Mobile APK & Bundle
+        run: pnpm --filter pos-client build:pos:android
+
       - name: Generate Changelog with Git-Cliff
         uses: orhun/git-cliff-action@v3
         with:
@@ -40,7 +69,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
         run: |
+          # Gather all release binary assets
+          mkdir -p release_assets
+          cp -r apps/web-dashboard/dist/ release_assets/web-dashboard || true
+          cp -r apps/marketing-site/dist/ release_assets/marketing-site || true
+          find apps/pos-client/src-tauri/gen/android/app/build/outputs/ -name "*.apk" -exec cp {} release_assets/ \; || true
+          find apps/pos-client/src-tauri/gen/android/app/build/outputs/ -name "*.aab" -exec cp {} release_assets/ \; || true
+
+          # Create GitHub Release with release notes and binary assets
           gh release create "$TAG_NAME" \
+            release_assets/* \
             --title "PlinthOS Release $TAG_NAME" \
             --notes-file CHANGELOG_RELEASE.md \
             --verify-tag

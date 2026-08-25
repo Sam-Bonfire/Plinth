@@ -11,6 +11,7 @@
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
+    "build": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run"
   },

@@ -9,10 +9,9 @@
     "lint": "pnpm -r --parallel lint",
     "test": "pnpm -r --parallel test",
     "test:vitest": "vitest run",
-    "build": "pnpm -r build"
+    "build": "pnpm -r --parallel build"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
     "@types/node": "^26.2.0",
     "@types/pngjs": "^6.0.5",

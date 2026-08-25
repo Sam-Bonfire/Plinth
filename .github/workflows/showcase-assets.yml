@@ -1,4 +1,4 @@
-﻿name: Device & Emulator Visual Showcase
+name: Device & Emulator Visual Showcase
 
 on:
   workflow_dispatch:
@@ -26,24 +26,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24 with pnpm Cache
-        uses: actions/setup-node@v4
+      - name: Setup mise toolchains & cache
+        uses: jdx/mise-action@v2
         with:
-          node-version: '24'
+          cache: true
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup pnpm Store Cache
+        uses: actions/cache@v4
         with:
-          version: 11.22.0
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Initialize Environment
+        run: mise run init
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package.json') }}
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: mise run ui:setup
 
       - name: Capture Viewports
-        run: pnpm tsx scripts/ui-capture.ts
+        run: mise run ui:capture
 
       - name: Upload Desktop Screenshots
         uses: actions/upload-artifact@v4

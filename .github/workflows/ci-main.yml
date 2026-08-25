@@ -1,4 +1,4 @@
-name: Production Validation (Main Branch)
+﻿name: Production Validation (Main Branch)
 
 on:
   push:
@@ -15,40 +15,28 @@ permissions:
 
 jobs:
   main-validation:
-    name: Production Baseline Checks
+    name: Clean Production Baseline Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js & Rust
-        uses: actions/setup-node@v4
+      - name: Setup mise toolchains (Clean Build - No Cache)
+        uses: jdx/mise-action@v2
         with:
-          node-version: '24'
+          cache: false
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 11.22.0
+      - name: Initialize Monorepo Environment
+        run: mise run init
 
-      - name: Setup Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate Production Build
+      - name: Validate Production Build & Tests
         run: |
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
-          pnpm -r lint
-          pnpm -r test
-          pnpm -r build
+          mise run lint
+          mise run test
+          mise run build
 
       - name: Generate Summary
         if: always()
         run: |
           echo "### 🛡️ Production Main Branch Health" >> $GITHUB_STEP_SUMMARY
-          echo "Main branch validation completed with zero warnings." >> $GITHUB_STEP_SUMMARY
+          echo "Clean production baseline validation completed with zero warnings without cache dependency." >> $GITHUB_STEP_SUMMARY

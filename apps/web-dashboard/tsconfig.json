@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -18,11 +22,22 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@plinth/ui-kit": ["../../packages/ui-kit/src"],
-      "@plinth/sync-protocol": ["../../packages/sync-protocol/src"],
-      "@plinth/core-domain": ["../../packages/core-domain/src"],
-      "@/*": ["src/*"]
+      "@plinth/ui-kit": [
+        "../../packages/ui-kit/src"
+      ],
+      "@plinth/sync-protocol": [
+        "../../packages/sync-protocol/src"
+      ],
+      "@plinth/core-domain": [
+        "../../packages/core-domain/src"
+      ],
+      "@/*": [
+        "src/*"
+      ]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
 }

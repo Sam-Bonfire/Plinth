@@ -1,4 +1,4 @@
-﻿[tools]
+[tools]
 node = "24.19.0"
 pnpm = "11.22.0"
 rust = "stable"
@@ -13,21 +13,49 @@ PLINTH_ENV = "development"
 description = "Initialize git hooks and install monorepo dependencies"
 run = "git config core.hooksPath .githooks && pnpm install"
 
+[tasks."lint:rust"]
+description = "Run Cargo clippy with pedantic warnings across Rust workspace"
+run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks."lint:ts"]
+description = "Run ESLint in parallel across TypeScript workspace"
+run = "pnpm -r --parallel lint"
+
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
-run = "cargo clippy --workspace --all-targets -- -D warnings && pnpm -r lint"
+run = "mise run lint:rust && mise run lint:ts"
+
+[tasks."test:rust"]
+description = "Execute all Rust workspace unit and integration tests"
+run = "cargo test --workspace"
+
+[tasks."test:ts"]
+description = "Execute Vitest test suites in parallel across frontend packages"
+run = "pnpm -r --parallel test"
 
 [tasks."test"]
 description = "Execute Rust unit tests, TypeScript specs, and API contract tests"
-run = "cargo test --workspace && pnpm -r test"
+run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
 description = "Execute declarative API integration tests using Hurl"
 run = "hurl --test tests/api/**/*.hurl"
 
+[tasks."build:rust"]
+description = "Compile Rust crates across workspace"
+run = "cargo build --workspace"
+
+[tasks."build:ts"]
+description = "Build TypeScript production packages in parallel"
+run = "pnpm -r --parallel build"
+
 [tasks."build"]
 description = "Compile Rust binaries and bundle production packages"
-run = "cargo build --workspace && pnpm -r build"
+run = "mise run build:rust && mise run build:ts"
+
+[tasks."ui:setup"]
+description = "Install Playwright browser binaries and dependencies"
+run = "npx playwright install chromium --with-deps"
 
 [tasks."ui:capture"]
 description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
