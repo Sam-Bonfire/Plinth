@@ -13,3 +13,7 @@
   --p: #9333ea;
   --o: #ea580c;
 }
+
+.plinth-btn-pos-action:active {
+  transform: scale(0.96);
+}
