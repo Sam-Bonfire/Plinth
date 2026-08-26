@@ -326,9 +326,12 @@ dependencies = [
 name = "edge-api"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "core-domain",
+ "rust_decimal",
  "serde",
  "serde_json",
+ "uuid",
  "worker",
 ]
 
