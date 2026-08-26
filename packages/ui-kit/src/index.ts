@@ -5,6 +5,13 @@ import "./tokens.css";
 export * from "./tokens.js";
 export { PlinthThemeProvider } from "./theme/PlinthThemeProvider.js";
 
+// Components
+export * from "./components/Modal/index.js";
+export * from "./components/PinKeypad/index.js";
+export * from "./components/Form/index.js";
+export * from "./components/AlertBanner/index.js";
+export * from "./components/KDSTicketCard/index.js";
+
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
   token: {
