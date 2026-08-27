@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-worker = "0.5"
+worker = { version = "0.5", features = ["d1"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 core-domain = { path = "../../packages/core-domain" }
@@ -22,4 +22,5 @@ uuid = { workspace = true, features = ["v7"] }
 workspace = true
 
 [dev-dependencies]
+rusqlite = "0.40.2"
 wasm-bindgen-test = "0.3.77"
