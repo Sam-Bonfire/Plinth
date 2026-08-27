@@ -146,3 +146,41 @@ jobs:
         run: |
           echo "### 📱 Android POS Client Build" >> $GITHUB_STEP_SUMMARY
           echo "Android APK compiled successfully for restaurant mobile hardware." >> $GITHUB_STEP_SUMMARY
+
+  sync-main:
+    name: Fast-Forward Main Branch
+    needs: [staging-validation, staging-mobile-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fast-Forward main to dev
+        id: sync
+        run: |
+          git fetch origin main:main dev:dev
+          git checkout main
+          git merge --ff-only dev
+          git push origin main
+
+      - name: Generate Sync Step Summary
+        if: always()
+        run: |
+          echo "### 🔄 Production Main Fast-Forward Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.sync.outcome }}" = "success" ]; then
+            echo "✅ **Success**: \`main\` branch has been successfully fast-forwarded with verified changes from \`dev\`." >> $GITHUB_STEP_SUMMARY
+            echo "Both \`dev\` and \`main\` are now in exact parity." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Failed**: Fast-forward sync from \`dev\` to \`main\` failed." >> $GITHUB_STEP_SUMMARY
+          fi

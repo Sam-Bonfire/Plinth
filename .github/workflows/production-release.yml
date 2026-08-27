@@ -1,4 +1,4 @@
-﻿name: Production Release & Rollback
+name: Production Release & Rollback
 
 on:
   workflow_run:
@@ -60,6 +60,7 @@ jobs:
       - name: Generate Changelog with Git-Cliff
         uses: orhun/git-cliff-action@v3
         with:
+          config: cliff.toml
           args: --verbose --latest --strip header
         env:
           OUTPUT: CHANGELOG_RELEASE.md
@@ -76,7 +77,7 @@ jobs:
           find apps/pos-client/src-tauri/gen/android/app/build/outputs/ -name "*.apk" -exec cp {} release_assets/ \; || true
           find apps/pos-client/src-tauri/gen/android/app/build/outputs/ -name "*.aab" -exec cp {} release_assets/ \; || true
 
-          # Create GitHub Release with release notes and binary assets
+          # Create GitHub Release with conventional changelog release notes and binary assets
           gh release create "$TAG_NAME" \
             release_assets/* \
             --title "PlinthOS Release $TAG_NAME" \
