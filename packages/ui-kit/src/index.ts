@@ -43,6 +43,13 @@ export type { AlertBannerProps } from "./components/AlertBanner/AlertBanner.js";
 export { KDSTicketCard } from "./components/KDSTicketCard/KDSTicketCard.js";
 export type { KDSTicketCardProps, KDSTicketItem } from "./components/KDSTicketCard/KDSTicketCard.js";
 
+// Components
+export * from "./components/Modal/index.js";
+export * from "./components/PinKeypad/index.js";
+export * from "./components/Form/index.js";
+export * from "./components/AlertBanner/index.js";
+export * from "./components/KDSTicketCard/index.js";
+
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
   token: {
