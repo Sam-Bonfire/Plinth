@@ -1,0 +1,15 @@
+@keyframes plinth-pulse-animation {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.plinth-pulse .plinth-pulse-dot {
+  animation: plinth-pulse-animation 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
