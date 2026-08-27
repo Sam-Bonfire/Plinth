@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import React from "react";
 import { describe, it, expect } from "vitest";
 import { OrderChannelBadge } from "./OrderChannelBadge.js";
 import { OrderStatusBadge } from "./OrderStatusBadge.js";
