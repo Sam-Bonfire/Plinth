@@ -3,6 +3,7 @@ use serde::Serialize;
 use uuid::Uuid;
 use crate::context::TenantContext;
 
+
 #[derive(Serialize)]
 pub struct ApiErrorResponse {
     pub error: String,
@@ -44,7 +45,7 @@ pub fn json_error(error: impl Into<String>, code: impl Into<String>, request_id:
 #[allow(clippy::cast_possible_wrap)]
 #[must_use]
 pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Option<TenantContext>> {
-    Router::with_data(auth_context)
+    crate::routes::inventory::register(Router::with_data(auth_context))
         .get_async("/health", |req, _ctx| async move {
             let request_id = get_request_id(&req);
             let health = HealthResponse {
