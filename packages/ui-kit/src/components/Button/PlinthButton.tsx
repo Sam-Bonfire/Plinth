@@ -3,7 +3,7 @@ import React, { ReactNode } from "react";
 
 export type PlinthButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "pos-action";
 
-export interface PlinthButtonProps extends Omit<ButtonProps, "type" | "icon"> {
+export interface PlinthButtonProps extends Omit<ButtonProps, "type" | "icon" | "variant"> {
   variant?: PlinthButtonVariant;
   shortcutKey?: string;
   icon?: ReactNode;

@@ -29,7 +29,6 @@ export default defineConfig({
         settings: {
           disableJavaScriptFileLoading: true,
           disableCSSFileLoading: true,
-          handleDisabledFileLoadingAsSuccess: true,
         },
       },
     },
