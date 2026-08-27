@@ -1,14 +1,5 @@
-#![deny(unsafe_code)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    println!("PlinthOS POS Terminal Engine");
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn pos_tauri_init() {
-        let val = 1;
-        assert_eq!(val, 1);
-    }
+    pos_client_tauri_lib::run();
 }
