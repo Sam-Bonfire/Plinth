@@ -5,24 +5,6 @@ import "./tokens.css";
 export * from "./tokens.js";
 export { PlinthThemeProvider } from "./theme/PlinthThemeProvider.js";
 
-export { ModalWrapper } from "./components/Modal/ModalWrapper.js";
-export type { ModalWrapperProps } from "./components/Modal/ModalWrapper.js";
-
-export { PinKeypad } from "./components/PinKeypad/PinKeypad.js";
-export type { PinKeypadProps } from "./components/PinKeypad/PinKeypad.js";
-
-export { FormSection } from "./components/Form/FormSection.js";
-export type { FormSectionProps } from "./components/Form/FormSection.js";
-
-export { FormRow } from "./components/Form/FormRow.js";
-export type { FormRowProps } from "./components/Form/FormRow.js";
-
-export { AlertBanner } from "./components/AlertBanner/AlertBanner.js";
-export type { AlertBannerProps } from "./components/AlertBanner/AlertBanner.js";
-
-export { KDSTicketCard } from "./components/KDSTicketCard/KDSTicketCard.js";
-export type { KDSTicketCardProps, KDSTicketItem } from "./components/KDSTicketCard/KDSTicketCard.js";
-
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
   token: {

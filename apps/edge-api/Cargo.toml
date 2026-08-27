@@ -16,12 +16,6 @@ core-domain = { path = "../../packages/core-domain" }
 rust_decimal.workspace = true
 chrono = { workspace = true, features = ["serde", "wasmbind"] }
 uuid = { workspace = true, features = ["serde", "v4", "v7", "js"] }
-ed25519-dalek = "3.0.0"
-jsonwebtoken = { version = "11.0.0", features = ["rust_crypto", "use_pem"] }
-base64 = "0.23.1"
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3.77"
