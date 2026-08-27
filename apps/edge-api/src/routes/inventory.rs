@@ -1,4 +1,4 @@
-use crate::auth::TenantContext;
+
 use core_domain::{
     events::stock::StockAdjustmentReason,
     ids::StockItemId,
@@ -58,7 +58,7 @@ impl From<&StockItem> for StockItemResponseDto {
 }
 
 #[must_use]
-pub fn register(router: Router<'_, ()>) -> Router<'_, ()> {
+pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .get_async("/api/v1/inventory", get_inventory)
         .post_async("/api/v1/inventory/adjust", adjust_stock)
@@ -98,8 +98,8 @@ struct AdjustResponse {
 /// # Errors
 ///
 /// Returns an error if database operations fail, data binding fails, or invalid context is passed.
-pub async fn get_inventory(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let Ok(tenant_ctx) = TenantContext::from_headers(req.headers()) else {
+pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", core_domain::enums::staff::Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -195,8 +195,8 @@ pub async fn get_inventory(req: Request, ctx: RouteContext<()>) -> Result<Respon
 ///
 /// Returns an error if database updates fail, JSON parsing fails, or context is invalid.
 #[allow(clippy::too_many_lines)]
-pub async fn adjust_stock(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let Ok(tenant_ctx) = TenantContext::from_headers(req.headers()) else {
+pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", core_domain::enums::staff::Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
