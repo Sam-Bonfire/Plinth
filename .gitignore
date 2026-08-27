@@ -25,4 +25,3 @@ node_modules/
 # Tauri artifacts
 apps/pos-client/src-tauri/target/
 apps/pos-client/src-tauri/gen/
-apps/pos-client/src-tauri/icons/

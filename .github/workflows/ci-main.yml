@@ -1,4 +1,4 @@
-﻿name: Production Validation (Main Branch)
+name: Production Validation (Main Branch)
 
 on:
   push:
@@ -25,6 +25,11 @@ jobs:
         uses: jdx/mise-action@v2
         with:
           cache: false
+
+      - name: Install Linux System Dependencies for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libglib2.0-dev libsoup-3.0-dev libgtk-3-dev
 
       - name: Initialize Monorepo Environment
         run: mise run init
