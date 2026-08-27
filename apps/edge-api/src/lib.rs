@@ -5,6 +5,7 @@ pub mod db;
 pub mod router;
 pub mod context;
 pub mod auth;
+pub mod dto;
 
 use worker::{event, Request, Env, Result, Response, Method};
 use router::{build_router, apply_cors, json_error, get_request_id};

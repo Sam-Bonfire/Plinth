@@ -45,8 +45,10 @@ pub fn json_error(error: impl Into<String>, code: impl Into<String>, request_id:
 #[allow(clippy::cast_possible_wrap)]
 #[must_use]
 pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Option<TenantContext>> {
-    crate::routes::inventory::register(Router::with_data(auth_context))
-        .get_async("/health", |req, _ctx| async move {
+    let router = Router::with_data(auth_context);
+    let router = crate::routes::inventory::register(router);
+    let router = crate::routes::orders::register(router);
+    router.get_async("/health", |req, _ctx| async move {
             let request_id = get_request_id(&req);
             let health = HealthResponse {
                 status: "ok".to_string(),
