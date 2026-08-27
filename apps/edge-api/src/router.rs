@@ -48,6 +48,7 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = Router::with_data(auth_context);
     let router = crate::routes::inventory::register(router);
     let router = crate::routes::orders::register(router);
+    let router = crate::routes::kds::register(router);
     router.get_async("/health", |req, _ctx| async move {
             let request_id = get_request_id(&req);
             let health = HealthResponse {
