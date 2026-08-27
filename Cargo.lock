@@ -1034,15 +1034,20 @@ name = "edge-api"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "bincode",
  "chrono",
  "core-domain",
  "ed25519-dalek 3.0.0",
+ "futures-util",
  "jsonwebtoken",
  "rusqlite",
  "rust_decimal",
  "serde",
  "serde_json",
+ "sync-protocol",
  "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "worker",
 ]

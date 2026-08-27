@@ -5,3 +5,4 @@ pub mod kds;
 pub mod menu;
 pub mod orders;
 pub mod reports;
+pub mod ws;
