@@ -1,5 +1,7 @@
 #![deny(unsafe_code)]
 
+pub mod db;
+
 #[cfg(test)]
 mod tests {
     #[test]
