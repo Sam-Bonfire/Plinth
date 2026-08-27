@@ -99,6 +99,10 @@ define_id!(
     /// Identifier for a Recipe
     RecipeId
 );
+define_id!(
+    /// Identifier for an Audit Event
+    AuditEventId
+);
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,5 @@
 pub mod aggregator;
+pub mod audit;
 pub mod catalog;
 pub mod inventory;
 pub mod kitchen;
@@ -10,6 +11,7 @@ pub mod staff;
 pub mod table;
 
 pub use aggregator::*;
+pub use audit::*;
 pub use catalog::*;
 pub use inventory::*;
 pub use kitchen::*;
