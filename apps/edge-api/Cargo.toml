@@ -24,4 +24,5 @@ uuid = { workspace = true, features = ["serde", "v4", "v7", "js"] }
 workspace = true
 
 [dev-dependencies]
+rusqlite = "0.40.2"
 wasm-bindgen-test = "0.3.77"

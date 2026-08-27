@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 pub mod routes;
+pub mod db;
 pub mod router;
 pub mod context;
 pub mod auth;
