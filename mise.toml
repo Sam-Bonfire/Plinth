@@ -50,7 +50,7 @@ description = "Execute complete multi-step E2E lifecycle scenarios using Hurl"
 run = "hurl --test tests/api/e2e/*.hurl"
 
 [tasks."api:endpoint"]
-description = "Development Postman-replacement to run and inspect a single endpoint (e.g. mise run api:endpoint tests/api/endpoints/orders.hurl)"
+description = "Execute and inspect an isolated API endpoint file (e.g. mise run api:endpoint tests/api/endpoints/orders.hurl)"
 run = "hurl --verbose"
 
 [tasks."db:migrate:local"]
