@@ -1,22 +1,31 @@
-﻿domain:
-  - 'packages/core-domain/**/*'
-  - 'packages/sync-protocol/**/*'
+domain:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core-domain/**/*'
+          - 'packages/sync-protocol/**/*'
 
 pos-client:
-  - 'apps/pos-client/**/*'
+  - changed-files:
+      - any-glob-to-any-file: 'apps/pos-client/**/*'
 
 web-dashboard:
-  - 'apps/web-dashboard/**/*'
+  - changed-files:
+      - any-glob-to-any-file: 'apps/web-dashboard/**/*'
 
 marketing-site:
-  - 'apps/marketing-site/**/*'
+  - changed-files:
+      - any-glob-to-any-file: 'apps/marketing-site/**/*'
 
 edge-api:
-  - 'apps/edge-api/**/*'
+  - changed-files:
+      - any-glob-to-any-file: 'apps/edge-api/**/*'
 
 ui-kit:
-  - 'packages/ui-kit/**/*'
+  - changed-files:
+      - any-glob-to-any-file: 'packages/ui-kit/**/*'
 
 ci:
-  - '.github/**/*'
-  - 'mise.toml'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**/*'
+          - 'mise.toml'
