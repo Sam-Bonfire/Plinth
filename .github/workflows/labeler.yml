@@ -1,4 +1,4 @@
-﻿name: PR Labeler
+name: PR Labeler
 
 on:
   pull_request_target:
@@ -13,6 +13,9 @@ jobs:
     name: Auto Label PR
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Apply labels
         uses: actions/labeler@v5
         with:
