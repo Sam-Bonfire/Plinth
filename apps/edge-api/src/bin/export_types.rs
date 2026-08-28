@@ -45,6 +45,7 @@ use edge_api::dto::order::{
 };
 use edge_api::router::{ApiErrorResponse, HealthResponse};
 use edge_api::routes::audit::{AuditResponseDto, IngestAuditRequest};
+use edge_api::routes::auth::{LoginRequest, LoginResponse};
 use edge_api::routes::eod::{CloseShiftRequest, ZReportDto};
 use edge_api::routes::inventory::{AdjustStockRequest, InventoryQueryParams, StockItemResponseDto};
 use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryParams};
@@ -149,6 +150,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     types.register::<IngestAuditRequest>();
     types.register::<AuditResponseDto>();
+
+    types.register::<LoginRequest>();
+    types.register::<LoginResponse>();
 
     types.register::<CloseShiftRequest>();
     types.register::<ZReportDto>();

@@ -59,3 +59,6 @@ fn test_health_response_serialization() {
     assert!(serialized.contains("\"status\":\"ok\""));
     assert!(serialized.contains("\"version\":\"0.1.0\""));
 }
+
+
+

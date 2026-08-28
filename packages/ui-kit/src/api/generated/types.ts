@@ -404,6 +404,16 @@ export type KitchenTicketStatus =
 export type LocationId = string
 
 /**
+ * Request payload for staff login / PIN authentication
+ */
+export type LoginRequest = { staff_id: StaffMemberId; pin: string; role: StaffRole | null }
+
+/**
+ * Response returned upon successful authentication
+ */
+export type LoginResponse = { token: string; staff_id: StaffMemberId; role: StaffRole; permissions: number; expires_in: number }
+
+/**
  * Full menu catalog response
  */
 export type MenuCatalogResponseDto = { categories: NestedMenuCategoryDto[] }

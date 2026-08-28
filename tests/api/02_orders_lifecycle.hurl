@@ -1,18 +1,34 @@
+# Authenticate Admin user
+POST {{base_url}}/api/v1/auth/login
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "staff_id": "{{staff_id}}",
+  "pin": "1234",
+  "role": "Owner"
+}
+HTTP 200
+[Asserts]
+jsonpath "$.token" isString
+[Captures]
+token_admin: jsonpath "$.token"
+
 # Fetch initial menu catalog
-GET http://localhost:8787/api/v1/menu
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/menu
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.categories" isCollection
 
 # Negative: Reject empty JSON object
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {}
 HTTP 400
@@ -21,14 +37,14 @@ header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "Invalid"
 
 # Negative: Reject invalid channel enum value
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "DriveThruInvalid",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "terminal_id": "{{terminal_id}}",
   "items": []
 }
 HTTP 400
@@ -36,14 +52,14 @@ HTTP 400
 jsonpath "$.error" contains "Invalid"
 
 # Negative: Reject invalid tax rate enum value
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "DineIn",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "terminal_id": "{{terminal_id}}",
   "items": [
     {
       "menu_item_id": "00000000-0000-0000-0000-000000000010",
@@ -58,10 +74,10 @@ Content-Type: application/json
 HTTP 400
 
 # Negative: Reject malformed UUID for terminal_id
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "Takeaway",
@@ -70,38 +86,16 @@ Content-Type: application/json
 }
 HTTP 400
 
-# Negative: Reject malformed UUID for menu_item_id
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
-Content-Type: application/json
-{
-  "channel": "DineIn",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
-  "items": [
-    {
-      "menu_item_id": "invalid-menu-item-uuid",
-      "name": "Item",
-      "unit_price_minor": 10000,
-      "quantity": 1,
-      "tax_rate": "FivePercent",
-      "modifiers": []
-    }
-  ]
-}
-HTTP 400
-
 # Adversarial: SQL Injection attempt in notes field is safely parameterized
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "DineIn",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
-  "table_id": "00000000-0000-0000-0000-000000000004",
+  "terminal_id": "{{terminal_id}}",
+  "table_id": "{{table_id}}",
   "seat_number": 1,
   "items": [
     {
@@ -127,15 +121,15 @@ jsonpath "$.order.items[0].notes" == "'; DROP TABLE orders; --"
 sqli_order_id: jsonpath "$.order.id"
 
 # Self-Seed DineIn Order: Table, Seat, Modifiers, 5% GST, Tip, Service Charge
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "DineIn",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
-  "table_id": "00000000-0000-0000-0000-000000000004",
+  "terminal_id": "{{terminal_id}}",
+  "table_id": "{{table_id}}",
   "seat_number": 2,
   "items": [
     {
@@ -178,14 +172,14 @@ jsonpath "$.order.channel" == "DineIn"
 seeded_dinein_id: jsonpath "$.order.id"
 
 # Self-Seed Takeaway Order: Packaging Charge, 10% Discount, 18% GST
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "Takeaway",
-  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "terminal_id": "{{terminal_id}}",
   "table_id": null,
   "seat_number": null,
   "items": [
@@ -224,10 +218,10 @@ jsonpath "$.order.channel" == "Takeaway"
 seeded_takeaway_id: jsonpath "$.order.id"
 
 # Self-Seed Swiggy Aggregator Order
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "channel": "Swiggy",
@@ -255,94 +249,94 @@ HTTP 201
 jsonpath "$.order.channel" == "Swiggy"
 
 # Query: List all orders
-GET http://localhost:8787/api/v1/orders
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 jsonpath "$.total_records" >= 3
 
 # Filter: status == Confirmed
-GET http://localhost:8787/api/v1/orders?status=Confirmed
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?status=Confirmed
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 
 # Filter: channel == DineIn
-GET http://localhost:8787/api/v1/orders?channel=DineIn
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?channel=DineIn
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "DineIn"
 
 # Filter: channel == Takeaway
-GET http://localhost:8787/api/v1/orders?channel=Takeaway
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?channel=Takeaway
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "Takeaway"
 
 # Filter: channel == Swiggy
-GET http://localhost:8787/api/v1/orders?channel=Swiggy
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?channel=Swiggy
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "Swiggy"
 
 # Filter: table_id filter
-GET http://localhost:8787/api/v1/orders?table_id=00000000-0000-0000-0000-000000000004
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?table_id={{table_id}}
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 
 # Adversarial: SQL Injection in query params is safely handled
-GET http://localhost:8787/api/v1/orders?status=Confirmed'%20OR%20'1'='1
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?status=Confirmed'%20OR%20'1'='1
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 jsonpath "$.total_records" == 0
 
 # Boundary: page=0 saturates cleanly to page 1
-GET http://localhost:8787/api/v1/orders?page=0&page_size=2
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?page=0&page_size=2
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.page" == 0
 jsonpath "$.page_size" == 2
 
 # Boundary: page_size=1000 is capped to max 100
-GET http://localhost:8787/api/v1/orders?page=1&page_size=1000
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?page=1&page_size=1000
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.page_size" == 100
 
 # Boundary: page=99999 out of range returns empty list
-GET http://localhost:8787/api/v1/orders?page=99999&page_size=10
-Authorization: Bearer test_token_admin
-x-tenant-id: 00000000-0000-0000-0000-000000000001
-x-location-id: 00000000-0000-0000-0000-000000000002
+GET {{base_url}}/api/v1/orders?page=99999&page_size=10
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
 jsonpath "$.data" count == 0

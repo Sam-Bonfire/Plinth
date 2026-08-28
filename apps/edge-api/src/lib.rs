@@ -35,10 +35,10 @@ pub async fn fetch(
 
     let mut auth_context = None;
 
-    if path.starts_with("/api/v1") {
+    if path.starts_with("/api/v1") && !path.starts_with("/api/v1/auth") {
         let secret = match env.var("JWT_PUBLIC_KEY") {
             Ok(v) => v.to_string(),
-            Err(_) => "default_secret".to_string(),
+            Err(_) => String::new(),
         };
 
         // This is a global minimum requirement for /api/v1

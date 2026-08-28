@@ -197,6 +197,21 @@ export class PlinthApiClient {
     return this.request<HealthResponse>("/health", "GET");
   }
 
+  // --- Auth Endpoint ---
+  public async login(
+    req: { staff_id: string; pin: string; role?: string },
+  ): Promise<{ token: string; staff_id: string; role: string; permissions: number; expires_in: number }> {
+    const res = await this.request<{
+      token: string;
+      staff_id: string;
+      role: string;
+      permissions: number;
+      expires_in: number;
+    }>("/api/v1/auth/login", "POST", req);
+    this.setToken(res.token);
+    return res;
+  }
+
   // --- Orders Endpoints ---
   public async createOrder(orderReq: CreateOrderRequest): Promise<OrderResponseDto> {
     return this.request<OrderResponseDto>("/api/v1/orders", "POST", orderReq);
