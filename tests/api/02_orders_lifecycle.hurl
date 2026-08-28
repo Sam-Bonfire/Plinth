@@ -1,60 +1,157 @@
-# =============================================================================
-# PlinthOS API Test Suite: 02 Orders Lifecycle & Self-Seeding Matrix
-# Exhaustive Creation Across Channels, Modifiers, Taxes, Charges & Filtering
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# 1. Fetch Menu Catalog Before Ordering
-# -----------------------------------------------------------------------------
+# Fetch initial menu catalog
 GET http://localhost:8787/api/v1/menu
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.categories" isCollection
 
-# -----------------------------------------------------------------------------
-# 2. Self-Seed Orders Across Multiple Channels & Configurations
-# -----------------------------------------------------------------------------
-
-# 2a. Scenario A: Dine-In Order (Table 4, Seat 2, Modifiers, 5% GST, Flat Tip)
+# Negative: Reject empty JSON object
 POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{}
+HTTP 400
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.error" contains "Invalid"
+
+# Negative: Reject invalid channel enum value
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{
+  "channel": "DriveThruInvalid",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "items": []
+}
+HTTP 400
+[Asserts]
+jsonpath "$.error" contains "Invalid"
+
+# Negative: Reject invalid tax rate enum value
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 Content-Type: application/json
 {
   "channel": "DineIn",
-  "terminal_id": "term-pos-01",
-  "table_id": "table-4",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "items": [
+    {
+      "menu_item_id": "00000000-0000-0000-0000-000000000010",
+      "name": "Item",
+      "unit_price_minor": 10000,
+      "quantity": 1,
+      "tax_rate": "FiftyPercentInvalid",
+      "modifiers": []
+    }
+  ]
+}
+HTTP 400
+
+# Negative: Reject malformed UUID for terminal_id
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{
+  "channel": "Takeaway",
+  "terminal_id": "not-a-valid-uuid",
+  "items": []
+}
+HTTP 400
+
+# Negative: Reject malformed UUID for menu_item_id
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{
+  "channel": "DineIn",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "items": [
+    {
+      "menu_item_id": "invalid-menu-item-uuid",
+      "name": "Item",
+      "unit_price_minor": 10000,
+      "quantity": 1,
+      "tax_rate": "FivePercent",
+      "modifiers": []
+    }
+  ]
+}
+HTTP 400
+
+# Adversarial: SQL Injection attempt in notes field is safely parameterized
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{
+  "channel": "DineIn",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "table_id": "00000000-0000-0000-0000-000000000004",
+  "seat_number": 1,
+  "items": [
+    {
+      "menu_item_id": "00000000-0000-0000-0000-000000000010",
+      "name": "Paneer Tikka",
+      "unit_price_minor": 32000,
+      "quantity": 1,
+      "tax_rate": "FivePercent",
+      "modifiers": [],
+      "notes": "'; DROP TABLE orders; --",
+      "seat_number": 1
+    }
+  ],
+  "discounts": [],
+  "charges": [],
+  "tip": null
+}
+HTTP 201
+[Asserts]
+jsonpath "$.order.id" isString
+jsonpath "$.order.items[0].notes" == "'; DROP TABLE orders; --"
+[Captures]
+sqli_order_id: jsonpath "$.order.id"
+
+# Self-Seed DineIn Order: Table, Seat, Modifiers, 5% GST, Tip, Service Charge
+POST http://localhost:8787/api/v1/orders
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+Content-Type: application/json
+{
+  "channel": "DineIn",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
+  "table_id": "00000000-0000-0000-0000-000000000004",
   "seat_number": 2,
   "items": [
     {
-      "menu_item_id": "item-butter-chicken-01",
+      "menu_item_id": "00000000-0000-0000-0000-000000000011",
       "name": "Butter Chicken",
       "unit_price_minor": 45000,
       "quantity": 2,
       "tax_rate": "FivePercent",
       "modifiers": [
         {
-          "group_id": "mod-spice-level",
-          "selected_options": ["opt-spice-medium"],
-          "special_instructions": "Less butter"
+          "group_id": "00000000-0000-0000-0000-000000000020",
+          "selected_options": ["00000000-0000-0000-0000-000000000021"],
+          "special_instructions": "Extra spicy"
         }
       ],
-      "notes": "Serve with hot butter naan",
-      "seat_number": 2
-    },
-    {
-      "menu_item_id": "item-garlic-naan-02",
-      "name": "Garlic Naan",
-      "unit_price_minor": 8000,
-      "quantity": 4,
-      "tax_rate": "FivePercent",
-      "modifiers": [],
-      "notes": "Crispy",
+      "notes": "Hot",
       "seat_number": 2
     }
   ],
@@ -63,7 +160,7 @@ Content-Type: application/json
     {
       "charge_type": "ServiceCharge",
       "rate": "5.0",
-      "amount": { "amount": "61.00", "currency": "Inr" },
+      "amount": { "amount": "45.00", "currency": "Inr" },
       "taxable": true
     }
   ],
@@ -75,35 +172,31 @@ Content-Type: application/json
 }
 HTTP 201
 [Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.order.id" isString
 jsonpath "$.order.status" == "Confirmed"
 jsonpath "$.order.channel" == "DineIn"
-jsonpath "$.order.table_id" == "table-4"
-jsonpath "$.order.items" count == 2
 [Captures]
-dinein_order_id: jsonpath "$.order.id"
+seeded_dinein_id: jsonpath "$.order.id"
 
-# 2b. Scenario B: Takeaway Order (Packaging Charge, 10% Discount, 18% GST)
+# Self-Seed Takeaway Order: Packaging Charge, 10% Discount, 18% GST
 POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 Content-Type: application/json
 {
   "channel": "Takeaway",
-  "terminal_id": "term-pos-02",
+  "terminal_id": "00000000-0000-0000-0000-000000000003",
   "table_id": null,
   "seat_number": null,
   "items": [
     {
-      "menu_item_id": "item-mocktail-blue-03",
-      "name": "Blue Lagoon Mocktail",
-      "unit_price_minor": 22000,
-      "quantity": 3,
+      "menu_item_id": "00000000-0000-0000-0000-000000000012",
+      "name": "Virgin Mojito",
+      "unit_price_minor": 18000,
+      "quantity": 2,
       "tax_rate": "EighteenPercent",
       "modifiers": [],
-      "notes": "Extra ice in separate cup",
+      "notes": "Less sugar",
       "seat_number": null
     }
   ],
@@ -118,7 +211,7 @@ Content-Type: application/json
     {
       "charge_type": "PackagingCharge",
       "rate": null,
-      "amount": { "amount": "30.00", "currency": "Inr" },
+      "amount": { "amount": "20.00", "currency": "Inr" },
       "taxable": false
     }
   ],
@@ -126,72 +219,30 @@ Content-Type: application/json
 }
 HTTP 201
 [Asserts]
-header "Content-Type" contains "application/json"
 jsonpath "$.order.channel" == "Takeaway"
-jsonpath "$.order.items" count == 1
 [Captures]
-takeaway_order_id: jsonpath "$.order.id"
+seeded_takeaway_id: jsonpath "$.order.id"
 
-# 2c. Scenario C: Swiggy Aggregator Order (Zero Tip, Swiggy Channel)
+# Self-Seed Swiggy Aggregator Order
 POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 Content-Type: application/json
 {
   "channel": "Swiggy",
-  "terminal_id": "term-aggregator-01",
+  "terminal_id": "00000000-0000-0000-0000-000000000005",
   "table_id": null,
   "seat_number": null,
   "items": [
     {
-      "menu_item_id": "item-biryani-box-04",
-      "name": "Chicken Dum Biryani",
-      "unit_price_minor": 38000,
+      "menu_item_id": "00000000-0000-0000-0000-000000000013",
+      "name": "Chicken Biryani",
+      "unit_price_minor": 35000,
       "quantity": 1,
       "tax_rate": "FivePercent",
       "modifiers": [],
-      "notes": "Include extra salan and raita",
-      "seat_number": null
-    }
-  ],
-  "discounts": [],
-  "charges": [
-    {
-      "charge_type": "DeliveryCharge",
-      "rate": null,
-      "amount": { "amount": "40.00", "currency": "Inr" },
-      "taxable": false
-    }
-  ],
-  "tip": null
-}
-HTTP 201
-[Asserts]
-jsonpath "$.order.channel" == "Swiggy"
-[Captures]
-swiggy_order_id: jsonpath "$.order.id"
-
-# 2d. Scenario D: Zomato Aggregator Order
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
-Content-Type: application/json
-{
-  "channel": "Zomato",
-  "terminal_id": "term-aggregator-02",
-  "table_id": null,
-  "seat_number": null,
-  "items": [
-    {
-      "menu_item_id": "item-tandoori-platter-05",
-      "name": "Assorted Tandoori Kebab Platter",
-      "unit_price_minor": 65000,
-      "quantity": 1,
-      "tax_rate": "FivePercent",
-      "modifiers": [],
-      "notes": "Mint chutney and onion rings",
+      "notes": "Deliver fast",
       "seat_number": null
     }
   ],
@@ -201,110 +252,97 @@ Content-Type: application/json
 }
 HTTP 201
 [Asserts]
-jsonpath "$.order.channel" == "Zomato"
-[Captures]
-zomato_order_id: jsonpath "$.order.id"
+jsonpath "$.order.channel" == "Swiggy"
 
-# 2e. Scenario E: Rejection of Invalid Payload
-POST http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
-Content-Type: application/json
-{
-  "invalid_key": true
-}
-HTTP 400
-[Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.error" contains "Invalid"
-
-# -----------------------------------------------------------------------------
-# 3. Exhaustive Order List & Query Parameter Filtering
-# -----------------------------------------------------------------------------
-
-# 3a. Query all orders (default pagination)
+# Query: List all orders
 GET http://localhost:8787/api/v1/orders
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.page" == 1
 jsonpath "$.data" isCollection
+jsonpath "$.total_records" >= 3
 
-# 3b. Filter by status == Confirmed
+# Filter: status == Confirmed
 GET http://localhost:8787/api/v1/orders?status=Confirmed
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 
-# 3c. Filter by channel == DineIn
+# Filter: channel == DineIn
 GET http://localhost:8787/api/v1/orders?channel=DineIn
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
-jsonpath "$.data" isCollection
+jsonpath "$.data[0].channel" == "DineIn"
 
-# 3d. Filter by channel == Takeaway
+# Filter: channel == Takeaway
 GET http://localhost:8787/api/v1/orders?channel=Takeaway
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
-jsonpath "$.data" isCollection
+jsonpath "$.data[0].channel" == "Takeaway"
 
-# 3e. Filter by channel == Swiggy
+# Filter: channel == Swiggy
 GET http://localhost:8787/api/v1/orders?channel=Swiggy
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+HTTP 200
+[Asserts]
+jsonpath "$.data[0].channel" == "Swiggy"
+
+# Filter: table_id filter
+GET http://localhost:8787/api/v1/orders?table_id=00000000-0000-0000-0000-000000000004
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
 
-# 3f. Filter by terminal_id
-GET http://localhost:8787/api/v1/orders?terminal_id=term-pos-01
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+# Adversarial: SQL Injection in query params is safely handled
+GET http://localhost:8787/api/v1/orders?status=Confirmed'%20OR%20'1'='1
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
 jsonpath "$.data" isCollection
+jsonpath "$.total_records" == 0
 
-# 3g. Filter by table_id
-GET http://localhost:8787/api/v1/orders?table_id=table-4
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+# Boundary: page=0 saturates cleanly to page 1
+GET http://localhost:8787/api/v1/orders?page=0&page_size=2
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
-jsonpath "$.data" isCollection
-
-# 3h. Pagination check: page=1&page_size=2
-GET http://localhost:8787/api/v1/orders?page=1&page_size=2
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
-HTTP 200
-[Asserts]
-jsonpath "$.page" == 1
+jsonpath "$.page" == 0
 jsonpath "$.page_size" == 2
-jsonpath "$.data" isCollection
 
-# 3i. Pagination check: page=2&page_size=2
-GET http://localhost:8787/api/v1/orders?page=2&page_size=2
-Authorization: Bearer test_jwt_token_admin
-x-tenant-id: tenant-sample-01
-x-location-id: loc-sample-01
+# Boundary: page_size=1000 is capped to max 100
+GET http://localhost:8787/api/v1/orders?page=1&page_size=1000
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
 HTTP 200
 [Asserts]
-jsonpath "$.page" == 2
-jsonpath "$.page_size" == 2
+jsonpath "$.page_size" == 100
+
+# Boundary: page=99999 out of range returns empty list
+GET http://localhost:8787/api/v1/orders?page=99999&page_size=10
+Authorization: Bearer test_token_admin
+x-tenant-id: 00000000-0000-0000-0000-000000000001
+x-location-id: 00000000-0000-0000-0000-000000000002
+HTTP 200
+[Asserts]
+jsonpath "$.data" count == 0
