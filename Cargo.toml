@@ -24,6 +24,8 @@ chrono = { version = "0.4", features = ["serde"] }
 bitflags = { version = "2.9", features = ["serde"] }
 bincode = "1.3.3"
 thiserror = "1.0"
+specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono", "rust_decimal", "uuid"] }
+specta-typescript = "=0.0.9"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

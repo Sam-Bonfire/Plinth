@@ -22,7 +22,7 @@ pub enum ShiftError {
 }
 
 /// Type of till cash movement
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum CashMovementType {
     /// Cash added into till drawer
     CashIn,
@@ -33,7 +33,7 @@ pub enum CashMovementType {
 }
 
 /// Audit record for cash moved in/out of till
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct CashMovement {
     /// Movement identifier
     pub id: Uuid,
@@ -50,7 +50,7 @@ pub struct CashMovement {
 }
 
 /// Cash reconciliation count
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct CashDrawerCount {
     /// Physical cash counted in drawer
     pub physical_cash: Money,
@@ -67,7 +67,7 @@ impl CashDrawerCount {
 }
 
 /// Terminal work shift aggregate root
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct StoreShift {
     /// Shift identifier
     pub id: ShiftId,
@@ -179,7 +179,7 @@ impl StoreShift {
 }
 
 /// End-of-shift Z-Report summary
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct ZReport {
     /// Shift ID
     pub shift_id: ShiftId,

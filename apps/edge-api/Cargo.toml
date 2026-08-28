@@ -24,6 +24,12 @@ ed25519-dalek = "3.0.0"
 jsonwebtoken = { version = "11.0.0", features = ["rust_crypto", "use_pem"] }
 base64 = "0.23.1"
 uuid = { workspace = true, features = ["serde", "v4", "v7", "js"] }
+specta = { workspace = true }
+specta-typescript = { workspace = true }
+
+[[bin]]
+name = "export_types"
+path = "src/bin/export_types.rs"
 
 [lints]
 workspace = true

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Reason for a refund
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum RefundReason {
     /// Wrong item provided
     WrongItem,
@@ -19,7 +19,7 @@ pub enum RefundReason {
 }
 
 /// Type of refund
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum RefundType {
     /// Full refund
     Full,
@@ -30,7 +30,7 @@ pub enum RefundType {
 }
 
 /// Status of a refund
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum RefundStatus {
     /// Refund is pending
     Pending,

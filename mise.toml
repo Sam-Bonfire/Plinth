@@ -13,6 +13,10 @@ PLINTH_ENV = "development"
 description = "Initialize git hooks and install monorepo dependencies"
 run = "git config core.hooksPath .githooks && pnpm install"
 
+[tasks."codegen"]
+description = "Export Specta TypeScript type definitions from Rust backend to frontend shared package"
+run = "cargo run --bin export_types --manifest-path apps/edge-api/Cargo.toml"
+
 [tasks."lint:rust"]
 description = "Run Cargo clippy with pedantic warnings across Rust workspace"
 run = "cargo clippy --workspace --all-targets -- -D warnings"

@@ -57,7 +57,7 @@ jobs:
         run: mise run ui:capture
 
       - name: Upload Desktop Screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: desktop-pos-screenshots
           path: artifacts/screenshots/
@@ -77,7 +77,7 @@ jobs:
           node-version: '24'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 11.22.0
 
@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload Android Screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: android-emulator-screenshots
           path: artifacts/screenshots/android-*.png
@@ -133,7 +133,7 @@ jobs:
           node-version: '24'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 11.22.0
 
@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload iOS Screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ios-simulator-screenshots
           path: artifacts/screenshots/ios-*.png

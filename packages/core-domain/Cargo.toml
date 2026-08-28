@@ -17,6 +17,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 bitflags = { workspace = true }
 thiserror = { workspace = true }
+specta = { workspace = true }
 tsify = "0.5.7"
 wasm-bindgen = "0.2.127"
 

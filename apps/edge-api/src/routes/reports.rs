@@ -9,12 +9,14 @@ use worker::{
 };
 
 /// Response containing sales analytics and KPIs
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct SalesReportDto {
+    #[specta(type = f64)]
     pub total_revenue_minor: i64,
     pub total_orders: u32,
     pub hourly_volume: HashMap<u32, u32>,
     pub payment_distribution: HashMap<String, f64>,
+    #[specta(type = f64)]
     pub tax_liability_minor: i64,
 }
 

@@ -14,20 +14,20 @@ use worker::{
 };
 
 /// Query parameters for filtering KDS tickets
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, specta::Type)]
 pub struct TicketQueryParams {
     pub station: Option<String>,
     pub status: Option<String>,
 }
 
 /// Request payload for bumping an active kitchen ticket
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 pub struct BumpTicketRequest {
     pub bumped_by: Option<StaffMemberId>,
 }
 
 /// Kitchen ticket presentation DTO with dynamic SLA status
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct KitchenTicketDto {
     #[serde(flatten)]
     pub ticket: KitchenTicket,

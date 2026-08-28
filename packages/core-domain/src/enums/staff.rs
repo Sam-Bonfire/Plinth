@@ -1,8 +1,7 @@
-use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
 /// Role of a staff member
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum StaffRole {
     /// Owner role
     Owner,
@@ -16,30 +15,67 @@ pub enum StaffRole {
     Kitchen,
 }
 
-bitflags! {
-    /// Permissions for a staff member
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct Permissions: u32 {
-        /// Can take orders
-        const TAKE_ORDER       = 0b0000_0000_0000_0001;
-        /// Can apply discounts
-        const APPLY_DISCOUNT   = 0b0000_0000_0000_0010;
-        /// Can void orders
-        const VOID_ORDER       = 0b0000_0000_0000_0100;
-        /// Can process refunds
-        const PROCESS_REFUND   = 0b0000_0000_0000_1000;
-        /// Can modify prices
-        const MODIFY_PRICE     = 0b0000_0000_0001_0000;
-        /// Can access reports
-        const ACCESS_REPORTS   = 0b0000_0000_0010_0000;
-        /// Can export data
-        const EXPORT_DATA      = 0b0000_0000_0100_0000;
-        /// Can manage staff
-        const MANAGE_STAFF     = 0b0000_0000_1000_0000;
-        /// Can manage menu
-        const MANAGE_MENU      = 0b0000_0001_0000_0000;
-        /// Can open/close shifts
-        const OPEN_CLOSE_SHIFT = 0b0000_0010_0000_0000;
+/// Permissions for a staff member
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[specta(transparent)]
+pub struct Permissions(pub u32);
+
+impl Permissions {
+    pub const TAKE_ORDER: Self = Self(0b0000_0000_0000_0001);
+    pub const APPLY_DISCOUNT: Self = Self(0b0000_0000_0000_0010);
+    pub const VOID_ORDER: Self = Self(0b0000_0000_0000_0100);
+    pub const PROCESS_REFUND: Self = Self(0b0000_0000_0000_1000);
+    pub const MODIFY_PRICE: Self = Self(0b0000_0000_0001_0000);
+    pub const ACCESS_REPORTS: Self = Self(0b0000_0000_0010_0000);
+    pub const EXPORT_DATA: Self = Self(0b0000_0000_0100_0000);
+    pub const MANAGE_STAFF: Self = Self(0b0000_0000_1000_0000);
+    pub const MANAGE_MENU: Self = Self(0b0000_0001_0000_0000);
+    pub const OPEN_CLOSE_SHIFT: Self = Self(0b0000_0010_0000_0000);
+
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+
+    #[must_use]
+    pub const fn all() -> Self {
+        Self(0b0000_0011_1111_1111)
+    }
+
+    #[must_use]
+    pub const fn contains(&self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    #[must_use]
+    pub const fn bits(&self) -> u32 {
+        self.0
+    }
+
+    #[must_use]
+    pub const fn from_bits_truncate(bits: u32) -> Self {
+        Self(bits)
+    }
+}
+
+impl std::ops::BitOr for Permissions {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for Permissions {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::Sub for Permissions {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 & !rhs.0)
     }
 }
 

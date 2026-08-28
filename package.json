@@ -6,6 +6,7 @@
   "scripts": {
     "init": "mise run init",
     "init:hooks": "git config core.hooksPath .githooks",
+    "codegen": "mise run codegen",
     "lint": "pnpm -r --parallel lint",
     "test": "pnpm -r --parallel test",
     "test:vitest": "vitest run",

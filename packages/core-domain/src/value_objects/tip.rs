@@ -5,16 +5,16 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// Denotes how a tip was calculated
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum TipType {
     /// Percentage of the subtotal
-    Percentage(Decimal),
+    Percentage(#[specta(type = String)] Decimal),
     /// Flat provided tip
     Flat(Money),
 }
 
 /// Represents a tip given on an order
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct TipAmount {
     /// Method of computation
     pub tip_type: TipType,

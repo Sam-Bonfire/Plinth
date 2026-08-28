@@ -4,16 +4,17 @@ use uuid::Uuid;
 use crate::context::TenantContext;
 
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct ApiErrorResponse {
     pub error: String,
     pub code: String,
     pub request_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct HealthResponse {
     pub status: String,
+    #[specta(type = f64)]
     pub timestamp: i64,
     pub version: String,
 }

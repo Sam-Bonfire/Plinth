@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 
 /// The channel through which an order was placed.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum OrderChannel {
     /// Dine in at the restaurant
     DineIn,

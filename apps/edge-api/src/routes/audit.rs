@@ -9,7 +9,7 @@ use worker::{
 };
 
 /// Request payload to ingest an audit log event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct IngestAuditRequest {
     pub action: String,
     pub target_type: String,
@@ -19,7 +19,7 @@ pub struct IngestAuditRequest {
 }
 
 /// Response after successfully recording an audit event
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct AuditResponseDto {
     pub success: bool,
     pub event_id: AuditEventId,

@@ -63,14 +63,14 @@ jobs:
         run: mise run build
 
       - name: Upload Web Dashboard Bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: staging-web-dashboard
           path: apps/web-dashboard/dist/
           retention-days: 7
 
       - name: Upload Marketing Site Bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: staging-marketing-site
           path: apps/marketing-site/dist/
@@ -134,7 +134,7 @@ jobs:
         run: pnpm --filter pos-client build:pos:android
 
       - name: Upload Android POS APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: staging-pos-android-apk
           path: apps/pos-client/src-tauri/gen/android/app/build/outputs/apk/

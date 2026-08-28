@@ -201,7 +201,7 @@ jobs:
 
       - name: Upload UI Screenshot Bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ui-snapshots-pr-${{ github.event.pull_request.number }}
           path: artifacts/screenshots/

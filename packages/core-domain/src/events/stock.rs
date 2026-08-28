@@ -5,7 +5,7 @@ use crate::ids::{LocationId, StaffMemberId, StockItemId};
 use crate::value_objects::measurement::UnitOfMeasure;
 
 /// Reason for stock adjustment
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum StockAdjustmentReason {
     /// Purchase received
     PurchaseReceived,
