@@ -1,3 +1,7 @@
+# ==============================================================================
+# E2E FLOW 03: Multi-Channel Order Placement, KDS Routing & Ticket Lifecycle
+# ==============================================================================
+
 # Authenticate Admin user
 POST {{base_url}}/api/v1/auth/login
 x-tenant-id: {{tenant_id}}
@@ -14,17 +18,7 @@ jsonpath "$.token" isString
 [Captures]
 token_admin: jsonpath "$.token"
 
-# Fetch initial menu catalog
-GET {{base_url}}/api/v1/menu
-Authorization: Bearer {{token_admin}}
-x-tenant-id: {{tenant_id}}
-x-location-id: {{location_id}}
-HTTP 200
-[Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.categories" isCollection
-
-# Negative: Reject empty JSON object
+# Negative: Reject empty order payload
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -36,14 +30,14 @@ HTTP 400
 header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "Invalid"
 
-# Negative: Reject invalid channel enum value
+# Negative: Reject invalid order channel
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 Content-Type: application/json
 {
-  "channel": "DriveThruInvalid",
+  "channel": "NonExistentChannel",
   "terminal_id": "{{terminal_id}}",
   "items": []
 }
@@ -51,7 +45,7 @@ HTTP 400
 [Asserts]
 jsonpath "$.error" contains "Invalid"
 
-# Negative: Reject invalid tax rate enum value
+# Negative: Reject item with invalid tax rate enum
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -63,17 +57,17 @@ Content-Type: application/json
   "items": [
     {
       "menu_item_id": "00000000-0000-0000-0000-000000000010",
-      "name": "Item",
-      "unit_price_minor": 10000,
+      "name": "Paneer Tikka",
+      "unit_price_minor": 32000,
       "quantity": 1,
-      "tax_rate": "FiftyPercentInvalid",
+      "tax_rate": "InvalidTaxEnum",
       "modifiers": []
     }
   ]
 }
 HTTP 400
 
-# Negative: Reject malformed UUID for terminal_id
+# Negative: Reject malformed terminal UUID
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -86,7 +80,7 @@ Content-Type: application/json
 }
 HTTP 400
 
-# Adversarial: SQL Injection attempt in notes field is safely parameterized
+# Adversarial: SQL Injection attempt in notes is safely parameterized
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -120,7 +114,7 @@ jsonpath "$.order.items[0].notes" == "'; DROP TABLE orders; --"
 [Captures]
 sqli_order_id: jsonpath "$.order.id"
 
-# Self-Seed DineIn Order: Table, Seat, Modifiers, 5% GST, Tip, Service Charge
+# Positive Flow: Self-Seed DineIn Order with Table, Seat, Modifiers, 5% GST, Tip, Service Charge
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -171,7 +165,7 @@ jsonpath "$.order.channel" == "DineIn"
 [Captures]
 seeded_dinein_id: jsonpath "$.order.id"
 
-# Self-Seed Takeaway Order: Packaging Charge, 10% Discount, 18% GST
+# Positive Flow: Self-Seed Takeaway Order with Packaging Charge, 10% Discount, 18% GST
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -217,7 +211,7 @@ jsonpath "$.order.channel" == "Takeaway"
 [Captures]
 seeded_takeaway_id: jsonpath "$.order.id"
 
-# Self-Seed Swiggy Aggregator Order
+# Positive Flow: Self-Seed Swiggy Aggregator Order
 POST {{base_url}}/api/v1/orders
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -258,16 +252,7 @@ HTTP 200
 jsonpath "$.data" isCollection
 jsonpath "$.total_records" >= 3
 
-# Filter: status == Confirmed
-GET {{base_url}}/api/v1/orders?status=Confirmed
-Authorization: Bearer {{token_admin}}
-x-tenant-id: {{tenant_id}}
-x-location-id: {{location_id}}
-HTTP 200
-[Asserts]
-jsonpath "$.data" isCollection
-
-# Filter: channel == DineIn
+# Filter: Orders by channel == DineIn
 GET {{base_url}}/api/v1/orders?channel=DineIn
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -276,7 +261,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "DineIn"
 
-# Filter: channel == Takeaway
+# Filter: Orders by channel == Takeaway
 GET {{base_url}}/api/v1/orders?channel=Takeaway
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -285,7 +270,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "Takeaway"
 
-# Filter: channel == Swiggy
+# Filter: Orders by channel == Swiggy
 GET {{base_url}}/api/v1/orders?channel=Swiggy
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
@@ -294,24 +279,54 @@ HTTP 200
 [Asserts]
 jsonpath "$.data[0].channel" == "Swiggy"
 
-# Filter: table_id filter
-GET {{base_url}}/api/v1/orders?table_id={{table_id}}
+# KDS: Query active kitchen tickets
+GET {{base_url}}/api/v1/kds/tickets
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
-jsonpath "$.data" isCollection
+jsonpath "$" isCollection
 
-# Adversarial: SQL Injection in query params is safely handled
-GET {{base_url}}/api/v1/orders?status=Confirmed'%20OR%20'1'='1
+# KDS: Query tickets by Grill station
+GET {{base_url}}/api/v1/kds/tickets?station=Grill
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 HTTP 200
 [Asserts]
-jsonpath "$.data" isCollection
-jsonpath "$.total_records" == 0
+jsonpath "$" isCollection
+
+# KDS: Query tickets by Tandoor station
+GET {{base_url}}/api/v1/kds/tickets?station=Tandoor
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$" isCollection
+
+# KDS: Combined filter by station & status
+GET {{base_url}}/api/v1/kds/tickets?station=Grill&status=Pending
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$" isCollection
+
+# KDS Negative: Bump non-existent ticket returns 404
+POST {{base_url}}/api/v1/kds/tickets/00000000-0000-0000-0000-000000000099/bump
+Authorization: Bearer {{token_admin}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "bumped_by": "{{staff_id}}"
+}
+HTTP 404
+[Asserts]
+jsonpath "$.error" contains "Ticket not found"
 
 # Boundary: page=0 saturates cleanly to page 1
 GET {{base_url}}/api/v1/orders?page=0&page_size=2

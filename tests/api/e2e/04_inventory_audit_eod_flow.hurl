@@ -1,3 +1,7 @@
+# ==============================================================================
+# E2E FLOW 04: Inventory Management, Audit Trail & End-Of-Day (EOD) Analytics
+# ==============================================================================
+
 # Authenticate Admin user
 POST {{base_url}}/api/v1/auth/login
 x-tenant-id: {{tenant_id}}
@@ -33,26 +37,8 @@ HTTP 200
 [Asserts]
 jsonpath "$" isCollection
 
-# Filter: is_active == false
-GET {{base_url}}/api/v1/inventory?is_active=false
-Authorization: Bearer {{token_admin}}
-x-tenant-id: {{tenant_id}}
-x-location-id: {{location_id}}
-HTTP 200
-[Asserts]
-jsonpath "$" isCollection
-
 # Filter: below_reorder == true
 GET {{base_url}}/api/v1/inventory?below_reorder=true
-Authorization: Bearer {{token_admin}}
-x-tenant-id: {{tenant_id}}
-x-location-id: {{location_id}}
-HTTP 200
-[Asserts]
-jsonpath "$" isCollection
-
-# Filter: below_reorder == false
-GET {{base_url}}/api/v1/inventory?below_reorder=false
 Authorization: Bearer {{token_admin}}
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}

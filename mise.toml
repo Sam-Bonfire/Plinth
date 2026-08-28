@@ -45,6 +45,14 @@ run = "mise run test:rust && mise run test:ts"
 description = "Execute declarative API integration tests using Hurl"
 run = "hurl --test tests/api/**/*.hurl"
 
+[tasks."test:api:e2e"]
+description = "Execute complete multi-step E2E lifecycle scenarios using Hurl"
+run = "hurl --test tests/api/e2e/*.hurl"
+
+[tasks."test:api:endpoints"]
+description = "Execute isolated single-endpoint API contract checks using Hurl"
+run = "hurl --test tests/api/endpoints/*.hurl"
+
 [tasks."db:migrate:local"]
 description = "Apply D1 database migrations locally"
 run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --local"
