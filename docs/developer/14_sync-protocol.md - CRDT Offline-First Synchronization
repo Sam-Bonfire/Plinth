@@ -1,0 +1,271 @@
+# 14_sync-protocol.md - CRDT Offline-First Synchronization
+
+**Author**: PlinthOS Documentation Team  
+**Version**: 0.1.0  
+**Last Reviewed**: 2026-08-28  
+**Related Files**: 
+- `03_testing-workflow.md` (test sync behavior)
+- `04_hexagonal-architecture.md` (sync gateway trait)
+- `05_bounded-contexts.md` (sync across contexts)
+- `06_domain-modeling-patterns.md` (mutation events)
+- `DEVELOPER-NAVIGATION.md` (master navigation)
+- `packages/sync-protocol/` (source code)
+
+---
+
+## 14.1 Synchronization Philosophy
+
+PlinthOS is **offline-first** by design. The core principle is: **Local writes complete instantly** (<1ms), while network replication happens in the background. This eliminates the "spinning wheel" experience when network is unavailable.
+
+### 14.1.1 Why CRDT?
+
+Conflict-Free Replicated Data Types (CRDTs) enable:
+
+| Benefit | Description |
+|---|---|
+| **No coordination required** | No central lock server; concurrent writes merge automatically |
+| **Last-Writer-Wins (LWW)** for scalar values | Deterministic resolution without conflicts |
+| **Add-Wins Set (OR-Set)** for collections | Elements added/removed; duplicates merged |
+| **PN Counter** for integers | Increment/decrement; net count resolved deterministically |
+| **Deterministic merge** | Any two replicas converging to same state after sync |
+
+### 14.1.2 Sync Guarantees
+
+| Guarantee | Description |
+|---|---|
+| **Convergence** | All replicas eventually reach same state |
+| **Commutative operations** | Order of operations doesn't matter |
+| **Idempotent** | Applying same mutation twice has no extra effect |
+| **No single point of failure** | Any DO can accept mutations; replicates via D1 |
+
+---
+
+## 14.2 CRDT Types Used in PlinthOS
+
+PlinthOS uses three CRDT types from `packages/sync-protocol`:
+
+### 14.2.1 LWW-Element-Set (Last-Writer-Wins Element Set)
+
+**Used for**: Mutation envelopes, pending mutations list
+
+| Operation | Effect |
+|---|---|
+| **Add**(`element`) | Adds element; timestamp tracks writer |
+| **Remove**(`element`) | Marks element for removal; tombstoned if add wins |
+| **Merge**(`R1`, `R2`) | Keeps element if either replica has it; winner determined by latest timestamp |
+
+**Example**: `MutationEnvelope` set - ensures no duplicate mutations across replicas.
+
+### 14.2.2 PN Counter (Positive-Negative Counter)
+
+**Used for**: Stock level tracking, order item quantities, SLA timer counters
+
+| Operation | Effect |
+|---|---|
+| **Increment**(`n`) | `p += n` |
+| **Decrement**(`n`) | `n -= n` |
+| **Merge**(`R1`, `R2`) | `p = max(p1 + p2_neg, p2 + p1_neg)` - net count |
+
+**Example**: Stock `current_qty` - concurrent additions/decrements resolved deterministically.
+
+### 14.2.3 OR-Set (Observed-Remove Set)
+
+**Used for**: Menu item availability, modifier selections, 86'd items list
+
+| Operation | Effect |
+|---|---|
+| **Add**(`element`, `observer`) | Adds element with observer ID |
+| **Remove**(`element`, `observer`) | Removes only if observer added it |
+| **Merge**(`R1`, `R2`) | Union of both; removes elements observers from both have removed |
+
+**Example**: List of 86'd items per location - concurrent additions/removals merge without duplicates.
+
+---
+
+## 14.3 Mutation Envelope Structure
+
+Every synchronized mutation is wrapped in a `MutationEnvelope` for authenticity and ordering.
+
+### 14.3.1 MutationEnvelope Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID (v7) | Unique mutation identifier |
+| `type` | TEXT | `ORDER_ITEM_ADDED`, `ORDER_ITEM_REMOVED`, `STOCK_DEDUCTED`, etc. |
+| `payload_json` | JSON | Serialized domain event data |
+| `signature` | TEXT | Ed25519 signature over `payload_json` (authenticity) |
+| `vector_clock` | TEXT | JSON: `{"node_id": "dos-1", "sequence": 42}` (causal ordering) |
+| `status` | TEXT | `pending`, `settled`, `conflict` |
+| `created_at` | TIMESTAMP | WHEN mutation created (local time) |
+| `resolved_at` | TIMESTAMP | NULL if pending; set when DO acknowledges |
+
+### 14.3.2 Signature Workflow
+
+1. **POS local**: Creates mutation → Ed25519 signs payload → stores in `mutation_records` status=pending
+2. **Tokio sync daemon**: Reads pending → WebSocket to Durable Object → DO receives
+3. **Durable Object**: Verifies signature → applies mutation → broadcasts acknowledgment → updates vector clock → sets status=`settled`
+4. **Other replicas**: Receive mutation → verify signature → apply if valid → merge vector clocks
+
+### 14.3.3 Conflict Detection
+
+**When vector clocks are incomparable** (concurrent mutations from different nodes):
+
+```json
+{
+  "vector_clock": {"dos-1": 3, "dos-2": 2},
+  "status": "conflict"
+}
+```
+
+**Conflict resolution strategies**:
+
+| Strategy | Description |
+|---|---|
+| **LWW (Last-Writer-Wins)** | Latest `created_at` wins; used for most mutations |
+| **Domain-specific** | E.g., for stock: add quantities; for orders: keep both as separate orders |
+| **Manual review** | Admin UI shows conflict; operator resolves; then status → `settled` |
+
+---
+
+## 14.4 Sync Queue Workflow
+
+### 14.4.1 Local → Edge Sync Path
+
+```mermaid
+sequenceDiagram
+    participant POS as POS Client (Tauri+React)
+    participant Local as Local SQLite (mutation_records)
+    participant Tokio as Tokio Async Sync Daemon
+    participant DO as Durable Object (LocationSyncRoom)
+    participant D1 as Cloudflare D1
+
+    POS->>Local: ADD item to order
+    Local->>Local: INSERT INTO mutation_records (status=pending, payload, signature)
+    
+    par Non-blocking (completes <1ms)
+        POS-->>POS: Return order receipt
+    and Background Sync
+        Tokio->>Local: SELECT * FROM mutation_records WHERE status='pending'
+        Tokio->>DO: WebSocket Frame (MutationEnvelope JSON)
+        DO->>Tokio: Ack (settled)
+        Tokio->>Local: UPDATE mutation_records SET status='settled'
+    and D1 Replication
+        DO->>D1: Batched async INSERT INTO orders (every 5s or on settlement)
+        D1-->DO: Replication acknowledged
+    end
+```
+
+### 14.4.2 Sync Daemon Configuration
+
+**Per `apps/pos-client/src/sync/`**:
+
+| Setting | Default | Description |
+|---|---|---|
+| `sync_interval_ms` | `5000` | How often daemon checks for pending mutations |
+| `batch_size` | `50` | Max mutations per WebSocket frame |
+| `retry_backoff_ms` | `1000` | Exponential backoff on WebSocket failure |
+| `max_retries` | `10` | Give up after N attempts; mark mutation `conflict` |
+
+---
+
+## 14.5 Offline-First Behavior
+
+### 15.5.1 No Network Connection
+
+If network is lost:
+
+1. **POS continues operating**: Local SQLite accepts all writes
+2. **Mutation recorded**: `mutation_records` status=pending, signed locally
+3. **UI remains responsive**: No "offline mode" banner unless explicitly checked
+4. **SLA timers**: Run locally (system time); may drift if no NTP for extended periods
+5. **KDS updates**: Buffered locally; sent when network restores
+
+### 15.5.2 Network Restored
+
+1. **Tokio daemon detects** connectivity restoration
+2. **Flushes pending mutations** via WebSocket to Durable Object
+3. **D1 replicates** batched mutations (every 5s or on settlement)
+4. **Conflict resolution**: Vector clocks merged; if conflicts, status=`conflict`
+5. **UI updates**: Show "Sync complete" banner; any conflicts presented to operator
+
+### 15.5.3 Data Consistency Guarantees
+
+| Data Type | Consistency Model |
+|---|---|
+| **Order financials** | LWW; latest total_cents wins |
+| **Stock levels** | PN Counter; net increment/decrement |
+| **86'd items** | OR-Set; union of all observers' views |
+| **KDS ticket status** | Last-write-wins; DO is source of truth |
+| **Audit events** | Append-only; never overwritten |
+
+---
+
+## 14.6 TypeScript Sync Integration (per `08_typescript-standards.md`)
+
+### 14.6.1 UseSync Hook (conceptual, in `apps/pos-client/src/hooks/`)
+
+```tsx
+import { useSync } from '@/lib/sync';
+
+function useOrderSync(orderId: string) {
+  const [localState, syncStatus] = useSync(orderId);
+  
+  // localState: readable/writable copy; syncStatus: 'idle' | 'syncing' | 'conflict'
+  
+  return {
+    ...localState,
+    isSyncing: syncStatus === 'syncing',
+    onConflict: (resolution) => { /* resolve via API */ }
+  };
+}
+```
+
+### 14.6.2 Sync Status Display
+
+**Kiosk/Manager view** shows:
+- Green dot: "Synced"
+- Yellow dot: "Syncing..." 
+- Red dot: "Conflict - needs attention"
+- Clickable to view conflict details and resolve
+
+---
+
+## 14.7 Next Steps After Reading Sync Protocol
+
+After reading this file, proceed with:
+
+1. **Examine the source implementation**:
+   - `packages/sync-protocol/src/crdt/lww.rs` - LWW-Element-Set
+   - `packages/sync-protocol/src/crdt/pncounter.rs` - PN Counter
+   - `packages/sync-protocol/src/crdt/orset.rs` - OR-Set
+   - `packages/sync-protocol/src/mutation.rs` - MutationEnvelope
+   - `apps/edge-api/src/durable_objects/sync_room.rs` - DO broadcast logic
+   - `apps/pos-client/src/sync/` - Sync daemon configuration
+
+2. **Run sync-related tests**:
+   ```bash
+   cargo test -p sync-protocol  # CRDT unit tests
+   # Or full: mise run test
+   ```
+
+3. **Observe sync behavior** (development):
+   - Disconnect network; make changes; reconnect
+   - Verify mutations sync without data loss
+   - Observe conflict detection if concurrent edits
+
+4. **Read** `06_domain-modeling-patterns.md` for how mutations map to domain events
+
+5. **Read** `03_testing-workflow.md` for sync test integration
+
+---
+
+## 14.8 Version & Change Log
+
+| Version | Date | Author | Changes |
+|---|---|---|---|
+| 0.1.0 | 2026-08-28 | Docs Team | Initial release - CRDT offline-first synchronization |
+| 0.1.1 | YYYY-MM-DD | TBD | Updates based on contributor feedback |
+| 0.2.0 | YYYY-MM-DD | TBD | Major overhaul for new CRDT patterns |
+
+---
+*This file is part of the PlinthOS internal developer documentation set. See `06_domain-modeling-patterns.md` for domain events that trigger sync, `04_hexagonal-architecture.md` for the sync gateway trait, and `packages/sync-protocol/` for source code.*
