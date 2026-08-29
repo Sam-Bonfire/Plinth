@@ -5,7 +5,7 @@ use thiserror::Error;
 
 /// Supported currencies. Non-exhaustive for future expansion.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum Currency {
     /// Indian Rupee
     Inr,
@@ -38,9 +38,10 @@ impl Currency {
 }
 
 /// Represents a monetary value in a specific currency.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct Money {
     /// The decimal amount
+    #[specta(type = String)]
     pub amount: Decimal,
     /// The currency of the amount
     pub currency: Currency,

@@ -13,28 +13,32 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use worker::{Error, Request, Response, Result, RouteContext, Router};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 pub struct InventoryQueryParams {
     pub below_reorder: Option<bool>,
     pub is_active: Option<bool>,
     pub unit: Option<UnitOfMeasure>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 pub struct AdjustStockRequest {
     pub stock_item_id: StockItemId,
+    #[specta(type = String)]
     pub delta: Decimal,
     pub reason: StockAdjustmentReason,
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
 pub struct StockItemResponseDto {
     pub id: StockItemId,
     pub name: String,
     pub unit: UnitOfMeasure,
+    #[specta(type = String)]
     pub current_quantity: Decimal,
+    #[specta(type = String)]
     pub par_level: Decimal,
+    #[specta(type = String)]
     pub reorder_level: Decimal,
     pub cost_per_unit: Money,
     pub is_active: bool,

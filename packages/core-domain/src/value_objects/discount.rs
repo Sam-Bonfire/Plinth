@@ -6,16 +6,16 @@ use thiserror::Error;
 use serde::{Deserialize, Serialize};
 
 /// Type of discount applied
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum DiscountType {
     /// Percentage discount (0 to 100)
-    Percentage(Decimal),
+    Percentage(#[specta(type = String)] Decimal),
     /// Flat amount discount
     FlatAmount(Money),
 }
 
 /// Reason for applying a discount
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum DiscountReason {
     /// Complementary by manager
     ManagerComp,
@@ -32,7 +32,7 @@ pub enum DiscountReason {
 }
 
 /// Represents a discount applied to an order or item
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct Discount {
     /// The calculation method of the discount
     pub discount_type: DiscountType,

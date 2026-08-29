@@ -48,7 +48,7 @@ pub enum OrderError {
 }
 
 /// Item line in an order
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct OrderLineItem {
     /// Line item unique ID
     pub id: OrderLineItemId,
@@ -96,7 +96,7 @@ impl OrderLineItem {
 }
 
 /// Payment tender recorded against an order
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct PaymentEntry {
     /// Tender method (Cash, UPI, Card, Wallet)
     pub method: PaymentMethod,
@@ -113,7 +113,7 @@ pub struct PaymentEntry {
 }
 
 /// Order aggregate root
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct Order {
     /// Order identifier
     pub id: OrderId,

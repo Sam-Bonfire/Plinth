@@ -4,7 +4,7 @@ use thiserror::Error;
 
 /// Units of measure for stock management
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum UnitOfMeasure {
     /// Kilograms
     Kilogram,
@@ -19,9 +19,10 @@ pub enum UnitOfMeasure {
 }
 
 /// Represents an amount of stock
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct StockQuantity {
     /// The numeric magnitude
+    #[specta(type = String)]
     pub value: Decimal,
     /// The unit it is measured in
     pub unit: UnitOfMeasure,

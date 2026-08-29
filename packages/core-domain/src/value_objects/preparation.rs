@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Represents the operational SLA status for kitchen items
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum SlaStatus {
     /// Well within limits
     OnTime,
@@ -12,12 +12,22 @@ pub enum SlaStatus {
     Late,
 }
 
+/// Duration representation for TypeScript export
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+pub struct DurationDto {
+    #[specta(type = f64)]
+    pub secs: u64,
+    pub nanos: u32,
+}
+
 /// Defines service level agreements for food preparation
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct PreparationSla {
     /// Duration after which warning status is triggered
+    #[specta(type = DurationDto)]
     pub threshold_warning: Duration,
     /// Duration after which late status is triggered
+    #[specta(type = DurationDto)]
     pub threshold_late: Duration,
 }
 

@@ -13,7 +13,7 @@ pub struct KitchenTicketStatusError {
 
 /// Kitchen display station identifier
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum StationId {
     /// Grill station
     Grill,
@@ -49,7 +49,7 @@ impl StationId {
 
 /// The status of a kitchen ticket
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum KitchenTicketStatus {
     /// Ticket is pending
     Pending,

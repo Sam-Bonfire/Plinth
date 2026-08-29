@@ -13,6 +13,10 @@ PLINTH_ENV = "development"
 description = "Initialize git hooks and install monorepo dependencies"
 run = "git config core.hooksPath .githooks && pnpm install"
 
+[tasks."codegen"]
+description = "Export Specta TypeScript type definitions from Rust backend to frontend shared package"
+run = "cargo run --bin export_types --manifest-path apps/edge-api/Cargo.toml"
+
 [tasks."lint:rust"]
 description = "Run Cargo clippy with pedantic warnings across Rust workspace"
 run = "cargo clippy --workspace --all-targets -- -D warnings"
@@ -38,8 +42,16 @@ description = "Execute Rust unit tests, TypeScript specs, and API contract tests
 run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
-description = "Execute declarative API integration tests using Hurl"
-run = "hurl --test tests/api/**/*.hurl"
+description = "Execute multi-step E2E integration test flows in automated pipelines using Hurl"
+run = "hurl --test tests/api/e2e/*.hurl"
+
+[tasks."test:api:e2e"]
+description = "Execute complete multi-step E2E lifecycle scenarios using Hurl"
+run = "hurl --test tests/api/e2e/*.hurl"
+
+[tasks."api:endpoint"]
+description = "Execute and inspect an isolated API endpoint file (e.g. mise run api:endpoint tests/api/endpoints/orders.hurl)"
+run = "hurl --verbose"
 
 [tasks."db:migrate:local"]
 description = "Apply D1 database migrations locally"

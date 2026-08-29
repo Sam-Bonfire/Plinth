@@ -17,7 +17,7 @@ pub enum KitchenError {
 }
 
 /// Item displayed on a kitchen display ticket
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct TicketLineItem {
     /// Order line item reference ID
     pub line_item_id: OrderLineItemId,
@@ -34,7 +34,7 @@ pub struct TicketLineItem {
 }
 
 /// Kitchen display ticket aggregate root
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct KitchenTicket {
     /// Ticket identifier
     pub id: KitchenTicketId,

@@ -4,7 +4,8 @@ use uuid::Uuid;
 macro_rules! define_id {
     ($(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+        #[specta(transparent)]
         pub struct $name(Uuid);
 
         impl $name {

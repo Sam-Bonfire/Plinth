@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// The method used for payment
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum PaymentMethod {
     /// Cash payment
     Cash,
@@ -29,7 +29,7 @@ impl PaymentMethod {
 
 /// The status of a payment
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum PaymentStatus {
     /// Payment is pending
     Pending,

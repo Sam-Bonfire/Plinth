@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// Result of computing tax on a subtotal
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct TaxBreakdown {
     /// The total calculated tax
     pub total_tax: Money,
@@ -12,11 +12,12 @@ pub struct TaxBreakdown {
 }
 
 /// A single component of applied tax
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct TaxComponent {
     /// The label of the tax (e.g. CGST 9%)
     pub label: String,
     /// The applicable rate
+    #[specta(type = String)]
     pub rate: Decimal,
     /// The tax monetary amount
     pub amount: Money,
@@ -24,7 +25,7 @@ pub struct TaxComponent {
 
 /// Indian GST rate slabs
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum GstRate {
     /// 0% Tax
     Exempt,
@@ -53,7 +54,7 @@ impl GstRate {
 }
 
 /// Whether GST is intra-state (CGST+SGST) or inter-state (IGST)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum GstApplicability {
     /// Intra-state transaction attracting CGST + SGST
     IntraState,

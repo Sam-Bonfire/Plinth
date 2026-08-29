@@ -61,7 +61,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -84,7 +84,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -112,7 +111,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -156,7 +155,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.ui_visual == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -201,7 +200,7 @@ jobs:
 
       - name: Upload UI Screenshot Bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ui-snapshots-pr-${{ github.event.pull_request.number }}
           path: artifacts/screenshots/

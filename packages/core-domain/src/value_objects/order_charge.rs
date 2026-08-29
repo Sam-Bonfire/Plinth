@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Types of standard order charges
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub enum ChargeType {
     /// Discretionary or mandatory service charge
     ServiceCharge,
@@ -18,11 +18,12 @@ pub enum ChargeType {
 }
 
 /// Represents an extra charge applied to an order
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct OrderCharge {
     /// Classification of the charge
     pub charge_type: ChargeType,
     /// Rate as a percentage (e.g., `Decimal::new(10, 0)` for 10%) or None for flat charges
+    #[specta(type = Option<String>)]
     pub rate: Option<Decimal>,
     /// The computed monetary amount
     pub amount: Money,

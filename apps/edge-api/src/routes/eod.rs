@@ -9,25 +9,35 @@ use worker::{
 };
 
 /// Request payload to close a shift
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct CloseShiftRequest {
     pub shift_id: ShiftId,
+    #[specta(type = f64)]
     pub physical_cash_minor: i64,
     pub notes: Option<String>,
 }
 
 /// Z-Report Response DTO returned upon closing a shift
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ZReportDto {
     pub shift_id: ShiftId,
+    #[specta(type = f64)]
     pub gross_sales: i64,
+    #[specta(type = f64)]
     pub net_sales: i64,
+    #[specta(type = f64)]
     pub total_tax: i64,
+    #[specta(type = f64)]
     pub total_discounts: i64,
+    #[specta(type = f64)]
     pub total_charges: i64,
+    #[specta(type = Vec<(String, f64)>)]
     pub tender_breakdown: Vec<(String, i64)>,
+    #[specta(type = f64)]
     pub physical_cash: i64,
+    #[specta(type = f64)]
     pub expected_cash: i64,
+    #[specta(type = f64)]
     pub variance: i64,
     pub closed_at: String,
 }

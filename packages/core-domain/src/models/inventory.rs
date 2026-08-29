@@ -17,7 +17,7 @@ pub enum InventoryError {
 }
 
 /// Represents a stock item in inventory.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct StockItem {
     /// Unique identifier for the stock item.
     pub id: StockItemId,
@@ -105,18 +105,19 @@ impl StockItem {
 }
 
 /// Represents an ingredient in a recipe.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct RecipeIngredient {
     /// Stock item identifier.
     pub stock_item_id: StockItemId,
     /// Quantity of the stock item required.
     pub quantity: StockQuantity,
     /// Wastage percentage for this ingredient.
+    #[specta(type = String)]
     pub wastage_percent: Decimal,
 }
 
 /// Represents a recipe for a menu item.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 pub struct Recipe {
     /// Unique identifier for the recipe.
     pub id: RecipeId,

@@ -13,7 +13,7 @@ pub struct OrderStatusError {
 
 /// The status of an order
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 pub enum OrderStatus {
     /// Initial draft state
     Draft,
