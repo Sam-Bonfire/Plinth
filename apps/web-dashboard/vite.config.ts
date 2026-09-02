@@ -1,10 +1,11 @@
 ﻿/// <reference types="vitest" />
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
+import { lingui } from '@lingui/vite-plugin';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({ babel: { plugins: ['@lingui/babel-plugin-lingui-macro'] } }), lingui()],
   resolve: {
     alias: {
       '@plinth/ui-kit': resolve(__dirname, '../../packages/ui-kit/src'),

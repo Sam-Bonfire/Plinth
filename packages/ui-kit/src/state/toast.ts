@@ -76,10 +76,10 @@ export class ToastManager {
   }
 
   public add(
-    toast: Omit<ToastItem, "id" | "remainingMs" | "isPaused" | "createdAt"> & {
+    toast: Omit<ToastItem, "id" | "remainingMs" | "isPaused" | "createdAt" | "durationMs"> & {
       id?: string;
       durationMs?: number;
-    },
+    } & Pick<ToastItem, "type" | "title"> & Partial<Pick<ToastItem, "message">>,
   ): string {
     const duration = toast.durationMs ?? 4000;
     const id = toast.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
