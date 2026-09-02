@@ -248,7 +248,7 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
       headers: new Headers(),
     });
 
-    const tickets = await client.listKitchenTickets({ station: "Grill" });
+    const tickets = await client.listKitchenTickets({ station: "Grill", status: null });
     expect(tickets.length).toBe(1);
     expect(tickets[0].station).toBe("Grill");
     expect(tickets[0].sla_status).toBe("OnTime");
@@ -293,7 +293,7 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
       headers: new Headers(),
     });
 
-    const stock = await client.getInventory({ below_reorder: false });
+    const stock = await client.getInventory({ below_reorder: false, is_active: null, unit: null });
     expect(stock.length).toBe(1);
     expect(stock[0].current_quantity).toBe("15.5");
 

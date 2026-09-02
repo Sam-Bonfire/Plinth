@@ -15,11 +15,19 @@
     "dev:pos:ios": "tauri ios dev"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@lingui/core": "^6.6.0",
+    "@lingui/macro": "^5.9.5",
+    "@lingui/react": "^6.6.0",
     "@plinth/ui-kit": "workspace:*",
     "@tauri-apps/api": "^2.0.0",
     "antd": "^5.20.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.3",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
