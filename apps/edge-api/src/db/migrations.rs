@@ -2,6 +2,7 @@ use worker::d1::D1Database;
 use worker::Result;
 
 const INITIAL_SCHEMA: &str = include_str!("../../migrations/0001_initial_schema.sql");
+const ADD_MISSING_TABLES_SCHEMA: &str = include_str!("../../migrations/0002_add_missing_tables.sql");
 
 /// Applies all required migrations to the database.
 /// In D1, we can simply execute the SQL scripts.
@@ -9,9 +10,8 @@ const INITIAL_SCHEMA: &str = include_str!("../../migrations/0001_initial_schema.
 /// # Errors
 /// Returns a `worker::Error` if the database execution fails.
 pub async fn run_migrations(db: &D1Database) -> Result<()> {
-    // Note: D1 execute() might be batched or we might need to prepare and run each statement.
-    // For simple use cases, exec() executes the statements.
     db.exec(INITIAL_SCHEMA).await?;
+    db.exec(ADD_MISSING_TABLES_SCHEMA).await?;
 
     Ok(())
 }
@@ -25,10 +25,8 @@ mod tests {
     fn test_initial_schema_execution() {
         let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
 
-        // Execute the migration script
         conn.execute_batch(INITIAL_SCHEMA).expect("Failed to execute initial schema");
 
-        // Verify tables exist
         let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
         let table_names: Vec<String> = stmt
             .query_map([], |row| row.get(0))
@@ -39,7 +37,6 @@ mod tests {
         assert!(table_names.contains(&"orders".to_string()));
         assert!(table_names.contains(&"menu_items".to_string()));
 
-        // Verify indexes exist
         let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='index'").unwrap();
         let index_names: Vec<String> = stmt
             .query_map([], |row| row.get(0))
@@ -49,5 +46,49 @@ mod tests {
 
         assert!(index_names.contains(&"idx_orders_tenant_location_created".to_string()));
         assert!(index_names.contains(&"idx_audit_events_tenant_time".to_string()));
+    }
+
+    #[test]
+    fn test_prd_gaps_schema_execution() {
+        let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
+
+        conn.execute_batch(INITIAL_SCHEMA).expect("Failed to execute initial schema");
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed to execute PRD gaps schema");
+
+        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
+        let table_names: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert!(table_names.contains(&"staff_members".to_string()));
+        assert!(table_names.contains(&"floor_tables".to_string()));
+        assert!(table_names.contains(&"reservations".to_string()));
+        assert!(table_names.contains(&"recipes".to_string()));
+        assert!(table_names.contains(&"recipe_ingredients".to_string()));
+        assert!(table_names.contains(&"customers".to_string()));
+        assert!(table_names.contains(&"purchase_orders".to_string()));
+        assert!(table_names.contains(&"refunds".to_string()));
+        assert!(table_names.contains(&"webhook_endpoints".to_string()));
+
+        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='index'").unwrap();
+        let index_names: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert!(index_names.contains(&"idx_staff_members_tenant_location".to_string()));
+        assert!(index_names.contains(&"idx_refunds_order_status".to_string()));
+    }
+
+    #[test]
+    fn test_full_migration_idempotent() {
+        let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
+        conn.execute_batch(INITIAL_SCHEMA).expect("Failed first run");
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed second run");
+        // Re-run should succeed due to IF NOT EXISTS
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed idempotent rerun");
     }
 }
