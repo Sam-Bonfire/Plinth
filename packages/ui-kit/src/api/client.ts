@@ -5,11 +5,13 @@ import type {
   BumpTicketRequest,
   CloseShiftRequest,
   CreateOrderRequest,
+  CreateStaffRequest,
   HealthResponse,
   IngestAuditRequest,
   InventoryQueryParams,
   KitchenTicketDto,
   KitchenTicketId,
+  ListStaffResponse,
   MenuCatalogResponseDto,
   MenuItemDto,
   MenuItemId,
@@ -18,6 +20,10 @@ import type {
   OrderStatus,
   OrderSummaryDto,
   PaginatedResponse,
+  PinVerifyRequest,
+  PinVerifyResponse,
+  StaffResponseDto,
+  UpdateStaffRequest,
   SalesReportDto,
   StockItemResponseDto,
   TicketQueryParams,
@@ -307,5 +313,26 @@ export class PlinthApiClient {
       undefined,
       params as Record<string, string | number | boolean | undefined | null>,
     );
+  }
+
+  // --- Staff Endpoints ---
+  public async createStaff(req: CreateStaffRequest): Promise<StaffResponseDto> {
+    return this.request<StaffResponseDto>("/api/v1/staff", "POST", req);
+  }
+
+  public async listStaff(): Promise<ListStaffResponse> {
+    return this.request<ListStaffResponse>("/api/v1/staff", "GET");
+  }
+
+  public async getStaff(staffId: string): Promise<StaffResponseDto> {
+    return this.request<StaffResponseDto>(`/api/v1/staff/${encodeURIComponent(staffId)}`, "GET");
+  }
+
+  public async updateStaff(staffId: string, req: UpdateStaffRequest): Promise<StaffResponseDto> {
+    return this.request<StaffResponseDto>(`/api/v1/staff/${encodeURIComponent(staffId)}`, "PATCH", req);
+  }
+
+  public async verifyStaffPin(staffId: string, req: PinVerifyRequest): Promise<PinVerifyResponse> {
+    return this.request<PinVerifyResponse>(`/api/v1/staff/${encodeURIComponent(staffId)}/pin-verify`, "POST", req);
   }
 }

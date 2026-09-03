@@ -48,6 +48,7 @@ pub fn json_error(error: impl Into<String>, code: impl Into<String>, request_id:
 pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Option<TenantContext>> {
     let router = Router::with_data(auth_context);
     let router = crate::routes::auth::register(router);
+    let router = crate::routes::staff::register(router);
     let router = crate::routes::inventory::register(router);
     let router = crate::routes::orders::register(router);
     let router = crate::routes::kds::register(router);
