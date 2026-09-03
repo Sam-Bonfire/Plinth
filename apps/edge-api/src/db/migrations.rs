@@ -2,7 +2,7 @@ use worker::d1::D1Database;
 use worker::Result;
 
 const INITIAL_SCHEMA: &str = include_str!("../../migrations/0001_initial_schema.sql");
-const PRD_GAPS_SCHEMA: &str = include_str!("../../migrations/0002_prd_gaps.sql");
+const ADD_MISSING_TABLES_SCHEMA: &str = include_str!("../../migrations/0002_add_missing_tables.sql");
 
 /// Applies all required migrations to the database.
 /// In D1, we can simply execute the SQL scripts.
@@ -11,7 +11,7 @@ const PRD_GAPS_SCHEMA: &str = include_str!("../../migrations/0002_prd_gaps.sql")
 /// Returns a `worker::Error` if the database execution fails.
 pub async fn run_migrations(db: &D1Database) -> Result<()> {
     db.exec(INITIAL_SCHEMA).await?;
-    db.exec(PRD_GAPS_SCHEMA).await?;
+    db.exec(ADD_MISSING_TABLES_SCHEMA).await?;
 
     Ok(())
 }
@@ -53,7 +53,7 @@ mod tests {
         let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
 
         conn.execute_batch(INITIAL_SCHEMA).expect("Failed to execute initial schema");
-        conn.execute_batch(PRD_GAPS_SCHEMA).expect("Failed to execute PRD gaps schema");
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed to execute PRD gaps schema");
 
         let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
         let table_names: Vec<String> = stmt
@@ -87,8 +87,8 @@ mod tests {
     fn test_full_migration_idempotent() {
         let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
         conn.execute_batch(INITIAL_SCHEMA).expect("Failed first run");
-        conn.execute_batch(PRD_GAPS_SCHEMA).expect("Failed second run");
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed second run");
         // Re-run should succeed due to IF NOT EXISTS
-        conn.execute_batch(PRD_GAPS_SCHEMA).expect("Failed idempotent rerun");
+        conn.execute_batch(ADD_MISSING_TABLES_SCHEMA).expect("Failed idempotent rerun");
     }
 }
