@@ -1,7 +1,36 @@
+use argon2::password_hash::{SaltString, rand_core::OsRng};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use core_domain::enums::staff::{Permissions, StaffRole};
 use core_domain::ids::{LocationId, StaffMemberId, TenantId};
 use serde::{Deserialize, Serialize};
 use worker::{Request, Response, Result, RouteContext, Router};
+
+fn hash_pin(pin: &str) -> std::result::Result<String, String> {
+    let salt = SaltString::generate(&mut OsRng);
+    Argon2::default()
+        .hash_password(pin.as_bytes(), &salt)
+        .map(|h| h.to_string())
+        .map_err(|e| e.to_string())
+}
+
+fn verify_pin_hash(hash: &str, pin: &str) -> bool {
+    let Ok(parsed) = PasswordHash::new(hash) else {
+        return false;
+    };
+    Argon2::default()
+        .verify_password(pin.as_bytes(), &parsed)
+        .is_ok()
+}
+
+fn get_jwt_secret<D>(ctx: &RouteContext<D>) -> String {
+    if let Ok(secret) = ctx.env.secret("JWT_SECRET") {
+        return secret.to_string();
+    }
+    if let Ok(val) = ctx.env.var("JWT_SECRET") {
+        return val.to_string();
+    }
+    std::env::var("JWT_SECRET").unwrap_or_default()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct CreateStaffRequest {
@@ -62,7 +91,8 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::MANAGE_STAFF) else {
+    let secret = get_jwt_secret(&ctx);
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -81,6 +111,10 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let staff_id = StaffMemberId::new();
     let permissions = payload.role.default_permissions().bits();
     let now = chrono::Utc::now().to_rfc3339();
+    let pin_hash = match hash_pin(&payload.pin) {
+        Ok(h) => h,
+        Err(e) => return Response::error(format!("Failed to hash PIN: {e}"), 500),
+    };
 
     // Persist to D1 if available; fall back to mock on missing binding in tests
     if let Ok(db) = ctx.env.d1("CELLAR_DB") {
@@ -95,7 +129,7 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
                 payload.name.clone().into(),
                 format!("{:?}", payload.role).into(),
                 f64::from(permissions).into(),
-                payload.pin.clone().into(),
+                pin_hash.into(),
                 1.into(),
                 now.clone().into(),
                 now.clone().into(),
@@ -125,7 +159,8 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 /// Returns error if auth fails or DB fails
 #[allow(clippy::missing_errors_doc, clippy::manual_let_else, clippy::single_match_else, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
+    let secret = get_jwt_secret(&ctx);
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -176,7 +211,8 @@ pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Respons
 /// Returns error if auth fails, staff not found or DB fails
 #[allow(clippy::missing_errors_doc, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
+    let secret = get_jwt_secret(&ctx);
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -214,7 +250,8 @@ pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::MANAGE_STAFF) else {
+    let secret = get_jwt_secret(&ctx);
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -256,7 +293,8 @@ pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
+    let secret = get_jwt_secret(&ctx);
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
@@ -275,7 +313,7 @@ pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
         return Response::error("Staff not found", 404);
     };
     let pin_hash = row.get("pin_hash").and_then(|v| v.as_str()).unwrap_or("");
-    let valid = pin_hash == payload.pin;
+    let valid = verify_pin_hash(pin_hash, &payload.pin);
 
     let resp = PinVerifyResponse {
         valid,

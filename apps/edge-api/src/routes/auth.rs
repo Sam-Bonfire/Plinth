@@ -1,4 +1,5 @@
 use crate::auth::JwtClaims;
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use core_domain::{
     enums::staff::StaffRole,
     ids::StaffMemberId,
@@ -7,6 +8,27 @@ use jsonwebtoken::{Algorithm, Header};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use worker::{Request, Response, Result, RouteContext, Router};
+
+fn get_jwt_secret<D>(ctx: &RouteContext<D>) -> String {
+    // Try Cloudflare Secrets / Vars, fallback to empty for tests
+    if let Ok(secret) = ctx.env.secret("JWT_SECRET") {
+        return secret.to_string();
+    }
+    if let Ok(val) = ctx.env.var("JWT_SECRET") {
+        return val.to_string();
+    }
+    // Fallback for local tests
+    std::env::var("JWT_SECRET").unwrap_or_default()
+}
+
+fn verify_pin_hash(hash: &str, pin: &str) -> bool {
+    let Ok(parsed) = PasswordHash::new(hash) else {
+        return false;
+    };
+    Argon2::default()
+        .verify_password(pin.as_bytes(), &parsed)
+        .is_ok()
+}
 
 /// Request payload for staff login / PIN authentication
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -36,7 +58,7 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 ///
 /// # Errors
 /// Returns an error if headers are missing, payload is invalid, or signing fails
-pub async fn login<D>(mut req: Request, _ctx: RouteContext<D>) -> Result<Response> {
+pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let header_tenant_id = req.headers().get("x-tenant-id").ok().flatten();
     let header_location_id = req.headers().get("x-location-id").ok().flatten();
 
@@ -60,8 +82,45 @@ pub async fn login<D>(mut req: Request, _ctx: RouteContext<D>) -> Result<Respons
         return Response::error("PIN cannot be empty", 400);
     }
 
-    let role = payload.role.unwrap_or(StaffRole::Waiter);
-    let permissions = role.default_permissions().bits();
+    // Verify PIN against D1 if available; fallback to role from request for tests
+    let mut role = payload.role.unwrap_or(StaffRole::Waiter);
+    let mut permissions = role.default_permissions().bits();
+
+    if let Ok(db) = ctx.env.d1("CELLAR_DB") {
+        if let Ok(stmt) = db
+            .prepare(
+                "SELECT role, permissions, pin_hash FROM staff_members WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3 AND deleted_at IS NULL AND is_active = 1",
+            )
+            .bind(&[
+                payload.staff_id.to_string().into(),
+                tenant_id_str.clone().into(),
+                location_id_str.clone().into(),
+            ])
+        {
+            if let Ok(Some(row)) = stmt.first::<serde_json::Value>(None).await {
+                if let Some(hash) = row.get("pin_hash").and_then(serde_json::Value::as_str) {
+                    if !verify_pin_hash(hash, &payload.pin) {
+                        return Response::error("Invalid PIN", 401);
+                    }
+                }
+                if let Some(role_str) = row.get("role").and_then(serde_json::Value::as_str) {
+                    role = match role_str {
+                        "Owner" => StaffRole::Owner,
+                        "Manager" => StaffRole::Manager,
+                        "Cashier" => StaffRole::Cashier,
+                        "Kitchen" => StaffRole::Kitchen,
+                        _ => StaffRole::Waiter,
+                    };
+                    permissions = row
+                        .get("permissions")
+                        .and_then(serde_json::Value::as_u64)
+                        .map_or(role.default_permissions().bits(), |v| {
+                            u32::try_from(v).unwrap_or(role.default_permissions().bits())
+                        });
+                }
+            }
+        }
+    }
 
     let now_ts = usize::try_from(chrono::Utc::now().timestamp()).unwrap_or(0);
     let expires_in: usize = 86400; // 24 hours
@@ -78,7 +137,12 @@ pub async fn login<D>(mut req: Request, _ctx: RouteContext<D>) -> Result<Respons
     };
 
     let header = Header::new(Algorithm::HS256);
-    let key = jsonwebtoken::EncodingKey::from_secret(b"");
+    let secret = get_jwt_secret(&ctx);
+    let key = if secret.is_empty() {
+        jsonwebtoken::EncodingKey::from_secret(b"")
+    } else {
+        jsonwebtoken::EncodingKey::from_secret(secret.as_bytes())
+    };
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
         Err(e) => return Response::error(format!("Failed to sign token: {e}"), 500),
