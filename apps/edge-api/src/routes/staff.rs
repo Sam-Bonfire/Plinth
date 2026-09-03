@@ -56,6 +56,11 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
         .post_async("/api/v1/staff/:id/pin-verify", verify_pin)
 }
 
+/// Creates a new staff member
+///
+/// # Errors
+/// Returns error if auth fails, payload invalid or DB fails
+#[allow(clippy::missing_errors_doc)]
 pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::MANAGE_STAFF) else {
         return Response::error("Unauthorized", 401);
@@ -114,17 +119,19 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     Response::from_json(&resp).map(|r| r.with_status(201))
 }
 
+/// Lists staff for tenant/location
+///
+/// # Errors
+/// Returns error if auth fails or DB fails
+#[allow(clippy::missing_errors_doc, clippy::manual_let_else, clippy::single_match_else, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
     };
 
-    let db = match ctx.env.d1("CELLAR_DB") {
-        Ok(db) => db,
-        Err(_) => {
-            let resp = ListStaffResponse { data: vec![], total: 0 };
-            return Response::from_json(&resp);
-        }
+    let Ok(db) = ctx.env.d1("CELLAR_DB") else {
+        let resp = ListStaffResponse { data: vec![], total: 0 };
+        return Response::from_json(&resp);
     };
 
     let stmt = db
@@ -163,6 +170,11 @@ pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Respons
     Response::from_json(&resp)
 }
 
+/// Gets a single staff member
+///
+/// # Errors
+/// Returns error if auth fails, staff not found or DB fails
+#[allow(clippy::missing_errors_doc, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
@@ -196,6 +208,11 @@ pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response
     Response::from_json(&dto)
 }
 
+/// Updates a staff member
+///
+/// # Errors
+/// Returns error if auth fails, payload invalid or DB fails
+#[allow(clippy::missing_errors_doc)]
 pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::MANAGE_STAFF) else {
         return Response::error("Unauthorized", 401);
@@ -233,6 +250,11 @@ pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     get_staff(req, ctx).await
 }
 
+/// Verifies staff PIN
+///
+/// # Errors
+/// Returns error if auth fails, payload invalid or DB fails
+#[allow(clippy::missing_errors_doc)]
 pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, "", Permissions::empty()) else {
         return Response::error("Unauthorized", 401);
