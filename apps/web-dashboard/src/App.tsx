@@ -1,12 +1,17 @@
-import { PlinthThemeProvider } from '@plinth/ui-kit';
-import React from 'react';
+import { LinguiProvider, PlinthThemeProvider } from "@plinth/ui-kit";
+import React from "react";
+import { RouterProvider } from "react-router-dom";
+import { AuthProvider } from "./providers/AuthProvider.js";
+import { router } from "./router.js";
 
 const App: React.FC = () => {
   return (
     <PlinthThemeProvider>
-      <div>
-        <h1>PlinthOS Web Dashboard</h1>
-      </div>
+      <LinguiProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </LinguiProvider>
     </PlinthThemeProvider>
   );
 };
