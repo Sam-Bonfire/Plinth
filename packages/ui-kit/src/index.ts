@@ -7,6 +7,8 @@ export * from "./tokens.js";
 export * from "./api/index.js";
 export * from "./state/keyboard.js";
 export * from "./state/toast.js";
+export * from "./stores/index.js";
+export * from "./i18n/index.js";
 
 // Theme
 export { PlinthThemeProvider, usePlinthTheme } from "./components/ThemeProvider/PlinthThemeProvider.js";
@@ -52,6 +54,8 @@ export * from "./components/PinKeypad/index.js";
 export * from "./components/Form/index.js";
 export * from "./components/AlertBanner/index.js";
 export * from "./components/KDSTicketCard/index.js";
+export * from "./components/FloorPlanTable/index.js";
+export * from "./components/OrderBuilder/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
