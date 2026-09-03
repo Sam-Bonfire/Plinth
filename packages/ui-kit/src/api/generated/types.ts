@@ -108,6 +108,8 @@ export type CreateLineItemDto = { menu_item_id: MenuItemId; name: string; unit_p
 
 export type CreateOrderRequest = { channel: OrderChannel; terminal_id: TerminalId; table_id: FloorTableId | null; seat_number: SeatNumber | null; items: CreateLineItemDto[]; discounts: Discount[]; charges: OrderCharge[]; tip: TipAmount | null }
 
+export type CreateStaffRequest = { name: string; role: StaffRole; pin: string }
+
 /**
  * Supported currencies. Non-exhaustive for future expansion.
  */
@@ -397,6 +399,8 @@ export type KitchenTicketStatus =
  * Ticket is cancelled
  */
 "Cancelled"
+
+export type ListStaffResponse = { data: StaffResponseDto[]; total: number }
 
 /**
  * Identifier for a Location (Specific outlet/branch)
@@ -837,6 +841,10 @@ export type PaymentStatus =
  */
 export type Permissions = number
 
+export type PinVerifyRequest = { pin: string }
+
+export type PinVerifyResponse = { valid: boolean; staff_id: StaffMemberId }
+
 /**
  * Defines service level agreements for food preparation
  */
@@ -1006,6 +1014,8 @@ export type SlaStatus =
  * Identifier for a Staff Member
  */
 export type StaffMemberId = string
+
+export type StaffResponseDto = { id: StaffMemberId; tenant_id: TenantId; location_id: LocationId; name: string; role: StaffRole; permissions: number; is_active: boolean; created_at: string }
 
 /**
  * Role of a staff member
@@ -1345,6 +1355,8 @@ export type UnitOfMeasure =
  * Request to toggle item availability (86 toggle)
  */
 export type UpdateItemAvailabilityRequest = { is_available: boolean; reason: string | null }
+
+export type UpdateStaffRequest = { name: string | null; role: StaffRole | null; is_active: boolean | null }
 
 /**
  * End-of-shift Z-Report summary

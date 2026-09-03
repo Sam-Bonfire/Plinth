@@ -50,6 +50,7 @@ use edge_api::routes::eod::{CloseShiftRequest, ZReportDto};
 use edge_api::routes::inventory::{AdjustStockRequest, InventoryQueryParams, StockItemResponseDto};
 use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryParams};
 use edge_api::routes::reports::SalesReportDto;
+use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest};
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -153,6 +154,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     types.register::<LoginRequest>();
     types.register::<LoginResponse>();
+
+    types.register::<CreateStaffRequest>();
+    types.register::<UpdateStaffRequest>();
+    types.register::<StaffResponseDto>();
+    types.register::<ListStaffResponse>();
+    types.register::<PinVerifyRequest>();
+    types.register::<PinVerifyResponse>();
 
     types.register::<CloseShiftRequest>();
     types.register::<ZReportDto>();
