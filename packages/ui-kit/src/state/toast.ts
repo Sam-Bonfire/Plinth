@@ -17,9 +17,10 @@ export type ToastListener = (toasts: ToastItem[]) => void;
  * Safely accesses localStorage in browser, Electron, Tauri, or SSR Node environments.
  */
 export function getSafeStorageItem(key: string): string | null {
-  if (typeof localStorage !== "undefined" && typeof localStorage.getItem === "function") {
+  const storage = getStorage();
+  if (storage) {
     try {
-      return localStorage.getItem(key);
+      return storage.getItem(key);
     } catch {
       return null;
     }
@@ -31,13 +32,52 @@ export function getSafeStorageItem(key: string): string | null {
  * Safely sets localStorage item in browser, Electron, Tauri, or SSR Node environments.
  */
 export function setSafeStorageItem(key: string, value: string): void {
-  if (typeof localStorage !== "undefined" && typeof localStorage.setItem === "function") {
+  const storage = getStorage();
+  if (storage) {
     try {
-      localStorage.setItem(key, value);
+      storage.setItem(key, value);
     } catch {
       // Ignore storage write quota or access errors in sandbox
     }
   }
+}
+
+const fallbackMem = new Map<string, string>();
+
+function getStorage(): Storage | null {
+  try {
+    // Prefer globalThis.localStorage, fallback to window.localStorage for happy-dom
+    const maybeGlobal = (globalThis as unknown as { localStorage?: Storage }).localStorage;
+    if (maybeGlobal && typeof maybeGlobal.getItem === "function") {
+      return maybeGlobal;
+    }
+    const maybeWindow =
+      typeof window !== "undefined"
+        ? (window as unknown as { localStorage?: Storage }).localStorage
+        : undefined;
+    if (maybeWindow && typeof maybeWindow.getItem === "function") {
+      return maybeWindow;
+    }
+  } catch {
+    // fall through to in-memory fallback
+  }
+  // In-memory fallback ensures headless/test environments still satisfy storage contract
+  return {
+    getItem: (key: string): string | null => fallbackMem.get(key) ?? null,
+    setItem: (key: string, value: string): void => {
+      fallbackMem.set(key, value);
+    },
+    removeItem: (key: string): void => {
+      fallbackMem.delete(key);
+    },
+    clear: (): void => {
+      fallbackMem.clear();
+    },
+    key: (index: number): string | null => Array.from(fallbackMem.keys())[index] ?? null,
+    get length(): number {
+      return fallbackMem.size;
+    },
+  } as Storage;
 }
 
 /**
