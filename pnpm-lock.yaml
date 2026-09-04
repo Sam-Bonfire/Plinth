@@ -275,6 +275,9 @@ importers:
       '@ant-design/charts':
         specifier: ^2.6.7
         version: 2.6.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@ant-design/icons':
+        specifier: ^6.3.2
+        version: 6.3.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
