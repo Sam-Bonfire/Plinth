@@ -1,5 +1,6 @@
+import { theme } from "antd";
 import React, { useEffect, useState, useMemo } from "react";
-import "./LiveTimerDisplay.css";
+import type { CSSProperties } from "react";
 
 export interface LiveTimerDisplayProps {
   startTime: Date | string | number;
@@ -39,6 +40,7 @@ export const LiveTimerDisplay: React.FC<LiveTimerDisplayProps> = ({
   showIcon = false,
   className = "",
 }) => {
+  const { token } = theme.useToken();
   const [now, setNow] = useState(Date.now());
 
   const startMs = useMemo(() => {
@@ -106,11 +108,43 @@ export const LiveTimerDisplay: React.FC<LiveTimerDisplayProps> = ({
     return "plinth-live-timer-normal";
   }, [totalMinutes, warningThresholdMinutes, criticalThresholdMinutes, startMs]);
 
+  const baseStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontFamily: token.fontFamilyCode,
+    fontWeight: 500,
+    padding: "4px 8px",
+    borderRadius: token.borderRadius,
+    transition: "all 0.3s ease",
+    lineHeight: 1,
+  };
+
+  const severityStyles: Record<string, CSSProperties> = {
+    "plinth-live-timer-normal": {
+      backgroundColor: "var(--s2)",
+      color: token.colorPrimary,
+      border: `1px solid ${token.colorBorder}`,
+    },
+    "plinth-live-timer-warning": {
+      backgroundColor: "var(--y)",
+      color: "var(--s1)",
+      border: "1px solid var(--y)",
+    },
+    "plinth-live-timer-critical": {
+      backgroundColor: "var(--r)",
+      color: "var(--s1)",
+      border: "1px solid var(--r)",
+      animation: "plinth-timer-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+    },
+  };
+
   return (
     <time
       className={`plinth-live-timer ${severityClass} ${className}`.trim()}
       dateTime={`PT${hours}H${minutes}M${seconds}S`}
       aria-live="polite"
+      style={{ ...baseStyle, ...severityStyles[severityClass] }}
     >
       {showIcon && <StopwatchIcon />}
       <span className="plinth-live-timer-text">{formattedTime}</span>
