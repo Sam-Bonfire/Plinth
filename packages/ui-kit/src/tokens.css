@@ -18,6 +18,11 @@
   transform: scale(0.96);
 }
 
+/* POS touch input: antd's largest size is 40px/16px, too small for touch POS */
+.plinth-currency-input-pos-large .ant-input-number-input {
+  font-size: 32px;
+  height: 56px;
+  text-align: right;
 /* LiveTimerDisplay critical pulse (CSS animation, cannot live inline) */
 @keyframes plinth-timer-pulse {
   0%, 100% {
