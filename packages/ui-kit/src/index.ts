@@ -56,6 +56,7 @@ export * from "./components/AlertBanner/index.js";
 export * from "./components/KDSTicketCard/index.js";
 export * from "./components/FloorPlanTable/index.js";
 export * from "./components/OrderBuilder/index.js";
+export * from "./components/InventoryStockBar/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
