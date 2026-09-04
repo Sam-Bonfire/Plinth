@@ -1,5 +1,6 @@
+import { Button, ConfigProvider, Space, theme } from "antd";
 import React from "react";
-import "./FilterButtonGroup.css";
+import type { CSSProperties } from "react";
 
 export interface FilterOption<T> {
   value: T;
@@ -28,6 +29,7 @@ export function FilterButtonGroup<T extends string | number>(
   props: FilterButtonGroupProps<T>
 ): React.ReactElement {
   const { options, className = "" } = props;
+  const { token } = theme.useToken();
   const isMultiple = props.multiple === true;
 
   const isSelected = (optionValue: T) => {
@@ -56,38 +58,85 @@ export function FilterButtonGroup<T extends string | number>(
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, option: FilterOption<T>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleToggle(option);
-    }
+  const countStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 20,
+    height: 20,
+    padding: "0 6px",
+    borderRadius: 10,
+    backgroundColor: token.colorBorder,
+    color: token.colorPrimary,
+    fontFamily: token.fontFamilyCode,
+    fontSize: 12,
+    fontWeight: 600,
+    lineHeight: 1,
+  };
+
+  const buttonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 12px",
+    height: "auto",
+    borderRadius: token.borderRadius,
+    fontWeight: 500,
   };
 
   return (
-    <div className={`plinth-filter-group ${className}`.trim()} role={isMultiple ? "group" : "radiogroup"}>
-      {options.map((option) => {
-        const selected = isSelected(option.value);
-        return (
-          <button
-            key={String(option.value)}
-            type="button"
-            role={isMultiple ? "checkbox" : "radio"}
-            aria-checked={selected}
-            disabled={option.disabled}
-            className={`plinth-filter-btn ${selected ? "active" : ""} ${
-              option.disabled ? "disabled" : ""
-            }`.trim()}
-            onClick={() => handleToggle(option)}
-            onKeyDown={(e) => handleKeyDown(e, option)}
-            tabIndex={option.disabled ? -1 : 0}
-          >
-            <span className="plinth-filter-btn-label">{option.label}</span>
-            {option.count !== undefined && (
-              <span className="plinth-filter-btn-count">{option.count}</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+    <ConfigProvider
+      theme={{
+        components: {
+          Button: {
+            colorPrimary: "var(--acc)",
+            defaultBg: "var(--bg)",
+            defaultColor: "var(--acc)",
+            defaultBorderColor: "var(--b1)",
+            defaultHoverBg: "var(--b1)",
+            defaultHoverColor: "var(--acc)",
+            defaultHoverBorderColor: "var(--b1)",
+            defaultActiveBg: "var(--b1)",
+            defaultActiveColor: "var(--acc)",
+            defaultActiveBorderColor: "var(--b1)",
+          },
+        },
+      }}
+    >
+      <Space
+        wrap
+        size={8}
+        role={isMultiple ? "group" : "radiogroup"}
+        className={className}
+      >
+        {options.map((option) => {
+          const selected = isSelected(option.value);
+          return (
+            <Button
+              key={String(option.value)}
+              type={selected ? "primary" : undefined}
+              disabled={option.disabled}
+              role={isMultiple ? "checkbox" : "radio"}
+              aria-checked={selected}
+              onClick={() => handleToggle(option)}
+              tabIndex={option.disabled ? -1 : 0}
+              style={buttonStyle}
+            >
+              <span style={{ lineHeight: 1.2 }}>{option.label}</span>
+              {option.count !== undefined && (
+                <span
+                  style={{
+                    ...countStyle,
+                    ...(selected ? { backgroundColor: "var(--bg)" } : {}),
+                  }}
+                >
+                  {option.count}
+                </span>
+              )}
+            </Button>
+          );
+        })}
+      </Space>
+    </ConfigProvider>
   );
 }

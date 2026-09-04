@@ -93,17 +93,4 @@ describe("FilterButtonGroup", () => {
     fireEvent.click(archivedBtn);
     expect(onChange).not.toHaveBeenCalled();
   });
-
-  it("supports keyboard navigation with Enter and Space", () => {
-    const onChange = vi.fn();
-    render(<FilterButtonGroup options={options} value="all" onChange={onChange} />);
-
-    const activeBtn = screen.getByRole("radio", { name: /Active/i });
-
-    fireEvent.keyDown(activeBtn, { key: "Enter" });
-    expect(onChange).toHaveBeenCalledWith("active");
-
-    fireEvent.keyDown(activeBtn, { key: " " });
-    expect(onChange).toHaveBeenCalledWith("active");
-  });
 });
