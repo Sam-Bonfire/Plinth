@@ -59,6 +59,9 @@ export * from "./components/OrderBuilder/index.js";
 export * from "./components/InventoryStockBar/index.js";
 export * from "./components/EmptyState/index.js";
 export * from "./components/CurrencyInput/index.js";
+export * from "./components/Avatar/index.js";
+export * from "./components/Charts/index.js";
+export * from "./components/FilterButtonGroup/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
@@ -121,3 +124,4 @@ export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   },
 });
 export * from "./components/DataTable/index.js";
+export * from "./components/LiveTimerDisplay/index.js";
