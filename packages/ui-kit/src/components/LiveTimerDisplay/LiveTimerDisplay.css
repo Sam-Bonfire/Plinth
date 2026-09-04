@@ -1,0 +1,47 @@
+.plinth-live-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  line-height: 1;
+}
+
+.plinth-live-timer-icon {
+  flex-shrink: 0;
+}
+
+.plinth-live-timer-text {
+  font-variant-numeric: tabular-nums;
+}
+
+.plinth-live-timer-normal {
+  background-color: var(--s2);
+  color: var(--acc);
+  border: 1px solid var(--b1);
+}
+
+.plinth-live-timer-warning {
+  background-color: var(--y);
+  color: var(--s1);
+  border: 1px solid var(--y);
+}
+
+.plinth-live-timer-critical {
+  background-color: var(--r);
+  color: var(--s1);
+  border: 1px solid var(--r);
+  animation: plinth-timer-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes plinth-timer-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

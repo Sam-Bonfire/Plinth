@@ -120,3 +120,4 @@ export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
   },
 });
 export * from "./components/DataTable/index.js";
+export * from "./components/LiveTimerDisplay/index.js";
