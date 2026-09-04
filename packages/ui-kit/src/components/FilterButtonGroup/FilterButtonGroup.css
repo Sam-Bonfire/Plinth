@@ -1,0 +1,69 @@
+.plinth-filter-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.plinth-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--b1);
+  background-color: var(--bg);
+  color: var(--acc);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.plinth-filter-btn:hover:not(.disabled) {
+  background-color: var(--b1);
+}
+
+.plinth-filter-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--acc);
+}
+
+.plinth-filter-btn.active {
+  background-color: var(--acc);
+  color: var(--bg);
+  border-color: var(--acc);
+}
+
+.plinth-filter-btn.active .plinth-filter-btn-count {
+  background-color: var(--bg);
+  color: var(--acc);
+}
+
+.plinth-filter-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--s2);
+}
+
+.plinth-filter-btn-label {
+  line-height: 1.2;
+}
+
+.plinth-filter-btn-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background-color: var(--b1);
+  color: var(--acc);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
