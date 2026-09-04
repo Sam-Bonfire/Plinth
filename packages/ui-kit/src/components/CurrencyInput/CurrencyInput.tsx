@@ -1,7 +1,7 @@
-import { InputNumber } from 'antd';
+import { InputNumber, theme } from 'antd';
 import React, { useCallback, useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { PlinthButton } from '../Button/PlinthButton.js';
-import './CurrencyInput.css';
 
 export interface CurrencyInputProps {
   value?: number | string;
@@ -100,26 +100,40 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
     return 'middle';
   }, [size]);
 
-  const sizeClass = useMemo(() => {
-    switch (size) {
-      case 'pos-large': return 'plinth-currency-input-pos-large';
-      case 'sm': return 'plinth-currency-input-sm';
-      case 'lg': return 'plinth-currency-input-lg';
-      case 'md':
-      default:
-        return 'plinth-currency-input-md';
-    }
-  }, [size]);
+  const { token } = theme.useToken();
+
+  const wrapperStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    width: '100%',
+  };
+
+  const fieldStyle: CSSProperties = {
+    width: '100%',
+    fontFamily: token.fontFamilyCode,
+  };
 
   return (
-    <div className={`plinth-currency-input-wrapper ${sizeClass}`}>
+    <div style={wrapperStyle}>
       <InputNumber
         value={numericValue}
         onChange={(val) => onChange?.(val === null ? undefined : Number(val))}
         disabled={disabled}
         placeholder={placeholder}
-        prefix={<span className="plinth-currency-prefix">{currency}</span>}
-        className="plinth-currency-input-field"
+        prefix={
+          <span
+            style={{
+              color: token.colorTextSecondary,
+              fontFamily: token.fontFamily,
+              marginRight: 4,
+            }}
+          >
+            {currency}
+          </span>
+        }
+        style={fieldStyle}
+        className={size === 'pos-large' ? 'plinth-currency-input-pos-large' : undefined}
         min={allowNegative ? undefined : 0}
         step={decimals === 0 ? 1 : Math.pow(10, -decimals)}
         precision={decimals}
@@ -136,14 +150,14 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       />
 
       {quickIncrements && quickIncrements.length > 0 && (
-        <div className="plinth-currency-quick-increments">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {quickIncrements.map((amount) => (
             <PlinthButton
               key={amount}
               variant="secondary"
               onClick={() => handleIncrement(amount)}
               disabled={disabled}
-              className="plinth-currency-increment-btn"
+              style={{ flex: '1 1 auto', fontFamily: token.fontFamilyCode }}
               htmlType="button"
             >
               +{currency}{amount}
