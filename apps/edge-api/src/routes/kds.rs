@@ -194,9 +194,12 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if the database query fails or authentication context is missing
 pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         core_domain::enums::staff::Permissions::empty(),
     ) else {
         return Response::error("Unauthorized", 401);
@@ -279,9 +282,12 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
 /// # Errors
 /// Returns an error if the ticket is not found, state transition is invalid, or database update fails
 pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         core_domain::enums::staff::Permissions::empty(),
     ) else {
         return Response::error("Unauthorized", 401);

@@ -49,9 +49,12 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if the database query fails or authentication context is invalid
 pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::empty(),
     ) else {
         return Response::error("Unauthorized", 401);
@@ -152,9 +155,12 @@ pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<R
 /// # Errors
 /// Returns an error if the item is not found, user lacks permissions, or database update fails
 pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Forbidden: Insufficient permissions", 403);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::MANAGE_MENU,
     ) else {
         return Response::error("Forbidden: Insufficient permissions", 403);
