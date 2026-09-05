@@ -253,37 +253,32 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 
 ### Monorepo `.mise.toml` Configuration
 
+`.mise.toml` is the single task-runner definition (a legacy `mise.toml`
+duplicate was removed; both were being merged with conflicting pins).
+Tool pins are `node 24.19.0`, `pnpm 11.22.0`, `rust stable`, `hurl 8`,
+`tauri-cli 2.0.0`.
+
 ```toml
-[tools]
-node = "24.19.0"
-pnpm = "11.22.0"
-rust = "stable"
-hurl = "8"
-"cargo:tauri-cli" = "2.0.0"
-
-[env]
-CARGO_TERM_COLOR = "always"
-PLINTH_ENV = "development"
-
 [tasks."init"]
-description = "Initialize git hooks and install workspace dependencies"
-run = "git config core.hooksPath .githooks && pnpm install"
+description = "Initialize development environment, install toolchains, and configure git hooks"
+run = ["mise trust", "mise install", "git config core.hooksPath .githooks", "pnpm install"]
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
 run = "pnpm --filter pos-client exec tauri dev"
 
 [tasks."dev:web"]
-description = "Launch Next.js Cloud Admin Dashboard"
+description = "Launch Web Admin Dashboard"
 run = "pnpm --filter web-dashboard dev"
 
 [tasks."dev:site"]
-description = "Launch Next.js Marketing Site"
+description = "Launch Marketing Site"
 run = "pnpm --filter marketing-site dev"
 
 [tasks."dev:api"]
-description = "Launch Cloudflare Wrangler local edge simulator (Miniflare)"
-run = "cd apps/edge-api && pnpm wrangler dev --port 8787"
+description = "Launch Cloudflare Wrangler local edge simulator"
+dir = "apps/edge-api"
+run = "pnpm wrangler dev --port 8787"
 
 [tasks."build:pos"]
 description = "Compile native Rust binary and bundle production POS app"
@@ -291,27 +286,36 @@ run = "pnpm --filter pos-client exec tauri build"
 
 [tasks."build:api"]
 description = "Compile Rust WASM worker and deploy to Cloudflare Edge"
-run = "cd apps/edge-api && pnpm wrangler deploy"
+dir = "apps/edge-api"
+run = "pnpm wrangler deploy"
 
 [tasks."db:migrate:local"]
-description = "Run local SQLite migration scripts against Tauri Rust engine"
-run = "cargo run --bin migrate_local"
+description = "Apply D1 database migrations locally"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --local"
 
-[tasks."db:migrate:cloud"]
-description = "Execute Cloudflare D1 remote SQL migrations"
-run = "cd apps/edge-api && pnpm wrangler d1 migrations apply plinth_main_db"
+[tasks."db:migrate:remote"]
+description = "Apply D1 database migrations to remote production environment"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --remote"
 
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
-run = "cargo clippy --all-targets -- -D warnings && pnpm -r lint"
+run = "mise run lint:rust && mise run lint:ts"
 
 [tasks."test"]
-description = "Execute Rust unit tests, TypeScript specs, and Hurl contract tests"
-run = "cargo test --workspace && pnpm -r test"
+description = "Execute Rust unit tests and TypeScript specs"
+run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
-description = "Execute declarative API integration tests using Hurl"
-run = "hurl --test tests/api/**/*.hurl"
+description = "Execute Hurl endpoint contract tests (needs edge simulator on :8787)"
+run = "hurl --test tests/api/endpoints"
+
+[tasks."test:api:e2e"]
+description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787)"
+run = "hurl --test tests/api/e2e"
+
+[tasks."api:endpoint"]
+description = "Inspect one endpoint spec file (usage: mise run api:endpoint -- <file.hurl>)"
+run = "hurl --verbose"
 
 [tasks."ui:capture"]
 description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
