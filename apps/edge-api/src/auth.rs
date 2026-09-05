@@ -3,7 +3,7 @@ use core_domain::enums::staff::Permissions;
 use core_domain::ids::{LocationId, StaffMemberId, TenantId};
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
-use worker::Request;
+use worker::{Request, RouteContext};
 use uuid::Uuid;
 use std::collections::HashSet;
 
@@ -27,6 +27,32 @@ pub fn extract_token_from_header(auth_header: Option<&String>) -> Option<String>
 pub fn extract_token(req: &Request) -> Option<String> {
     let header = req.headers().get("Authorization").ok().flatten();
     extract_token_from_header(header.as_ref())
+}
+
+/// Resolves the canonical JWT secret (`JWT_SECRET`, legacy `JWT_PUBLIC_KEY`
+/// fallback) for a route context. Returns `None` when unconfigured so callers
+/// fail closed instead of verifying against an empty key.
+#[must_use]
+pub fn resolve_jwt_secret<D>(ctx: &RouteContext<D>) -> Option<String> {
+    if let Ok(secret) = ctx.env.secret("JWT_SECRET") {
+        let s = secret.to_string();
+        if !s.is_empty() {
+            return Some(s);
+        }
+    }
+    if let Ok(val) = ctx.env.var("JWT_SECRET") {
+        let s = val.to_string();
+        if !s.is_empty() {
+            return Some(s);
+        }
+    }
+    if let Ok(val) = ctx.env.var("JWT_PUBLIC_KEY") {
+        let s = val.to_string();
+        if !s.is_empty() {
+            return Some(s);
+        }
+    }
+    std::env::var("JWT_SECRET").ok().filter(|s| !s.is_empty())
 }
 
 /// Verifies a JWT token
