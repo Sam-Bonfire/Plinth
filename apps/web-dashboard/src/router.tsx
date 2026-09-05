@@ -5,6 +5,7 @@ import { DashboardPage } from "./pages/DashboardPage.js";
 import { KitchenPage } from "./pages/KitchenPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { OrdersPage } from "./pages/OrdersPage.js";
+import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
@@ -30,7 +31,7 @@ export const router = createBrowserRouter([
           { path: "/pos", element: <PosPage /> },
           { path: "/orders", element: <OrdersPage /> },
           { path: "/kitchen", element: <KitchenPage /> },
-          { path: "/payments", element: <PlaceholderPage title="Payments" description="Tenders and reconciliation" /> },
+          { path: "/payments", element: <PaymentsPage /> },
           { path: "/menu", element: <PlaceholderPage title="Menu Management" description="Catalog, categories and 86 status" /> },
           { path: "/inventory", element: <PlaceholderPage title="Inventory" description="Stock, recipes, par levels" /> },
           { path: "/customers", element: <PlaceholderPage title="Customers" description="Directory and loyalty" /> },
