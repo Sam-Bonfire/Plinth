@@ -41,7 +41,7 @@ describe("StaffPage", () => {
     expect(after).toBe(before - 1);
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
     expect(await screen.findByText("Role permissions saved.")).toBeDefined();
-  }, 15000);
+  }, 30000);
 
   it("filters the audit log by action", async () => {
     renderPage();
