@@ -14,6 +14,8 @@ export interface MenuItem {
   price: number;
   gstRate: number;
   isVeg: boolean;
+  categoryId: string;
+  isAvailable: boolean;
   modifierGroups: ModifierGroup[];
 }
 
@@ -44,6 +46,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 380,
     gstRate: 5,
     isVeg: false,
+    categoryId: "CAT-02",
+    isAvailable: true,
     modifierGroups: [mockModifiers.portion, mockModifiers.spice],
   },
   {
@@ -52,6 +56,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 280,
     gstRate: 5,
     isVeg: true,
+    categoryId: "CAT-01",
+    isAvailable: true,
     modifierGroups: [mockModifiers.spice],
   },
   {
@@ -60,6 +66,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 60,
     gstRate: 5,
     isVeg: true,
+    categoryId: "CAT-03",
+    isAvailable: true,
     modifierGroups: [mockModifiers.addons],
   },
   {
@@ -68,6 +76,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 240,
     gstRate: 5,
     isVeg: true,
+    categoryId: "CAT-02",
+    isAvailable: true,
     modifierGroups: [mockModifiers.portion],
   },
   {
@@ -76,6 +86,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 110,
     gstRate: 12,
     isVeg: true,
+    categoryId: "CAT-05",
+    isAvailable: true,
     modifierGroups: [],
   },
   {
@@ -84,6 +96,8 @@ export const mockMenuItems: MenuItem[] = [
     price: 90,
     gstRate: 5,
     isVeg: true,
+    categoryId: "CAT-04",
+    isAvailable: false,
     modifierGroups: [],
   },
 ];
