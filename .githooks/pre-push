@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-# Prevent direct pushes to main from local machines
+# Prevent direct pushes to main and dev from local machines.
+# All changes land via pull requests; CI fast-forwards main from dev.
 while read -r local_ref local_oid remote_ref remote_oid; do
-  if [ "$remote_ref" = "refs/heads/main" ]; then
-    echo "❌ ERROR: Direct push to 'main' is prohibited from local machines."
-    echo "👉 Please push your changes to 'dev' (or a feature branch targeting 'dev')."
+  if [ "$remote_ref" = "refs/heads/main" ] || [ "$remote_ref" = "refs/heads/dev" ]; then
+    echo "❌ ERROR: Direct push to '${remote_ref#refs/heads/}' is prohibited from local machines."
+    echo "👉 Please push a feature branch (e.g. feat/my-change) and open a PR targeting 'dev'."
     echo "   The CI staging pipeline automatically fast-forwards 'main' once all tests pass."
     exit 1
   fi

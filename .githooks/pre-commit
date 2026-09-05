@@ -5,7 +5,7 @@ set -e
 echo "🔍 Running pre-commit checks..."
 
 echo "Checking TypeScript linting..."
-pnpm -r lint
+pnpm -r --parallel lint
 
 echo "Checking Rust clippy..."
 cargo clippy --workspace --all-targets -- -D warnings
