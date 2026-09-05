@@ -91,12 +91,16 @@ pub async fn create_order<D>(
     order.created_at = now;
     order.updated_at = now;
 
-    let grand_total_minor = order
-        .grand_total(&GstApplicability::IntraState)
-        .to_minor_units();
-    let balance_due_minor = order
-        .balance_due(&GstApplicability::IntraState)
-        .to_minor_units();
+    let grand_total = match order.grand_total(&GstApplicability::IntraState) {
+        Ok(total) => total,
+        Err(e) => return Response::error(format!("Invalid order totals: {e}"), 400),
+    };
+    let balance_due = match order.balance_due(&GstApplicability::IntraState) {
+        Ok(due) => due,
+        Err(e) => return Response::error(format!("Invalid order totals: {e}"), 400),
+    };
+    let grand_total_minor = grand_total.to_minor_units();
+    let balance_due_minor = balance_due.to_minor_units();
 
     let order_json = match serde_json::to_string(&order) {
         Ok(j) => j,
@@ -297,18 +301,22 @@ pub async fn list_orders<D>(
     for row in rows {
         if let Some(payload_str) = row.get("payload").and_then(serde_json::Value::as_str) {
             if let Ok(order) = serde_json::from_str::<Order>(payload_str) {
+                // Stored payloads were validated at creation; skip corrupt rows
+                // rather than failing the whole listing or reporting zero.
+                let Ok(grand_total) = order.grand_total(&GstApplicability::IntraState) else {
+                    continue;
+                };
+                let Ok(balance_due) = order.balance_due(&GstApplicability::IntraState) else {
+                    continue;
+                };
                 let summary = OrderSummaryDto {
                     id: order.id,
                     status: order.status,
                     channel: order.channel,
                     terminal_id: order.terminal_id,
                     table_id: order.table_id,
-                    grand_total_minor: order
-                        .grand_total(&GstApplicability::IntraState)
-                        .to_minor_units(),
-                    balance_due_minor: order
-                        .balance_due(&GstApplicability::IntraState)
-                        .to_minor_units(),
+                    grand_total_minor: grand_total.to_minor_units(),
+                    balance_due_minor: balance_due.to_minor_units(),
                     created_at: order.created_at,
                 };
                 data.push(summary);
@@ -390,9 +398,11 @@ mod tests {
             table_id: order.table_id,
             grand_total_minor: order
                 .grand_total(&GstApplicability::IntraState)
+                .expect("test order has no discounts")
                 .to_minor_units(),
             balance_due_minor: order
                 .balance_due(&GstApplicability::IntraState)
+                .expect("test order has no discounts")
                 .to_minor_units(),
             created_at: order.created_at,
         };

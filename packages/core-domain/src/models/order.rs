@@ -45,6 +45,9 @@ pub enum OrderError {
     /// Cannot split zero items
     #[error("Cannot split order with zero items")]
     SplitEmpty,
+    /// A discount on the order is invalid (out of range, exceeds subtotal, currency mismatch)
+    #[error("Invalid discount: {0}")]
+    InvalidDiscount(#[from] crate::value_objects::discount::DiscountError),
 }
 
 /// Item line in an order
@@ -432,12 +435,13 @@ impl Order {
     ///
     /// # Errors
     /// Returns `OrderError::AlreadySettled` if already settled,
+    /// `OrderError::InvalidDiscount` if a discount fails validation,
     /// or `OrderError::InsufficientPayment` if amount paid is less than grand total.
     pub fn settle(&mut self, applicability: &GstApplicability) -> Result<OrderEvent, OrderError> {
         if self.status == OrderStatus::Settled {
             return Err(OrderError::AlreadySettled);
         }
-        let total = self.grand_total(applicability);
+        let total = self.grand_total(applicability)?;
         let paid = self.total_paid();
         if paid < total {
             return Err(OrderError::InsufficientPayment { paid, total });
@@ -456,10 +460,20 @@ impl Order {
         self.items.iter().map(OrderLineItem::line_total).sum()
     }
 
-    #[must_use]
-    pub fn discount_total(&self) -> Money {
+    /// Sums validated discount amounts. Unlike the previous implementation,
+    /// discount computation failures propagate instead of being silently dropped.
+    ///
+    /// # Errors
+    /// Returns the first `DiscountError` if any discount is invalid.
+    pub fn discount_total(&self) -> Result<Money, crate::value_objects::discount::DiscountError> {
         let subtotal = self.subtotal();
-        self.discounts.iter().filter_map(|d| d.compute_amount(&subtotal).ok()).sum()
+        // compute_amount already rejects cross-currency discounts, so accumulating
+        // raw amounts here adds no new panic surface.
+        let mut total = Decimal::ZERO;
+        for discount in &self.discounts {
+            total += discount.compute_amount(&subtotal)?.amount;
+        }
+        Ok(Money { amount: total, currency: subtotal.currency })
     }
 
     #[must_use]
@@ -485,16 +499,24 @@ impl Order {
         TaxBreakdown { total_tax, components }
     }
 
-    #[must_use]
-    pub fn grand_total(&self, applicability: &GstApplicability) -> Money {
-        let mut total = self.subtotal();
-        total = total - self.discount_total();
+    /// Computes the payable total. Discount validation failures propagate
+    /// so an invalid discount can never silently undercharge.
+    ///
+    /// # Errors
+    /// Returns `OrderError::InvalidDiscount` if any discount is invalid.
+    pub fn grand_total(
+        &self,
+        applicability: &GstApplicability,
+    ) -> Result<Money, OrderError> {
+        let subtotal = self.subtotal();
+        let discount = self.discount_total()?;
+        let mut total = subtotal - discount;
         total = total + self.charge_total();
         total = total + self.compute_tax_breakdown(applicability).total_tax;
         if let Some(tip) = &self.tip {
             total = total + tip.computed_amount.clone();
         }
-        total
+        Ok(total)
     }
 
     #[must_use]
@@ -502,14 +524,22 @@ impl Order {
         self.payments.iter().filter(|p| p.status == PaymentStatus::Completed).map(|p| p.amount.clone()).sum()
     }
 
-    #[must_use]
-    pub fn balance_due(&self, applicability: &GstApplicability) -> Money {
-        self.grand_total(applicability) - self.total_paid()
+    /// # Errors
+    /// Returns `OrderError::InvalidDiscount` if any discount is invalid.
+    pub fn balance_due(
+        &self,
+        applicability: &GstApplicability,
+    ) -> Result<Money, OrderError> {
+        Ok(self.grand_total(applicability)? - self.total_paid())
     }
 
-    #[must_use]
-    pub fn is_fully_paid(&self, applicability: &GstApplicability) -> bool {
-        self.total_paid() >= self.grand_total(applicability)
+    /// # Errors
+    /// Returns `OrderError::InvalidDiscount` if any discount is invalid.
+    pub fn is_fully_paid(
+        &self,
+        applicability: &GstApplicability,
+    ) -> Result<bool, OrderError> {
+        Ok(self.total_paid() >= self.grand_total(applicability)?)
     }
 
     #[must_use]
@@ -583,7 +613,7 @@ mod tests {
             Money { amount: Decimal::new(20, 0), currency: Currency::Inr }
         );
 
-        let grand = order.grand_total(&GstApplicability::IntraState);
+        let grand = order.grand_total(&GstApplicability::IntraState).unwrap();
         assert_eq!(
             grand,
             Money { amount: Decimal::new(420, 0), currency: Currency::Inr }
@@ -596,7 +626,7 @@ mod tests {
             None,
             staff_id,
         ).unwrap();
-        assert!(!order.is_fully_paid(&GstApplicability::IntraState));
+        assert!(!order.is_fully_paid(&GstApplicability::IntraState).unwrap());
         assert!(order.settle(&GstApplicability::IntraState).is_err());
 
         // Record remaining payment
@@ -606,7 +636,7 @@ mod tests {
             Some("UPI123".to_string()),
             staff_id,
         ).unwrap();
-        assert!(order.is_fully_paid(&GstApplicability::IntraState));
+        assert!(order.is_fully_paid(&GstApplicability::IntraState).unwrap());
 
         let settle_evt = order.settle(&GstApplicability::IntraState).unwrap();
         assert_eq!(settle_evt.order_id(), order.id);
@@ -639,5 +669,35 @@ mod tests {
         // Supervisor void attempt succeeds
         assert!(order.void_order("Guest left".to_string(), staff_id, true).is_ok());
         assert_eq!(order.status, OrderStatus::Voided);
+    }
+
+    #[test]
+    fn test_invalid_discount_propagates_not_silently_dropped() {
+        use crate::value_objects::discount::{Discount, DiscountReason, DiscountType};
+
+        let (mut order, _) = Order::new(
+            TenantId::new(),
+            LocationId::new(),
+            TerminalId::new(),
+            OrderChannel::DineIn,
+            StaffMemberId::new(),
+            None,
+            None,
+        );
+
+        order
+            .apply_discount(Discount {
+                discount_type: DiscountType::Percentage(Decimal::new(200, 0)),
+                reason: DiscountReason::ManagerComp,
+                authorized_by: None,
+            })
+            .unwrap();
+
+        assert!(order.discount_total().is_err());
+        assert!(order.grand_total(&GstApplicability::IntraState).is_err());
+        assert!(matches!(
+            order.settle(&GstApplicability::IntraState).unwrap_err(),
+            OrderError::InvalidDiscount(_)
+        ));
     }
 }
