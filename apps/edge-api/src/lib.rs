@@ -36,10 +36,22 @@ pub async fn fetch(
     let mut auth_context = None;
 
     if path.starts_with("/api/v1") && !path.starts_with("/api/v1/auth") {
-        let secret = match env.var("JWT_PUBLIC_KEY") {
+        // Canonical secret name is JWT_SECRET. JWT_PUBLIC_KEY is accepted
+        // as a legacy fallback and will be removed.
+        let secret = match env.secret("JWT_SECRET") {
             Ok(v) => v.to_string(),
-            Err(_) => String::new(),
+            Err(_) => match env.var("JWT_SECRET") {
+                Ok(v) => v.to_string(),
+                Err(_) => match env.var("JWT_PUBLIC_KEY") {
+                    Ok(v) => v.to_string(),
+                    Err(_) => String::new(),
+                },
+            },
         };
+        if secret.is_empty() {
+            let err_resp = json_error("JWT secret not configured", "INTERNAL_ERROR", &request_id, 500)?;
+            return apply_cors(err_resp);
+        }
 
         // This is a global minimum requirement for /api/v1
         let required_perms = Permissions::empty();
