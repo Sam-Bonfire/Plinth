@@ -1,6 +1,6 @@
 [tools]
-node = "24"
-pnpm = "latest"
+node = "24.19.0"
+pnpm = "11.22.0"
 rust = "stable"
 hurl = "8"
 "cargo:tauri-cli" = "2.0.0"
@@ -19,12 +19,16 @@ run = [
     "pnpm install"
 ]
 
+[tasks."codegen"]
+description = "Export Specta TypeScript type definitions from Rust backend to frontend shared package"
+run = "cargo run --bin export_types --manifest-path apps/edge-api/Cargo.toml"
+
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
 run = "pnpm --filter pos-client exec tauri dev"
 
 [tasks."dev:web"]
-description = "Launch Cloud Admin Dashboard"
+description = "Launch Web Admin Dashboard"
 run = "pnpm --filter web-dashboard dev"
 
 [tasks."dev:site"]
@@ -35,6 +39,18 @@ run = "pnpm --filter marketing-site dev"
 description = "Launch Cloudflare Wrangler local edge simulator"
 dir = "apps/edge-api"
 run = "pnpm wrangler dev --port 8787"
+
+[tasks."build:rust"]
+description = "Compile Rust crates across workspace"
+run = "cargo build --workspace"
+
+[tasks."build:ts"]
+description = "Build TypeScript production packages in parallel"
+run = "pnpm -r --parallel build"
+
+[tasks."build"]
+description = "Compile Rust binaries and bundle production packages"
+run = "mise run build:rust && mise run build:ts"
 
 [tasks."build:pos"]
 description = "Compile native Rust binary and bundle production POS app"
@@ -50,28 +66,54 @@ description = "Compile Rust core-domain to WebAssembly"
 dir = "packages/core-domain"
 run = "wasm-pack build --target bundler --out-dir pkg"
 
+[tasks."lint:rust"]
+description = "Run Cargo clippy with warnings denied across Rust workspace"
+run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks."lint:ts"]
+description = "Run ESLint in parallel across TypeScript workspace"
+run = "pnpm -r --parallel lint"
+
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
-run = [
-    "cargo clippy --workspace --all-targets -- -D warnings",
-    "pnpm -r lint"
-]
-
-[tasks."test"]
-description = "Execute all monorepo test suites (Rust, TypeScript, API)"
-run = [
-    "mise run test:rust",
-    "mise run test:ts"
-]
+run = "mise run lint:rust && mise run lint:ts"
 
 [tasks."test:rust"]
 description = "Execute Rust unit and integration tests across workspace"
 run = "cargo test --workspace"
 
 [tasks."test:ts"]
-description = "Execute TypeScript specs"
-run = "pnpm -r test"
+description = "Execute TypeScript specs in parallel across frontend packages"
+run = "pnpm -r --parallel test"
+
+[tasks."test"]
+description = "Execute Rust unit tests and TypeScript specs"
+run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
-description = "Execute Hurl API contract tests"
-run = "hurl --test tests/api/**/*.hurl"
+description = "Execute Hurl endpoint contract tests (needs edge simulator on :8787)"
+run = "hurl --test tests/api/endpoints"
+
+[tasks."test:api:e2e"]
+description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787)"
+run = "hurl --test tests/api/e2e"
+
+[tasks."api:endpoint"]
+description = "Inspect one endpoint spec file (usage: mise run api:endpoint -- <file.hurl>)"
+run = "hurl --verbose"
+
+[tasks."db:migrate:local"]
+description = "Apply D1 database migrations locally"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --local"
+
+[tasks."db:migrate:remote"]
+description = "Apply D1 database migrations to remote production environment"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --remote"
+
+[tasks."ui:setup"]
+description = "Install Playwright browser binaries (Linux runners add --with-deps)"
+run = "npx playwright install chromium"
+
+[tasks."ui:capture"]
+description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
+run = "pnpm tsx scripts/ui-capture.ts"
