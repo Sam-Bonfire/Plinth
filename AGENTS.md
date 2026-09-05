@@ -16,7 +16,9 @@ This document serves as the operational guide and source of truth for software e
 
 ## 2. Commit Message Structure
 
-Commit messages must follow the standard Conventional Commits structure with mandatory detailed bodies and an optional `For:` task identifier.
+Commit messages follow Conventional Commits. The `commit-msg` hook enforces
+the header (`<type>(<scope>): <summary>`, max 50 chars after the colon);
+a detailed body explaining why is recommended, and a `For:` task footer is optional.
 
 ```text
 <type>(<scope>): <short summary in imperative present tense (50 chars max)>
@@ -54,10 +56,11 @@ For: task-102
 
 ## 4. Environment & Task Workflow
 
-- **Initialization**: Run `pnpm run init` (or `mise run init`) to configure git hooks (`.githooks`) and install monorepo dependencies.
-- **Linting**:
-  - Rust: `cargo clippy --workspace --all-targets -- -D warnings`
-  - TS/JS: `pnpm -r lint`
+- **Initialization**: Run `pnpm run init` (or `mise run init`) to configure git hooks (`.githooks`) and install monorepo dependencies. `.mise.toml` is the single task definition.
+- **Linting** (prefer the mise tasks; raw commands are the fallback):
+  - Rust: `mise run lint:rust` (`cargo clippy --workspace --all-targets -- -D warnings`)
+  - TS/JS: `mise run lint:ts` (`pnpm -r --parallel lint`)
 - **Testing**:
-  - Rust: `cargo test --workspace`
-  - TS/JS: `pnpm -r test`
+  - Rust: `mise run test:rust` (`cargo test --workspace`)
+  - TS/JS: `mise run test:ts` (`pnpm -r --parallel test`)
+  - API contracts (needs `mise run dev:api` on :8787): `mise run test:api`
