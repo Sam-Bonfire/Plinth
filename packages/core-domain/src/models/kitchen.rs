@@ -12,7 +12,7 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum KitchenError {
     /// Invalid state transition attempted
-    #[error("Ticket is already completed or cancelled")]
+    #[error("Invalid kitchen ticket state transition")]
     InvalidStateTransition,
 }
 
@@ -107,12 +107,50 @@ impl KitchenTicket {
         (ticket, event)
     }
 
-    /// Bumps (completes) the ticket from the kitchen station.
+    /// Starts preparation (`Pending` → `InPrep`) when a station fires the ticket.
     ///
     /// # Errors
-    /// Returns `KitchenError::InvalidStateTransition` if the ticket is not `Pending`.
+    /// Returns `KitchenError::InvalidStateTransition` unless the ticket is `Pending`.
+    pub fn start_prep(&mut self) -> Result<KitchenTicketEvent, KitchenError> {
+        if !self.status.can_transition_to(&KitchenTicketStatus::InPrep) {
+            return Err(KitchenError::InvalidStateTransition);
+        }
+        let now = Utc::now();
+        self.status = KitchenTicketStatus::InPrep;
+        Ok(KitchenTicketEvent::StatusChanged {
+            ticket_id: self.id,
+            from: KitchenTicketStatus::Pending,
+            to: KitchenTicketStatus::InPrep,
+            changed_at: now,
+        })
+    }
+
+    /// Marks the ticket ready (`InPrep` → `Ready`).
+    ///
+    /// # Errors
+    /// Returns `KitchenError::InvalidStateTransition` unless the ticket is `InPrep`.
+    pub fn mark_ready(&mut self) -> Result<KitchenTicketEvent, KitchenError> {
+        if !self.status.can_transition_to(&KitchenTicketStatus::Ready) {
+            return Err(KitchenError::InvalidStateTransition);
+        }
+        let now = Utc::now();
+        self.status = KitchenTicketStatus::Ready;
+        Ok(KitchenTicketEvent::StatusChanged {
+            ticket_id: self.id,
+            from: KitchenTicketStatus::InPrep,
+            to: KitchenTicketStatus::Ready,
+            changed_at: now,
+        })
+    }
+
+    /// Bumps (completes) the ticket from the kitchen station.
+    /// Only a `Ready` ticket can be bumped; skipping `InPrep`/`Ready`
+    /// is rejected rather than silently fast-tracked.
+    ///
+    /// # Errors
+    /// Returns `KitchenError::InvalidStateTransition` if the ticket is not `Ready`.
     pub fn bump(&mut self, bumped_by: Option<StaffMemberId>) -> Result<KitchenTicketEvent, KitchenError> {
-        if self.status != KitchenTicketStatus::Pending {
+        if !self.status.can_transition_to(&KitchenTicketStatus::Bumped) {
             return Err(KitchenError::InvalidStateTransition);
         }
         let now = Utc::now();
@@ -126,12 +164,12 @@ impl KitchenTicket {
         })
     }
 
-    /// Cancels the kitchen ticket.
+    /// Cancels the kitchen ticket from any non-terminal state.
     ///
     /// # Errors
-    /// Returns `KitchenError::InvalidStateTransition` if the ticket is not `Pending`.
+    /// Returns `KitchenError::InvalidStateTransition` if the ticket is already terminal.
     pub fn cancel(&mut self, reason: String) -> Result<KitchenTicketEvent, KitchenError> {
-        if self.status != KitchenTicketStatus::Pending {
+        if !self.status.can_transition_to(&KitchenTicketStatus::Cancelled) {
             return Err(KitchenError::InvalidStateTransition);
         }
         let now = Utc::now();
@@ -185,8 +223,42 @@ mod tests {
         let now = ticket.created_at + chrono::Duration::minutes(5);
         assert_eq!(ticket.sla_status(now), SlaStatus::Warning);
 
+        // Skipping stages is rejected: Pending cannot bump directly.
+        assert!(ticket.bump(None).is_err());
+        assert!(ticket.mark_ready().is_err());
+
+        ticket.start_prep().unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::InPrep);
+        assert!(ticket.bump(None).is_err());
+
+        ticket.mark_ready().unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Ready);
+
         let bump_evt = ticket.bump(None).unwrap();
         assert_eq!(ticket.status, KitchenTicketStatus::Bumped);
         assert_eq!(bump_evt.ticket_id(), ticket.id);
+
+        // Terminal states reject further transitions.
+        assert!(ticket.bump(None).is_err());
+        assert!(ticket.cancel("too late".to_string()).is_err());
+    }
+
+    #[test]
+    fn test_kitchen_ticket_cancel_from_in_prep() {
+        let sla = PreparationSla::default_restaurant();
+        let (mut ticket, _) = KitchenTicket::new(
+            OrderId::new(),
+            TenantId::new(),
+            LocationId::new(),
+            StationId::Grill,
+            102,
+            Vec::new(),
+            sla,
+        );
+
+        ticket.start_prep().unwrap();
+        let cancel_evt = ticket.cancel("out of stock".to_string()).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Cancelled);
+        assert_eq!(cancel_evt.ticket_id(), ticket.id);
     }
 }
