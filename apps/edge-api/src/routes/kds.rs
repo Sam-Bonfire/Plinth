@@ -340,7 +340,7 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let mut ticket = KitchenTicket::try_from(row)?;
 
     if ticket.bump(bumped_by).is_err() {
-        return Response::error("Ticket is already completed or cancelled", 409);
+        return Response::error("Ticket cannot be bumped from its current status", 409);
     }
 
     let status_str = match ticket.status {
@@ -424,6 +424,11 @@ mod tests {
             sla,
         );
 
+        // Bumping before Ready is rejected.
+        assert!(ticket.bump(None).is_err());
+
+        ticket.start_prep().unwrap();
+        ticket.mark_ready().unwrap();
         assert!(ticket.bump(None).is_ok());
         assert_eq!(ticket.status, KitchenTicketStatus::Bumped);
 

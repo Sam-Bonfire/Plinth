@@ -82,7 +82,7 @@ graph TD
 
 ### Context Invariants & Validation Rules
 
-- **Ordering Context**: Price calculations must strictly utilize `rust_decimal::Decimal` (no IEEE-754 floating-point arithmetic permitted). Seat totals must balance: $\sum (\text{Seat Check Totals}) = \text{Order Total}$.
+- **Ordering Context**: Price calculations must strictly utilize `rust_decimal::Decimal` (no IEEE-754 floating-point arithmetic permitted). Order totals are derived as subtotal minus validated discounts plus charges, GST, and tip; invalid discounts fail the total instead of being silently dropped.
 - **Kitchen Execution Context**: A ticket line cannot transition to `BUMPED` before transitioning to `IN_PREP` (unless explicitly fast-tracked by an authorized role policy).
 - **Inventory Context**: Recipe stock deduction occurs automatically upon receiving an `ORDER_SUBMITTED` domain event. Stock drops below minimum reorder thresholds emit an `INVENTORY_DISCREPANCY_ALERT`.
 - **Tenant Context**: A shift cannot be closed (`Z-REPORT`) if active open checks remain associated with its register.
@@ -194,21 +194,25 @@ stateDiagram-v2
     [*] --> PENDING : Order Submitted
 
     state PENDING {
-        [*] --> SLA_GREEN : Timer < 8m
-        SLA_GREEN --> SLA_YELLOW : Timer 8m - 12m
-        SLA_YELLOW --> SLA_RED : Timer > 15m
+        [*] --> SLA_GREEN : Timer < 4m
+        SLA_GREEN --> SLA_YELLOW : Timer 4m - 8m
+        SLA_YELLOW --> SLA_RED : Timer > 8m
     }
 
     PENDING --> IN_PREP : Chef Taps "Start Prep"
     IN_PREP --> READY : Chef Taps "Mark Ready"
     READY --> BUMPED : Expeditor Taps "Bump / Serve"
-    
+
     PENDING --> CANCELLED : Void / Order Cancelled
     IN_PREP --> CANCELLED : Void / Manager Override
-    
+    READY --> CANCELLED : Void / Manager Override
+
     BUMPED --> [*]
     CANCELLED --> [*]
 ```
+
+> Thresholds match `PreparationSla::default_restaurant` (warning 4m, late 8m).
+> Skipping stages is rejected: only a `READY` ticket can transition to `BUMPED`.
 
 ---
 
