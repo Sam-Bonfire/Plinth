@@ -93,7 +93,7 @@ mod tests {
         // Seat check: Seat 1 = $20.00, Seat 2 = $5.00 → total = $25.00
         // Order total should also be $25.00
         let subtotal = order.subtotal();
-        let total = order.grand_total(&GstApplicability::Applicable);
+        let total = order.grand_total(&GstApplicability::IntraState).unwrap();
 
         // The invariant: subtotal + tax + tip should equal grand total
         // (Simplified: just verify seat totals concept)
@@ -229,7 +229,7 @@ fn test_order_add_item_invariant() {
     assert_eq!(order.items.len(), 2);
     // Seat 1 = $15.00, Seat 2 = $5.00 → total = $20.00
     // Grand total should reflect both items + tax
-    let total = order.grand_total(&GstApplicability::Applicable);
+    let total = order.grand_total(&GstApplicability::IntraState).unwrap();
     assert!(total.amount >= Decimal::from(2000));  // At least subtotal
 
     // Try adding third item - should succeed (no seat limit in this simple test)

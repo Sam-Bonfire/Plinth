@@ -1,4 +1,5 @@
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use thiserror::Error;
@@ -58,6 +59,9 @@ pub enum MoneyError {
         /// The actual currency provided
         got: Currency
     },
+    /// Occurs when the amount cannot be represented in minor units (`i64` overflow).
+    #[error("Amount overflows minor-unit representation")]
+    Overflow,
 }
 
 impl Money {
@@ -150,11 +154,28 @@ impl Money {
     }
 
     /// Serializes the money amount to minor units (e.g., cents or paise) based on currency scale.
+    /// Saturates at the `i64` bounds on overflow; use [`Money::try_to_minor_units`]
+    /// when overflow must surface as an error instead.
     #[must_use]
     pub fn to_minor_units(&self) -> i64 {
+        self.try_to_minor_units().unwrap_or_else(|_| {
+            if self.amount.is_sign_negative() {
+                i64::MIN
+            } else {
+                i64::MAX
+            }
+        })
+    }
+
+    /// Serializes the money amount to minor units, returning
+    /// [`MoneyError::Overflow`] when the amount does not fit in an `i64`.
+    ///
+    /// # Errors
+    /// Returns `MoneyError::Overflow` if the scaled amount overflows `i64`.
+    pub fn try_to_minor_units(&self) -> Result<i64, MoneyError> {
         let scale = Decimal::from(self.currency.minor_unit_scale());
         let minor = (self.amount * scale).round();
-        minor.to_string().parse::<i64>().unwrap_or(0)
+        minor.to_i64().ok_or(MoneyError::Overflow)
     }
 
     /// Deserializes a money amount from minor units given the currency.
@@ -282,9 +303,21 @@ mod tests {
         let m = Money { amount: Decimal::new(54050, 2), currency: Currency::Inr };
         let cents = m.to_minor_units();
         assert_eq!(cents, 54050);
-        
+
         let m2 = Money::from_minor_units(54050, Currency::Inr);
         assert_eq!(m.amount, m2.amount);
+    }
+
+    #[test]
+    fn test_minor_units_overflow_saturates_and_reports() {
+        // i64::MAX rupees * 100 paise overflows i64 but fits Decimal.
+        let huge = Money { amount: Decimal::new(i64::MAX, 0), currency: Currency::Inr };
+        assert_eq!(
+            huge.try_to_minor_units().unwrap_err(),
+            MoneyError::Overflow
+        );
+        // Saturating form never reports a bogus zero for a positive amount.
+        assert_eq!(huge.to_minor_units(), i64::MAX);
     }
 
     #[test]
