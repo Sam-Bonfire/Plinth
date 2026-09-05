@@ -138,11 +138,10 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
 
     let header = Header::new(Algorithm::HS256);
     let secret = get_jwt_secret(&ctx);
-    let key = if secret.is_empty() {
-        jsonwebtoken::EncodingKey::from_secret(b"")
-    } else {
-        jsonwebtoken::EncodingKey::from_secret(secret.as_bytes())
-    };
+    if secret.is_empty() {
+        return Response::error("JWT secret not configured", 500);
+    }
+    let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
         Err(e) => return Response::error(format!("Failed to sign token: {e}"), 500),

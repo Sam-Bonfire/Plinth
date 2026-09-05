@@ -34,6 +34,9 @@ pub fn extract_token(req: &Request) -> Option<String> {
 /// # Errors
 /// Returns an error if the token is invalid or parsing fails
 pub fn verify_token(token: &str, secret: &str) -> std::result::Result<JwtClaims, String> {
+    if secret.is_empty() {
+        return Err("JWT secret not configured".to_string());
+    }
     let is_pem = secret.starts_with("-----");
     let alg = if is_pem { Algorithm::EdDSA } else { Algorithm::HS256 };
     let mut validation = Validation::new(alg);
@@ -119,4 +122,54 @@ pub fn extract_and_verify_context(
         secret,
         required_permissions
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_claims() -> JwtClaims {
+        JwtClaims {
+            sub: uuid::Uuid::now_v7().to_string(),
+            iss: "plinth-auth".to_string(),
+            exp: 4_000_000_000,
+            tenant_id: uuid::Uuid::now_v7().to_string(),
+            location_id: uuid::Uuid::now_v7().to_string(),
+            roles: vec!["Manager".to_string()],
+            permissions: 0,
+        }
+    }
+
+    #[test]
+    fn rejects_empty_secret_without_verifying() {
+        assert_eq!(
+            verify_token("any.token.here", "").unwrap_err(),
+            "JWT secret not configured".to_string()
+        );
+    }
+
+    #[test]
+    fn roundtrip_with_configured_secret() {
+        let secret = "test_secret_value";
+        let claims = test_claims();
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(secret.as_bytes()),
+        )
+        .unwrap();
+        assert_eq!(verify_token(&token, secret).unwrap().sub, claims.sub);
+    }
+
+    #[test]
+    fn rejects_empty_key_signed_token() {
+        let claims = test_claims();
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(b""),
+        )
+        .unwrap();
+        assert!(verify_token(&token, "real_secret").is_err());
+    }
 }
