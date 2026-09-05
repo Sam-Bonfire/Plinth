@@ -29,9 +29,12 @@ pub async fn create_order<D>(
     mut req: Request,
     ctx: RouteContext<D>,
 ) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::TAKE_ORDER,
     ) else {
         return Response::error("Unauthorized", 401);
@@ -188,9 +191,12 @@ pub async fn list_orders<D>(
     req: Request,
     ctx: RouteContext<D>,
 ) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::empty(),
     ) else {
         return Response::error("Unauthorized", 401);

@@ -9,18 +9,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use worker::{Request, Response, Result, RouteContext, Router};
 
-fn get_jwt_secret<D>(ctx: &RouteContext<D>) -> String {
-    // Try Cloudflare Secrets / Vars, fallback to empty for tests
-    if let Ok(secret) = ctx.env.secret("JWT_SECRET") {
-        return secret.to_string();
-    }
-    if let Ok(val) = ctx.env.var("JWT_SECRET") {
-        return val.to_string();
-    }
-    // Fallback for local tests
-    std::env::var("JWT_SECRET").unwrap_or_default()
-}
-
 fn verify_pin_hash(hash: &str, pin: &str) -> bool {
     let Ok(parsed) = PasswordHash::new(hash) else {
         return false;
@@ -137,12 +125,10 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     };
 
     let header = Header::new(Algorithm::HS256);
-    let secret = get_jwt_secret(&ctx);
-    let key = if secret.is_empty() {
-        jsonwebtoken::EncodingKey::from_secret(b"")
-    } else {
-        jsonwebtoken::EncodingKey::from_secret(secret.as_bytes())
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("JWT secret not configured", 500);
     };
+    let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
         Err(e) => return Response::error(format!("Failed to sign token: {e}"), 500),

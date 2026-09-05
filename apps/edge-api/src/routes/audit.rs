@@ -36,9 +36,12 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if authentication fails, input is invalid, or database write fails
 pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Unauthorized", 401);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::empty(),
     ) else {
         return Response::error("Unauthorized", 401);

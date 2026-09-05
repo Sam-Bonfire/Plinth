@@ -39,9 +39,12 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if authentication fails or query execution fails
 pub async fn get_sales_report<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return Response::error("Forbidden: Insufficient permissions to view reports", 403);
+    };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
-        "",
+        &secret,
         Permissions::ACCESS_REPORTS,
     ) else {
         return Response::error("Forbidden: Insufficient permissions to view reports", 403);
