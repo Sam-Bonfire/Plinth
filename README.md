@@ -12,7 +12,7 @@ PlinthOS is an enterprise-grade, Bring-Your-Own-Device (BYOD) Restaurant Point o
 ### Core Architecture Pillars
 
 - **Domain-Driven Design (DDD)**: Strategic design bounded contexts (`Ordering`, `KitchenExecution`, `InventoryCore`, `TenantBilling`) with explicit Aggregate Roots, Value Objects, Domain Events, and State Transition Invariants.
-- **Hexagonal Architecture (Ports & Adapters)**: Isolated pure Rust domain core (`packages/core-domain`) surrounded by Inbound Adapters (Tauri IPC commands, Cloudflare Workers, Hurl tests) and Outbound Adapters (`rusqlite`, Cloudflare Durable Objects / D1, raw TCP ESC/POS sockets).
+- **Hexagonal Architecture (Ports & Adapters)**: Isolated pure Rust domain core (`packages/core-domain`) surrounded by Inbound Adapters (Tauri IPC commands, Cloudflare Workers, Hurl tests) and Outbound Adapters (Cloudflare Durable Objects / D1; local SQLite and ESC/POS printer adapters behind the repository/print traits are not implemented yet).
 - **Rust Local Engine Execution**: All state mutations, calculations, local persistence, network socket streaming, and background sync queues run in compiled, multi-threaded Rust (`tokio` async runtime). React serves exclusively as an unprivileged, reactive rendering shell.
 - **Declarative API Verification**: Automated contract and integration testing via Hurl (`.hurl`) files to test edge API workers, JSON response schemas, and WebSocket handshakes directly in CI/CD.
 - **Deterministic Workspaces via mise**: Tooling, toolchain versions, and task orchestration are managed strictly via `mise`.
@@ -82,9 +82,9 @@ graph TD
 
 ### Context Invariants & Validation Rules
 
-- **Ordering Context**: Price calculations must strictly utilize `rust_decimal::Decimal` (no IEEE-754 floating-point arithmetic permitted). Seat totals must balance: $\sum (\text{Seat Check Totals}) = \text{Order Total}$.
+- **Ordering Context**: Price calculations must strictly utilize `rust_decimal::Decimal` (no IEEE-754 floating-point arithmetic permitted). Order totals are derived as subtotal minus validated discounts plus charges, GST, and tip; invalid discounts fail the total instead of being silently dropped.
 - **Kitchen Execution Context**: A ticket line cannot transition to `BUMPED` before transitioning to `IN_PREP` (unless explicitly fast-tracked by an authorized role policy).
-- **Inventory Context**: Recipe stock deduction occurs automatically upon receiving an `ORDER_SUBMITTED` domain event. Stock drops below minimum reorder thresholds emit an `INVENTORY_DISCREPANCY_ALERT`.
+- **Inventory Context**: `InventoryDeductionService` computes recipe stock deductions (including wastage) for an order, but it is not yet wired to run automatically on `ORDER_SUBMITTED`, and the reorder-threshold alert has no emitter yet.
 - **Tenant Context**: A shift cannot be closed (`Z-REPORT`) if active open checks remain associated with its register.
 
 ---
@@ -194,21 +194,25 @@ stateDiagram-v2
     [*] --> PENDING : Order Submitted
 
     state PENDING {
-        [*] --> SLA_GREEN : Timer < 8m
-        SLA_GREEN --> SLA_YELLOW : Timer 8m - 12m
-        SLA_YELLOW --> SLA_RED : Timer > 15m
+        [*] --> SLA_GREEN : Timer < 4m
+        SLA_GREEN --> SLA_YELLOW : Timer 4m - 8m
+        SLA_YELLOW --> SLA_RED : Timer > 8m
     }
 
     PENDING --> IN_PREP : Chef Taps "Start Prep"
     IN_PREP --> READY : Chef Taps "Mark Ready"
     READY --> BUMPED : Expeditor Taps "Bump / Serve"
-    
+
     PENDING --> CANCELLED : Void / Order Cancelled
     IN_PREP --> CANCELLED : Void / Manager Override
-    
+    READY --> CANCELLED : Void / Manager Override
+
     BUMPED --> [*]
     CANCELLED --> [*]
 ```
+
+> Thresholds match `PreparationSla::default_restaurant` (warning 4m, late 8m).
+> Skipping stages is rejected: only a `READY` ticket can transition to `BUMPED`.
 
 ---
 
@@ -225,27 +229,25 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 ### B. Client POS Terminal & KDS (`apps/pos-client`)
 
 - **Desktop/Tablet Shell**: Tauri v2.0+ (Stable).
-- **Core Engine**: Rust (stable channel, Edition 2021).
-- **Local Database**: SQLite 3.45+ accessed natively via Rust `rusqlite` (v0.31+) with bundled WAL mode (`PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;`).
-- **UI Presentation Layer**: React 18.3+, TypeScript 5.5+, Vite 5.4+.
-- **UI Component Engine**: Ant Design 5.x (`antd` & `@ant-design/pro-components`).
+- **Core Engine**: Rust (stable channel, Edition 2021). The Tauri crate hosts `core-domain` and `sync-protocol` directly; no separate SQLite or printer-socket layer exists in the client yet — persistence/sync behind the port traits is implemented edge-side (see E).
+- **UI Presentation Layer**: React 18.3+, TypeScript 5.5+, Vite 5.4+, React Router 7.
+- **UI Component Engine**: Ant Design 5.x (`antd`) plus the workspace `@plinth/ui-kit` theme and Zustand/Lingui state/i18n.
 - **Typography**: Instrument Sans (UI Prose) and IBM Plex Mono (Financials, Timers, Currency).
 
 ### C. Web Back-Office Admin (`apps/web-dashboard`)
 
-- **Framework**: Next.js 14+ (App Router, React Server Components).
-- **UI & Grids**: Ant Design 5.x + ProTable (`@ant-design/pro-components`).
+- **Framework**: React 18 + TypeScript + Vite (Cloudflare Pages/Workers target; no Next.js).
+- **UI & Grids**: Ant Design 5.x plus `@plinth/ui-kit` (charts, data table, currency input).
 
 ### D. Public Marketing Website (`apps/marketing-site`)
 
-- **Framework**: Next.js 14+ (App Router, SSG Mode).
-- **Styling**: Tailwind CSS 3.4+ (Strictly isolated to marketing site; POS uses Ant Design token engine).
+- **Framework**: React 18 + TypeScript + Vite (static build; no Next.js, no Tailwind).
 
 ### E. Serverless Cloud Engine (`apps/edge-api`)
 
-- **Compute**: Cloudflare Workers built using Rust via `worker-rs` (v0.2+).
+- **Compute**: Cloudflare Workers built using Rust via `worker` (v0.5).
 - **State Sync Singleton**: Cloudflare Durable Objects (WebSocket singletons per store location).
-- **Global Database**: Cloudflare D1 (Serverless SQLite).
+- **Global Database**: Cloudflare D1 (Serverless SQLite, binding `CELLAR_DB`, database `plinth_cellar`).
 
 ---
 
@@ -253,37 +255,32 @@ All crates, NPM packages, and toolchains are strictly version-locked.
 
 ### Monorepo `.mise.toml` Configuration
 
+`.mise.toml` is the single task-runner definition (a legacy `mise.toml`
+duplicate was removed; both were being merged with conflicting pins).
+Tool pins are `node 24.19.0`, `pnpm 11.22.0`, `rust stable`, `hurl 8`,
+`tauri-cli 2.0.0`.
+
 ```toml
-[tools]
-node = "24.19.0"
-pnpm = "11.22.0"
-rust = "stable"
-hurl = "8"
-"cargo:tauri-cli" = "2.0.0"
-
-[env]
-CARGO_TERM_COLOR = "always"
-PLINTH_ENV = "development"
-
 [tasks."init"]
-description = "Initialize git hooks and install workspace dependencies"
-run = "git config core.hooksPath .githooks && pnpm install"
+description = "Initialize development environment, install toolchains, and configure git hooks"
+run = ["mise trust", "mise install", "git config core.hooksPath .githooks", "pnpm install"]
 
 [tasks."dev:pos"]
 description = "Launch Tauri Native POS client in development mode"
 run = "pnpm --filter pos-client exec tauri dev"
 
 [tasks."dev:web"]
-description = "Launch Next.js Cloud Admin Dashboard"
+description = "Launch Web Admin Dashboard"
 run = "pnpm --filter web-dashboard dev"
 
 [tasks."dev:site"]
-description = "Launch Next.js Marketing Site"
+description = "Launch Marketing Site"
 run = "pnpm --filter marketing-site dev"
 
 [tasks."dev:api"]
-description = "Launch Cloudflare Wrangler local edge simulator (Miniflare)"
-run = "cd apps/edge-api && pnpm wrangler dev --port 8787"
+description = "Launch Cloudflare Wrangler local edge simulator"
+dir = "apps/edge-api"
+run = "pnpm wrangler dev --port 8787"
 
 [tasks."build:pos"]
 description = "Compile native Rust binary and bundle production POS app"
@@ -291,27 +288,36 @@ run = "pnpm --filter pos-client exec tauri build"
 
 [tasks."build:api"]
 description = "Compile Rust WASM worker and deploy to Cloudflare Edge"
-run = "cd apps/edge-api && pnpm wrangler deploy"
+dir = "apps/edge-api"
+run = "pnpm wrangler deploy"
 
 [tasks."db:migrate:local"]
-description = "Run local SQLite migration scripts against Tauri Rust engine"
-run = "cargo run --bin migrate_local"
+description = "Apply D1 database migrations locally"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --local"
 
-[tasks."db:migrate:cloud"]
-description = "Execute Cloudflare D1 remote SQL migrations"
-run = "cd apps/edge-api && pnpm wrangler d1 migrations apply plinth_main_db"
+[tasks."db:migrate:remote"]
+description = "Apply D1 database migrations to remote production environment"
+run = "pnpm --filter edge-api exec wrangler d1 migrations apply plinth_cellar --remote"
 
 [tasks."lint"]
 description = "Enforce Cargo clippy and ESLint strictly across monorepo"
-run = "cargo clippy --all-targets -- -D warnings && pnpm -r lint"
+run = "mise run lint:rust && mise run lint:ts"
 
 [tasks."test"]
-description = "Execute Rust unit tests, TypeScript specs, and Hurl contract tests"
-run = "cargo test --workspace && pnpm -r test"
+description = "Execute Rust unit tests and TypeScript specs"
+run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
-description = "Execute declarative API integration tests using Hurl"
-run = "hurl --test tests/api/**/*.hurl"
+description = "Execute Hurl endpoint contract tests (needs edge simulator on :8787)"
+run = "hurl --test tests/api/endpoints"
+
+[tasks."test:api:e2e"]
+description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787)"
+run = "hurl --test tests/api/e2e"
+
+[tasks."api:endpoint"]
+description = "Inspect one endpoint spec file (usage: mise run api:endpoint -- <file.hurl>)"
+run = "hurl --verbose"
 
 [tasks."ui:capture"]
 description = "Generate visual verification UI screenshots across POS and Dashboard viewports"
@@ -322,52 +328,60 @@ run = "pnpm tsx scripts/ui-capture.ts"
 
 ## 8. Declarative API Contract Verification (Hurl Test Specs)
 
-### Example 1: Order Creation Endpoint Test (`tests/api/create_order.hurl`)
+Specs live in `tests/api/endpoints/` (single-endpoint contracts) and
+`tests/api/e2e/` (multi-step lifecycle flows). They target the local edge
+simulator (`mise run dev:api`, port 8787) via `mise run test:api` and
+`mise run test:api:e2e`. Money crosses the wire in minor units
+(`unit_price_minor`); the domain holds `Decimal` on either side.
+
+### Example 1: Order Creation (`tests/api/endpoints/orders.hurl`, abridged)
 
 ```hurl
-# Submit Order Payload to Local Edge Worker Simulator
-POST http://localhost:8787/api/v1/orders
-Header "Content-Type: application/json"
-Header "X-Store-Id: store_loc_99"
-Header "Authorization: Bearer test_jwt_token_admin"
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
 {
-  "order_id": "ord_100982",
-  "table_id": "T-04",
+  "channel": "DineIn",
+  "terminal_id": "{{terminal_id}}",
+  "table_id": "{{table_id}}",
+  "seat_number": 1,
   "items": [
     {
-      "item_id": "m1_butter_chicken",
-      "quantity": 2,
-      "price_cents": 34000,
-      "modifiers": ["Medium Spicy"]
+      "menu_item_id": "00000000-0000-0000-0000-000000000010",
+      "name": "Paneer Tikka",
+      "unit_price_minor": 32000,
+      "quantity": 1,
+      "tax_rate": "FivePercent",
+      "modifiers": [],
+      "seat_number": 1
     }
   ],
-  "tender": {
-    "type": "CARD",
-    "amount_cents": 68000
-  }
+  "discounts": [],
+  "charges": [],
+  "tip": null
 }
 
-# Assertions
 HTTP 201
 [Asserts]
 header "Content-Type" contains "application/json"
-jsonpath "$.status" == "SUCCESS"
-jsonpath "$.data.order_id" == "ord_100982"
-jsonpath "$.data.total_cents" == 71400  # 68000 + 5% tax (3400)
-jsonpath "$.data.sync_status" == "SETTLED"
+jsonpath "$.order.id" isString
+jsonpath "$.order.status" == "Confirmed"
 ```
 
-### Example 2: KDS Ticket Status Probe (`tests/api/get_kds_tickets.hurl`)
+### Example 2: KDS Ticket Probe (`tests/api/endpoints/kds_tickets.hurl`, abridged)
 
 ```hurl
-GET http://localhost:8787/api/v1/kds/tickets
-Header "X-Store-Id: store_loc_99"
+GET {{base_url}}/api/v1/kds/tickets?station=Grill&status=Pending
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
 
 HTTP 200
 [Asserts]
-jsonpath "$.data" count > 0
-jsonpath "$.data[0].station_id" == "GRILL_01"
-jsonpath "$.data[0].status" == "PENDING"
+header "Content-Type" contains "application/json"
+jsonpath "$" isCollection
 ```
 
 ---
@@ -383,39 +397,33 @@ plinth-monorepo/
 │
 ├── tests/
 │   └── api/                    # Hurl Integration & Contract Test Suite
-│       ├── create_order.hurl
-│       ├── get_kds_tickets.hurl
-│       └── z_report_close.hurl
+│       ├── endpoints/          # Single-endpoint contracts (orders, kds_tickets, ...)
+│       └── e2e/                # Multi-step lifecycle flows (01_auth → 04_eod)
 │
 ├── apps/
 │   ├── pos-client/             # FOH Terminal & Kitchen KDS Application
-│   │   ├── src-tauri/          # Tauri Native Engine (Rust)
+│   │   ├── src-tauri/          # Tauri Native Engine (Rust: core-domain + sync-protocol)
 │   │   │   ├── Cargo.toml
 │   │   │   ├── tauri.conf.json
 │   │   │   └── src/
-│   │   │       ├── main.rs     # Application Bootstrap
-│   │   │       ├── commands/   # Tauri IPC Commands
-│   │   │       ├── adapters/   # rusqlite & Network Socket Adapters
-│   │   │       └── sync/       # Background Tokio Sync Loop
-│   │   └── src/                # Pure React Presentation Layer
+│   │   └── src/                # React + Vite Presentation Layer
 │   │       ├── App.tsx
 │   │       ├── components/     # Ant Design Components
 │   │       └── hooks/          # IPC Wrappers
 │   │
-│   ├── web-dashboard/          # Back-Office Admin Panel (Next.js 14)
+│   ├── web-dashboard/          # Back-Office Admin Panel (React + Vite)
 │   │   ├── package.json
-│   │   └── src/app/            # App Router: Menu, Reports, Inventory
+│   │   └── src/                # Router pages: Menu, Reports, Inventory
 │   │
-│   ├── marketing-site/         # Public Marketing Website (Next.js 14 SSG)
+│   ├── marketing-site/         # Public Marketing Website (React + Vite static)
 │   │   ├── package.json
-│   │   ├── tailwind.config.js
-│   │   └── src/app/            # Marketing Pages & Calculators
+│   │   └── src/                # Marketing Pages & Calculators
 │   │
 │   └── edge-api/               # Cloudflare Serverless Edge Engine
 │       ├── Cargo.toml
 │       ├── wrangler.toml       # Cloudflare Workers & Durable Objects Bindings
 │       ├── src/
-│       │   ├── lib.rs          # Rust worker-rs Entry Point
+│       │   ├── lib.rs          # Rust worker Entry Point
 │       │   └── durable_objects/# Location Session Singleton DOs
 │       └── migrations/         # D1 SQLite SQL Scripts
 │

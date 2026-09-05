@@ -95,7 +95,12 @@ pub fn compute_gst(
                 amount: half_tax.clone(),
             };
 
-            let total_tax = cgst.amount.add(&sgst.amount).unwrap_or(Money::zero(subtotal.currency));
+            // Both halves derive from the same subtotal, so accumulate raw amounts:
+            // infallible, and never a silent zero.
+            let total_tax = Money {
+                amount: cgst.amount.amount + sgst.amount.amount,
+                currency: subtotal.currency,
+            };
 
             TaxBreakdown {
                 total_tax,
