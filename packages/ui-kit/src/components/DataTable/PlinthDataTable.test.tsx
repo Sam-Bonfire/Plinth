@@ -1,16 +1,15 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { PlinthDataTable } from "./PlinthDataTable.js";
 import type { PlinthColumnType } from "./PlinthDataTable.js";
 
 // Note: Ensure Vitest native matchers are used
 
-interface TestData {
+type TestData = {
   id: string;
   name: string;
   category: string;
-}
+};
 
 const mockData: TestData[] = [
   { id: "1", name: "Apple", category: "Fruit" },

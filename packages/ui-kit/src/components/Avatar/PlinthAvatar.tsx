@@ -43,7 +43,7 @@ const getDeterministicColor = (name: string): string => {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const index = Math.abs(hash) % COLORS.length;
-  return COLORS[index];
+  return COLORS[index] ?? "var(--acc)"; // Dark / Default fallback
 };
 
 const getInitials = (name: string): string => {
@@ -51,9 +51,11 @@ const getInitials = (name: string): string => {
 
   const words = name.trim().split(/\s+/);
   if (words.length === 1) {
-    return words[0].substring(0, 2).toUpperCase();
+    return (words[0] ?? "").substring(0, 2).toUpperCase();
   }
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  const first = words[0]?.[0] ?? "";
+  const last = words[words.length - 1]?.[0] ?? "";
+  return (first + last).toUpperCase();
 };
 
 const getStatusColor = (status: "online" | "offline" | "busy" | "away"): string => {

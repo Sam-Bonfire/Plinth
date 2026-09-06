@@ -71,7 +71,7 @@ export const PlinthDataTable = <T extends Record<string, unknown>>({
 
     const lowerSearchText = searchText.toLowerCase();
 
-    const getValueFromPath = (obj: Record<string, unknown>, path: string | readonly React.Key[]) => {
+     const getValueFromPath = (obj: Record<string, unknown>, path: string | number | symbol | readonly React.Key[]) => {
        if (Array.isArray(path)) {
            return path.reduce((acc: unknown, key) => (acc && typeof acc === 'object' && key in acc ? (acc as Record<string, unknown>)[key as string] : undefined), obj);
        }
