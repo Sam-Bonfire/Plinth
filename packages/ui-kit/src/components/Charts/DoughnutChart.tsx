@@ -65,7 +65,7 @@ export const DoughnutChart = <T extends Record<string, unknown>>({
               y: "45%",
               textAlign: "center",
               fontSize: 14,
-              fill: "var(--fg)",
+              fill: "var(--acc)",
             },
           },
           {
@@ -77,7 +77,7 @@ export const DoughnutChart = <T extends Record<string, unknown>>({
               textAlign: "center",
               fontSize: 24,
               fontWeight: "bold",
-              fill: "var(--fg)",
+              fill: "var(--acc)",
             },
           },
         ]

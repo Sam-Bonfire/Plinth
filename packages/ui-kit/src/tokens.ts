@@ -3,6 +3,9 @@ export interface Tokens {
   acc: string;
   s1: string;
   s2: string;
+  s3: string;
+  s4: string;
+  s5: string;
   b1: string;
   font: string;
   mono: string;
@@ -19,6 +22,9 @@ export const TOKENS: Tokens = {
   acc: "#0d110e",
   s1: "#ffffff",
   s2: "#f9faf9",
+  s3: "#eeefee",
+  s4: "#e5e7e5",
+  s5: "#d8dbd8",
   b1: "rgba(0, 0, 0, 0.08)",
   font: "\"Instrument Sans\", sans-serif",
   mono: "\"IBM Plex Mono\", monospace",
