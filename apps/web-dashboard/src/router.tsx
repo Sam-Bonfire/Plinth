@@ -2,6 +2,7 @@ import React from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
+import { InventoryPage } from "./pages/InventoryPage.js";
 import { KitchenPage } from "./pages/KitchenPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MenuPage } from "./pages/MenuPage.js";
@@ -34,7 +35,7 @@ export const router = createBrowserRouter([
           { path: "/kitchen", element: <KitchenPage /> },
           { path: "/payments", element: <PaymentsPage /> },
           { path: "/menu", element: <MenuPage /> },
-          { path: "/inventory", element: <PlaceholderPage title="Inventory" description="Stock, recipes, par levels" /> },
+          { path: "/inventory", element: <InventoryPage /> },
           { path: "/customers", element: <PlaceholderPage title="Customers" description="Directory and loyalty" /> },
           { path: "/reports", element: <PlaceholderPage title="Reports & Analytics" description="Sales, labor, tax with @ant-design/charts" /> },
           { path: "/staff", element: <PlaceholderPage title="Staff Management" description="Roles, permissions, PIN" /> },
