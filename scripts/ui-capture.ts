@@ -42,7 +42,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
 
-  const generatedScreenshots: { file: string; viewport: string; scene: string; resolution: string; base64: string }[] = [];
+  const generatedScreenshots: { file: string; viewport: string; scene: string; resolution: string }[] = [];
 
   for (const scene of SCENES) {
     for (const vp of VIEWPORTS) {
@@ -56,15 +56,11 @@ async function main() {
       const filePath = path.join(outputDir, filename);
       await page.screenshot({ path: filePath, fullPage: false });
 
-      const fileBuffer = await fs.readFile(filePath);
-      const base64 = fileBuffer.toString('base64');
-
       generatedScreenshots.push({
         file: filename,
         viewport: vp.description,
         scene: scene.title,
         resolution: `${vp.width}x${vp.height}`,
-        base64,
       });
 
       console.log(`📸 Captured: ${filename} (${vp.width}x${vp.height})`);
@@ -77,7 +73,9 @@ async function main() {
 
   console.log(`\n✅ Generated ${generatedScreenshots.length} UI snapshot(s) in ${outputDir}`);
 
-  // Write rich summary markdown with embedded visual previews for CI Step Summary
+  // Write the status table. Preview links are appended by the CI workflow
+  // after the screenshot bundle is uploaded (GitHub strips data-URI images
+  // from job summaries, so base64 embedding can never render).
   const summaryLines: string[] = [
     '### 📸 UI Visual Verification Snapshots',
     '',
@@ -89,21 +87,12 @@ async function main() {
     summaryLines.push(`| ${s.scene} | ${s.viewport} | \`${s.resolution}\` | ✅ Captured |`);
   }
 
-  summaryLines.push('', '---', '', '### 🖼️ Visual Previews', '');
-
-  for (const s of generatedScreenshots) {
-    summaryLines.push(
-      `<details>`,
-      `  <summary><b>🔍 Preview: ${s.scene} (${s.viewport} - ${s.resolution})</b></summary>`,
-      `  <br />`,
-      `  <img src="data:image/png;base64,${s.base64}" alt="${s.file}" style="max-width: 100%; border: 1px solid #ddd; border-radius: 6px;" />`,
-      `</details>`,
-      ``
-    );
-  }
-
   const summaryPath = path.join(outputDir, 'summary.md');
   await fs.writeFile(summaryPath, summaryLines.join('\n'), 'utf-8');
+
+  // Manifest consumed by CI to render per-file artifact links.
+  const manifestPath = path.join(outputDir, 'manifest.json');
+  await fs.writeFile(manifestPath, JSON.stringify(generatedScreenshots, null, 2), 'utf-8');
 
   process.exit(0);
 }

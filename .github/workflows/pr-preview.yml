@@ -11,6 +11,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  actions: read
 
 jobs:
   detect-changes:
@@ -206,3 +207,35 @@ jobs:
           path: artifacts/screenshots/
           if-no-files-found: ignore
           retention-days: 3
+
+      - name: Append Artifact Preview Links
+        if: always()
+        env:
+          ARTIFACT_NAME: ui-snapshots-pr-${{ github.event.pull_request.number }}
+        run: |
+          ARTIFACT_ID=""
+          for i in 1 2 3 4 5 6; do
+            ARTIFACT_ID=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq ".artifacts[] | select(.name==\"$ARTIFACT_NAME\") | .id" | head -n 1)
+            [ -n "$ARTIFACT_ID" ] && break
+            sleep 10
+          done
+          if [ -z "$ARTIFACT_ID" ] || [ ! -f "artifacts/screenshots/manifest.json" ]; then
+            echo "Snapshot artifact not found; skipping preview links." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/$ARTIFACT_ID" ARTIFACT_NAME="$ARTIFACT_NAME" node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync("artifacts/screenshots/manifest.json", "utf8"));
+            const url = process.env.ARTIFACT_URL;
+            const name = process.env.ARTIFACT_NAME;
+            const lines = ["", "---", "", "### Visual Previews", "", `Screenshots are bundled in the <a href="${url}">${name}</a> artifact (zip).`, ""];
+            for (const s of manifest) {
+              lines.push(`<details>`);
+              lines.push(`  <summary><b>Preview: ${s.scene} (${s.viewport} - ${s.resolution})</b></summary>`);
+              lines.push(`  <br />`);
+              lines.push(`  <a href="${url}">${s.file}</a>`);
+              lines.push(`</details>`);
+              lines.push(``);
+            }
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n"), "utf8");
+          '
