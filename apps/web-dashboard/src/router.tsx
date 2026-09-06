@@ -12,6 +12,7 @@ import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
 import { ReportsPage } from "./pages/ReportsPage.js";
+import { SettingsPage } from "./pages/SettingsPage.js";
 import { StaffPage } from "./pages/StaffPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
@@ -42,8 +43,8 @@ export const router = createBrowserRouter([
           { path: "/customers", element: <CustomersPage /> },
           { path: "/staff", element: <StaffPage /> },
           { path: "/reports", element: <ReportsPage /> },
+          { path: "/settings", element: <SettingsPage /> },
           { path: "/floor", element: <PlaceholderPage title="Floor Plan" description="Tabular table editor" /> },
-          { path: "/settings", element: <PlaceholderPage title="Settings" description="Tenant configuration" /> },
           { path: "/audit", element: <PlaceholderPage title="Audit Log" description="Immutable audit viewer" /> },
           { path: "/onboarding", element: <PlaceholderPage title="Onboarding Wizard" description="7-step setup flow" /> },
         ],
