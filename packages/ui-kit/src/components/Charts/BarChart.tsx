@@ -58,11 +58,11 @@ export const BarChart = <T extends Record<string, unknown>>({
       },
     },
     tooltip: {
-      title: (d: Record<string, unknown>) => d[xField as string],
+      title: { field: xField as string },
       items: [
         {
           field: yField as string,
-          name: (d: Record<string, unknown>) => seriesField ? d[seriesField as string] : yField,
+          ...(seriesField ? { channel: seriesField as string } : {}),
           valueFormatter: isCurrency ? currencyFormatter : undefined,
         },
       ],

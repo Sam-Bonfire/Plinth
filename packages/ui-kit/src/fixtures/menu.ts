@@ -24,7 +24,7 @@ export interface MenuCategory {
   name: string;
 }
 
-export const mockModifiers: Record<string, ModifierGroup> = {
+export const mockModifiers: { portion: ModifierGroup; spice: ModifierGroup; addons: ModifierGroup } = {
   portion: {
     name: "Portion size",
     options: [{ name: "Half" }, { name: "Full" }],

@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { BarChart } from "./BarChart.js";
 import { ChartContainer } from "./ChartContainer.js";
