@@ -11,6 +11,7 @@ import { OrdersPage } from "./pages/OrdersPage.js";
 import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
+import { ReportsPage } from "./pages/ReportsPage.js";
 import { StaffPage } from "./pages/StaffPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
@@ -40,7 +41,7 @@ export const router = createBrowserRouter([
           { path: "/inventory", element: <InventoryPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/staff", element: <StaffPage /> },
-          { path: "/reports", element: <PlaceholderPage title="Reports & Analytics" description="Sales, labor, tax with @ant-design/charts" /> },
+          { path: "/reports", element: <ReportsPage /> },
           { path: "/floor", element: <PlaceholderPage title="Floor Plan" description="Tabular table editor" /> },
           { path: "/settings", element: <PlaceholderPage title="Settings" description="Tenant configuration" /> },
           { path: "/audit", element: <PlaceholderPage title="Audit Log" description="Immutable audit viewer" /> },
