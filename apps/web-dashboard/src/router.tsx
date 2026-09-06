@@ -4,6 +4,7 @@ import { AppLayout } from "./components/Layout/AppLayout.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
+import { PosPage } from "./pages/PosPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
 const ProtectedRoute: React.FC = () => {
@@ -24,7 +25,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "/", element: <Navigate to="/pos" replace /> },
           { path: "/dashboard", element: <DashboardPage /> },
-          { path: "/pos", element: <PlaceholderPage title="POS — Order Entry" description="Order entry grid, cart and tender" /> },
+          { path: "/pos", element: <PosPage /> },
           { path: "/orders", element: <PlaceholderPage title="Orders" description="Live order pipeline" /> },
           { path: "/kitchen", element: <PlaceholderPage title="Kitchen" description="KDS station board" /> },
           { path: "/payments", element: <PlaceholderPage title="Payments" description="Tenders and reconciliation" /> },
