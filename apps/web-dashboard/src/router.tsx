@@ -2,6 +2,7 @@ import React from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
+import { KitchenPage } from "./pages/KitchenPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { OrdersPage } from "./pages/OrdersPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardPage /> },
           { path: "/pos", element: <PosPage /> },
           { path: "/orders", element: <OrdersPage /> },
-          { path: "/kitchen", element: <PlaceholderPage title="Kitchen" description="KDS station board" /> },
+          { path: "/kitchen", element: <KitchenPage /> },
           { path: "/payments", element: <PlaceholderPage title="Payments" description="Tenders and reconciliation" /> },
           { path: "/menu", element: <PlaceholderPage title="Menu Management" description="Catalog, categories and 86 status" /> },
           { path: "/inventory", element: <PlaceholderPage title="Inventory" description="Stock, recipes, par levels" /> },
