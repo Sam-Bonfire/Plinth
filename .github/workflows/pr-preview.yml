@@ -212,6 +212,7 @@ jobs:
         if: always()
         env:
           ARTIFACT_NAME: ui-snapshots-pr-${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           ARTIFACT_ID=""
           for i in 1 2 3 4 5 6; do
