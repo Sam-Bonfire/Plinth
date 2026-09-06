@@ -22,9 +22,15 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: "/", element: <DashboardPage /> },
-          { path: "/menu", element: <PlaceholderPage title="Menu Management" description="CRUD + 86 toggle + drag reorder via dnd-kit" /> },
+          { path: "/", element: <Navigate to="/pos" replace /> },
+          { path: "/dashboard", element: <DashboardPage /> },
+          { path: "/pos", element: <PlaceholderPage title="POS — Order Entry" description="Order entry grid, cart and tender" /> },
+          { path: "/orders", element: <PlaceholderPage title="Orders" description="Live order pipeline" /> },
+          { path: "/kitchen", element: <PlaceholderPage title="Kitchen" description="KDS station board" /> },
+          { path: "/payments", element: <PlaceholderPage title="Payments" description="Tenders and reconciliation" /> },
+          { path: "/menu", element: <PlaceholderPage title="Menu Management" description="Catalog, categories and 86 status" /> },
           { path: "/inventory", element: <PlaceholderPage title="Inventory" description="Stock, recipes, par levels" /> },
+          { path: "/customers", element: <PlaceholderPage title="Customers" description="Directory and loyalty" /> },
           { path: "/reports", element: <PlaceholderPage title="Reports & Analytics" description="Sales, labor, tax with @ant-design/charts" /> },
           { path: "/staff", element: <PlaceholderPage title="Staff Management" description="Roles, permissions, PIN" /> },
           { path: "/floor", element: <PlaceholderPage title="Floor Plan" description="Tabular table editor" /> },
