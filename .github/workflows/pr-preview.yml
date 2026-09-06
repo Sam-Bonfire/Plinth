@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -206,3 +206,46 @@ jobs:
           path: artifacts/screenshots/
           if-no-files-found: ignore
           retention-days: 3
+
+      - name: Publish Inline Visual Previews
+        if: always()
+        run: |
+          if ! ls artifacts/screenshots/*.png >/dev/null 2>&1 || [ ! -f "artifacts/screenshots/manifest.json" ]; then
+            echo "No screenshots captured; skipping visual previews." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          cp artifacts/screenshots/manifest.json /tmp/snap-manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git fetch origin screenshots:refs/remotes/origin/screenshots 2>/dev/null; then
+            git checkout -B screenshots refs/remotes/origin/screenshots
+          else
+            git checkout --orphan screenshots
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          RUN_DIR="${{ github.run_id }}"
+          mkdir -p "$RUN_DIR"
+          cp artifacts/screenshots/*.png "$RUN_DIR/"
+          git add "$RUN_DIR"
+          for d in $(ls -d [0-9]*/ 2>/dev/null | sort -n | head -n -10); do git rm -rq "$d" || true; done
+          git commit -m "snapshots for run ${{ github.run_id }}" >/dev/null 2>&1 || true
+          for i in 1 2 3; do
+            git push origin screenshots && break
+            sleep 5
+            git pull --rebase origin screenshots || true
+          done
+          BASE_URL="https://raw.githubusercontent.com/${{ github.repository }}/screenshots/$RUN_DIR" node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync("/tmp/snap-manifest.json", "utf8"));
+            const base = process.env.BASE_URL;
+            const lines = ["", "---", "", "### Visual Previews", ""];
+            for (const s of manifest) {
+              lines.push(`<details>`);
+              lines.push(`  <summary><b>Preview: ${s.scene} (${s.viewport} - ${s.resolution})</b></summary>`);
+              lines.push(`  <br />`);
+              lines.push(`  <img src="${base}/${s.file}" alt="${s.file}" style="max-width: 100%; border: 1px solid #ddd; border-radius: 6px;" />`);
+              lines.push(`</details>`);
+              lines.push(``);
+            }
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n"), "utf8");
+          '
