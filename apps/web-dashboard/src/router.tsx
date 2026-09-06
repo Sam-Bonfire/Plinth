@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { OrdersPage } from "./pages/OrdersPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
@@ -26,7 +27,7 @@ export const router = createBrowserRouter([
           { path: "/", element: <Navigate to="/pos" replace /> },
           { path: "/dashboard", element: <DashboardPage /> },
           { path: "/pos", element: <PosPage /> },
-          { path: "/orders", element: <PlaceholderPage title="Orders" description="Live order pipeline" /> },
+          { path: "/orders", element: <OrdersPage /> },
           { path: "/kitchen", element: <PlaceholderPage title="Kitchen" description="KDS station board" /> },
           { path: "/payments", element: <PlaceholderPage title="Payments" description="Tenders and reconciliation" /> },
           { path: "/menu", element: <PlaceholderPage title="Menu Management" description="Catalog, categories and 86 status" /> },
