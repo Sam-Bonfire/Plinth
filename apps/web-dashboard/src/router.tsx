@@ -4,6 +4,7 @@ import { AppLayout } from "./components/Layout/AppLayout.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { KitchenPage } from "./pages/KitchenPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { MenuPage } from "./pages/MenuPage.js";
 import { OrdersPage } from "./pages/OrdersPage.js";
 import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
@@ -32,7 +33,7 @@ export const router = createBrowserRouter([
           { path: "/orders", element: <OrdersPage /> },
           { path: "/kitchen", element: <KitchenPage /> },
           { path: "/payments", element: <PaymentsPage /> },
-          { path: "/menu", element: <PlaceholderPage title="Menu Management" description="Catalog, categories and 86 status" /> },
+          { path: "/menu", element: <MenuPage /> },
           { path: "/inventory", element: <PlaceholderPage title="Inventory" description="Stock, recipes, par levels" /> },
           { path: "/customers", element: <PlaceholderPage title="Customers" description="Directory and loyalty" /> },
           { path: "/reports", element: <PlaceholderPage title="Reports & Analytics" description="Sales, labor, tax with @ant-design/charts" /> },
