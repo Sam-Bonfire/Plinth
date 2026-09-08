@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+pub mod db;
 pub mod migrations;
 
 /// Launches the Tauri POS application.
