@@ -27,6 +27,12 @@ export type { OrderChannelBadgeProps, OrderChannel } from "./components/Badge/Or
 export { OrderStatusBadge } from "./components/Badge/OrderStatusBadge.js";
 export type { OrderStatusBadgeProps, OrderStatus } from "./components/Badge/OrderStatusBadge.js";
 
+export { TierBadge } from "./components/Badge/TierBadge.js";
+export type { TierBadgeProps, LoyaltyTier } from "./components/Badge/TierBadge.js";
+
+export { PlinthBadge } from "./components/Badge/PlinthBadge.js";
+export type { PlinthBadgeProps } from "./components/Badge/PlinthBadge.js";
+
 export { PlinthCard } from "./components/Card/PlinthCard.js";
 export type { PlinthCardProps, PlinthCardVariant } from "./components/Card/PlinthCard.js";
 
