@@ -3030,6 +3030,7 @@ name = "pos-client-tauri"
 version = "0.1.0"
 dependencies = [
  "core-domain",
+ "rusqlite",
  "serde",
  "serde_json",
  "sync-protocol",
