@@ -27,6 +27,9 @@ export type { OrderChannelBadgeProps, OrderChannel } from "./components/Badge/Or
 export { OrderStatusBadge } from "./components/Badge/OrderStatusBadge.js";
 export type { OrderStatusBadgeProps, OrderStatus } from "./components/Badge/OrderStatusBadge.js";
 
+export { RoleBadge } from "./components/Badge/RoleBadge.js";
+export type { RoleBadgeProps, StaffRole } from "./components/Badge/RoleBadge.js";
+
 export { PlinthCard } from "./components/Card/PlinthCard.js";
 export type { PlinthCardProps, PlinthCardVariant } from "./components/Card/PlinthCard.js";
 
@@ -66,6 +69,7 @@ export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
 export * from "./components/ShiftRegisterModal/index.js";
+export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
