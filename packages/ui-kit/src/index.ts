@@ -68,6 +68,7 @@ export * from "./components/CurrencyInput/index.js";
 export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
+export * from "./components/VegNonVegDot/index.js";
 export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
 
