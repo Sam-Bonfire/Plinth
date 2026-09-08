@@ -65,6 +65,7 @@ export * from "./components/CurrencyInput/index.js";
 export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
+export * from "./components/KDSStationHeader/index.js";
 export * from "./components/Typography/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
