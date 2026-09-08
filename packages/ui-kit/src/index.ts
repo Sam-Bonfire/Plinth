@@ -32,6 +32,8 @@ export type { TierBadgeProps, LoyaltyTier } from "./components/Badge/TierBadge.j
 
 export { PlinthBadge } from "./components/Badge/PlinthBadge.js";
 export type { PlinthBadgeProps } from "./components/Badge/PlinthBadge.js";
+export { RoleBadge } from "./components/Badge/RoleBadge.js";
+export type { RoleBadgeProps, StaffRole } from "./components/Badge/RoleBadge.js";
 
 export { PlinthCard } from "./components/Card/PlinthCard.js";
 export type { PlinthCardProps, PlinthCardVariant } from "./components/Card/PlinthCard.js";
@@ -71,6 +73,7 @@ export * from "./components/CurrencyInput/index.js";
 export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
+export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
 
 export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
