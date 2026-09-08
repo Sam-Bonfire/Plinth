@@ -1,5 +1,7 @@
 #![deny(unsafe_code)]
 
+pub mod migrations;
+
 /// Launches the Tauri POS application.
 ///
 /// # Panics
