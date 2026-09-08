@@ -114,4 +114,29 @@ mod tests {
         
         assert_eq!(StaffRole::Kitchen.default_permissions(), Permissions::empty());
     }
+
+    #[test]
+    fn test_bitwise_operators() {
+        let cashier = Permissions::TAKE_ORDER | Permissions::OPEN_CLOSE_SHIFT;
+        assert!(cashier.contains(Permissions::TAKE_ORDER));
+        assert!(cashier.contains(Permissions::OPEN_CLOSE_SHIFT));
+        assert!(!cashier.contains(Permissions::VOID_ORDER));
+        // Subset check spans multiple bits at once.
+        assert!(cashier.contains(Permissions::TAKE_ORDER | Permissions::OPEN_CLOSE_SHIFT));
+        assert!(!cashier.contains(Permissions::TAKE_ORDER | Permissions::VOID_ORDER));
+
+        let both = Permissions::TAKE_ORDER | Permissions::VOID_ORDER;
+        assert_eq!(both & Permissions::TAKE_ORDER, Permissions::TAKE_ORDER);
+        assert_eq!(both & Permissions::APPLY_DISCOUNT, Permissions::empty());
+
+        assert_eq!(
+            Permissions::all() - Permissions::MANAGE_STAFF,
+            Permissions::from_bits_truncate(0b0000_0011_0111_1111)
+        );
+        assert!(!(Permissions::all() - Permissions::MANAGE_STAFF).contains(Permissions::MANAGE_STAFF));
+
+        assert_eq!(Permissions::empty().bits(), 0);
+        assert!(!Permissions::empty().contains(Permissions::TAKE_ORDER));
+        assert!(Permissions::all().contains(Permissions::TAKE_ORDER | Permissions::MANAGE_STAFF));
+    }
 }
