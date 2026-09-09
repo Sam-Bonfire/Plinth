@@ -73,6 +73,7 @@ export * from "./components/CurrencyInput/index.js";
 export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
+export * from "./components/LowStockAlerts/index.js";
 export * from "./components/StaffDeactivateModal/index.js";
 export * from "./components/TopCustomersCard/index.js";
 export * from "./components/CardPaymentOverlay/index.js";
