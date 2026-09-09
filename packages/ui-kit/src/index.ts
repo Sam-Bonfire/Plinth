@@ -27,6 +27,11 @@ export type { OrderChannelBadgeProps, OrderChannel } from "./components/Badge/Or
 export { OrderStatusBadge } from "./components/Badge/OrderStatusBadge.js";
 export type { OrderStatusBadgeProps, OrderStatus } from "./components/Badge/OrderStatusBadge.js";
 
+export { TierBadge } from "./components/Badge/TierBadge.js";
+export type { TierBadgeProps, LoyaltyTier } from "./components/Badge/TierBadge.js";
+
+export { PlinthBadge } from "./components/Badge/PlinthBadge.js";
+export type { PlinthBadgeProps } from "./components/Badge/PlinthBadge.js";
 export { RoleBadge } from "./components/Badge/RoleBadge.js";
 export type { RoleBadgeProps, StaffRole } from "./components/Badge/RoleBadge.js";
 
@@ -69,6 +74,14 @@ export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
 export * from "./components/KDSStationFilter/index.js";
+export * from "./components/KDSBumpButton/index.js";
+export * from "./components/KDSStationHeader/index.js";
+export * from "./components/StatCard/index.js";
+export * from "./components/VegNonVegDot/index.js";
+export * from "./components/SearchInput/index.js";
+export * from "./components/ToastNotification/index.js";
+export * from "./components/SidebarNavigation/index.js";
+export * from "./components/TopbarNavigation/index.js";
 export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
 
