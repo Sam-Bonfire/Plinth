@@ -73,6 +73,7 @@ export * from "./components/CurrencyInput/index.js";
 export * from "./components/Avatar/index.js";
 export * from "./components/Charts/index.js";
 export * from "./components/FilterButtonGroup/index.js";
+export * from "./components/KDSBumpButton/index.js";
 export * from "./components/KDSStationHeader/index.js";
 export * from "./components/StatCard/index.js";
 export * from "./components/VegNonVegDot/index.js";
