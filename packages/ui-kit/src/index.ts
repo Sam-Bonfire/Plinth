@@ -76,6 +76,7 @@ export * from "./components/FilterButtonGroup/index.js";
 export * from "./components/VegNonVegDot/index.js";
 export * from "./components/SearchInput/index.js";
 export * from "./components/ToastNotification/index.js";
+export * from "./components/SidebarNavigation/index.js";
 export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
 
