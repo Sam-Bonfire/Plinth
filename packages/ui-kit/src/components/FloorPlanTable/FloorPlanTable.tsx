@@ -13,6 +13,20 @@ export interface FloorTableRow {
   printerZone?: string | null;
 }
 
+export type FloorTableStatus = FloorTableRow["status"];
+
+export const floorStatusColor = (status: FloorTableStatus): string =>
+  status === "Available"
+    ? "success"
+    : status === "Occupied"
+      ? "warning"
+      : status === "Reserved"
+        ? "processing"
+        : "default";
+
+export const floorStatusLabel = (status: FloorTableStatus): string =>
+  status === "OutOfService" ? "Out of service" : status;
+
 export interface FloorPlanTableProps {
   data: FloorTableRow[];
   onReorder?: (reordered: FloorTableRow[]) => void;
@@ -46,17 +60,9 @@ export const FloorPlanTable: React.FC<FloorPlanTableProps> = ({ data, onReorder,
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status: FloorTableRow["status"]): React.ReactNode => {
-        const color =
-          status === "Available"
-            ? "success"
-            : status === "Occupied"
-              ? "warning"
-              : status === "Reserved"
-                ? "processing"
-                : "default";
-        return <Tag color={color}>{status}</Tag>;
-      },
+      render: (status: FloorTableRow["status"]): React.ReactNode => (
+        <Tag color={floorStatusColor(status)}>{floorStatusLabel(status)}</Tag>
+      ),
     },
     {
       title: "Actions",
