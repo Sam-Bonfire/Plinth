@@ -14,6 +14,12 @@ pub enum InventoryError {
     /// Error when a stock item is missing from costs.
     #[error("Missing stock item cost for stock item: {0:?}")]
     MissingStockItemCost(StockItemId),
+    /// Error when cost and sell price currencies differ.
+    #[error("Currency mismatch between cost and sell price")]
+    CurrencyMismatch,
+    /// Error when the sell price is not positive.
+    #[error("Sell price must be positive")]
+    InvalidSellPrice,
 }
 
 /// Represents a stock item in inventory.
@@ -158,6 +164,45 @@ impl Recipe {
             currency: default_currency,
         })
     }
+
+    /// Food cost percentage: `cost / sell_price * 100`.
+    ///
+    /// # Errors
+    /// Returns [`InventoryError`] if a cost is missing, currencies differ,
+    /// or the sell price is not positive.
+    pub fn food_cost_percent(
+        &self,
+        stock_costs: &HashMap<StockItemId, Money>,
+        sell_price: &Money,
+    ) -> Result<Decimal, InventoryError> {
+        let cost = self.compute_theoretical_cost(stock_costs)?;
+        if cost.currency != sell_price.currency {
+            return Err(InventoryError::CurrencyMismatch);
+        }
+        if sell_price.amount <= Decimal::ZERO {
+            return Err(InventoryError::InvalidSellPrice);
+        }
+        Ok(cost.amount / sell_price.amount * Decimal::new(100, 0))
+    }
+
+    /// Gross margin amount: `sell_price - cost`.
+    ///
+    /// # Errors
+    /// Returns [`InventoryError`] if a cost is missing or currencies differ.
+    pub fn gross_margin(
+        &self,
+        stock_costs: &HashMap<StockItemId, Money>,
+        sell_price: &Money,
+    ) -> Result<Money, InventoryError> {
+        let cost = self.compute_theoretical_cost(stock_costs)?;
+        if cost.currency != sell_price.currency {
+            return Err(InventoryError::CurrencyMismatch);
+        }
+        Ok(Money {
+            amount: sell_price.amount - cost.amount,
+            currency: sell_price.currency,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -236,5 +281,110 @@ mod tests {
         let total_cost = recipe.compute_theoretical_cost(&costs).unwrap();
         // Total = 100 + 22 = 122 INR
         assert_eq!(total_cost.amount, Decimal::new(122, 0));
+    }
+
+    fn two_ingredient_recipe() -> (Recipe, HashMap<StockItemId, Money>) {
+        let stock1 = StockItemId::new();
+        let stock2 = StockItemId::new();
+        let recipe = Recipe {
+            id: RecipeId::new(),
+            menu_item_id: MenuItemId::new(),
+            ingredients: vec![
+                RecipeIngredient {
+                    stock_item_id: stock1,
+                    quantity: StockQuantity { value: Decimal::new(2, 1), unit: UnitOfMeasure::Kilogram },
+                    wastage_percent: Decimal::ZERO,
+                },
+                RecipeIngredient {
+                    stock_item_id: stock2,
+                    quantity: StockQuantity { value: Decimal::new(1, 1), unit: UnitOfMeasure::Kilogram },
+                    wastage_percent: Decimal::new(10, 0),
+                },
+            ],
+            preparation_notes: None,
+        };
+        let mut costs = HashMap::new();
+        costs.insert(stock1, Money { amount: Decimal::new(500, 0), currency: Currency::Inr });
+        costs.insert(stock2, Money { amount: Decimal::new(200, 0), currency: Currency::Inr });
+        (recipe, costs)
+    }
+
+    #[test]
+    fn test_food_cost_percent_basic() {
+        let (recipe, costs) = two_ingredient_recipe();
+        let sell = Money { amount: Decimal::new(400, 0), currency: Currency::Inr };
+        // 122 / 400 * 100 = 30.5%
+        assert_eq!(
+            recipe.food_cost_percent(&costs, &sell).unwrap(),
+            Decimal::new(305, 1)
+        );
+    }
+
+    #[test]
+    fn test_gross_margin_basic() {
+        let (recipe, costs) = two_ingredient_recipe();
+        let sell = Money { amount: Decimal::new(400, 0), currency: Currency::Inr };
+        let margin = recipe.gross_margin(&costs, &sell).unwrap();
+        assert_eq!(margin.amount, Decimal::new(278, 0));
+        assert_eq!(margin.currency, Currency::Inr);
+    }
+
+    #[test]
+    fn test_food_cost_missing_ingredient_errors() {
+        let (recipe, _) = two_ingredient_recipe();
+        let sell = Money { amount: Decimal::new(400, 0), currency: Currency::Inr };
+        assert!(matches!(
+            recipe.food_cost_percent(&HashMap::new(), &sell),
+            Err(crate::models::inventory::InventoryError::MissingStockItemCost(_))
+        ));
+    }
+
+    #[test]
+    fn test_food_cost_rejects_non_positive_sell_price() {
+        let (recipe, costs) = two_ingredient_recipe();
+        // Only INR exists; any structurally different currency must fail.
+        // Exercise via zero-sell guard path independence: mismatch checked first.
+        let sell = Money { amount: Decimal::ZERO, currency: Currency::Inr };
+        assert_eq!(
+            recipe.food_cost_percent(&costs, &sell),
+            Err(crate::models::inventory::InventoryError::InvalidSellPrice)
+        );
+        assert_eq!(
+            recipe.gross_margin(&costs, &sell).unwrap().amount,
+            Decimal::new(-122, 0),
+            "margin on zero sell is defined; percent is not"
+        );
+    }
+
+    #[test]
+    fn test_wastage_inflates_food_cost() {
+        let stock = StockItemId::new();
+        let plain = Recipe {
+            id: RecipeId::new(),
+            menu_item_id: MenuItemId::new(),
+            ingredients: vec![RecipeIngredient {
+                stock_item_id: stock,
+                quantity: StockQuantity { value: Decimal::ONE, unit: UnitOfMeasure::Kilogram },
+                wastage_percent: Decimal::ZERO,
+            }],
+            preparation_notes: None,
+        };
+        let wasteful = Recipe {
+            id: RecipeId::new(),
+            menu_item_id: MenuItemId::new(),
+            ingredients: vec![RecipeIngredient {
+                stock_item_id: stock,
+                quantity: StockQuantity { value: Decimal::ONE, unit: UnitOfMeasure::Kilogram },
+                wastage_percent: Decimal::new(100, 0),
+            }],
+            preparation_notes: None,
+        };
+        let mut costs = HashMap::new();
+        costs.insert(stock, Money { amount: Decimal::new(100, 0), currency: Currency::Inr });
+        let sell = Money { amount: Decimal::new(400, 0), currency: Currency::Inr };
+        let lean = plain.food_cost_percent(&costs, &sell).unwrap();
+        let fat = wasteful.food_cost_percent(&costs, &sell).unwrap();
+        assert_eq!(lean, Decimal::new(25, 0));
+        assert_eq!(fat, Decimal::new(50, 0));
     }
 }
