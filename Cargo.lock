@@ -3036,6 +3036,8 @@ dependencies = [
  "sync-protocol",
  "tauri",
  "tauri-build",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]

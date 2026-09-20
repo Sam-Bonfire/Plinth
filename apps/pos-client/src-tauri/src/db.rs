@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result};
 use std::path::Path;
 
-/// Opens (creating if needed) the POS local SQLite database and applies the
+/// Opens (creating if needed) the POS local `SQLite` database and applies the
 /// bundled durability pragmas: WAL journaling, foreign-key enforcement, and
 /// NORMAL synchronous mode.
 ///
