@@ -198,4 +198,132 @@ mod tests {
         .unwrap();
         assert!(verify_token(&token, "real_secret").is_err());
     }
+
+    fn mint(tenant: &str, location: &str, sub: &str, perms: u32, iss: &str) -> String {
+        let claims = JwtClaims {
+            sub: sub.to_string(),
+            iss: iss.to_string(),
+            exp: 4_000_000_000,
+            tenant_id: tenant.to_string(),
+            location_id: location.to_string(),
+            roles: vec!["Cashier".to_string()],
+            permissions: perms,
+        };
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(b"unit_secret"),
+        )
+        .unwrap()
+    }
+
+    fn uuid() -> String {
+        uuid::Uuid::now_v7().to_string()
+    }
+
+    #[test]
+    fn parses_bearer_token_from_header() {
+        let h = "Bearer abc.def.ghi".to_string();
+        assert_eq!(
+            extract_token_from_header(Some(&h)).as_deref(),
+            Some("abc.def.ghi")
+        );
+        assert!(extract_token_from_header(None).is_none());
+        let bare = "Basic xyz".to_string();
+        assert!(extract_token_from_header(Some(&bare)).is_none());
+    }
+
+    #[test]
+    fn accepts_matching_context_with_permission() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "plinth-auth");
+        let auth = format!("Bearer {token}");
+        let ctx = verify_context_from_headers(
+            Some(tenant.clone()),
+            Some(location.clone()),
+            Some(&auth),
+            "unit_secret",
+            Permissions::from_bits_truncate(0b10),
+        )
+        .unwrap();
+        assert_eq!(ctx.tenant_id.to_string(), tenant);
+        assert_eq!(ctx.staff_id.to_string(), staff);
+    }
+
+    #[test]
+    fn rejects_tenant_mismatch() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "plinth-auth");
+        let auth = format!("Bearer {token}");
+        let err = verify_context_from_headers(
+            Some(uuid()),
+            Some(location),
+            Some(&auth),
+            "unit_secret",
+            Permissions::empty(),
+        )
+        .unwrap_err();
+        assert_eq!(err, "Tenant ID mismatch".to_string());
+    }
+
+    #[test]
+    fn rejects_location_mismatch() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "plinth-edge");
+        let auth = format!("Bearer {token}");
+        let err = verify_context_from_headers(
+            Some(tenant),
+            Some(uuid()),
+            Some(&auth),
+            "unit_secret",
+            Permissions::empty(),
+        )
+        .unwrap_err();
+        assert_eq!(err, "Location ID mismatch".to_string());
+    }
+
+    #[test]
+    fn rejects_insufficient_permissions() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b01, "plinth-auth");
+        let auth = format!("Bearer {token}");
+        let err = verify_context_from_headers(
+            Some(tenant),
+            Some(location),
+            Some(&auth),
+            "unit_secret",
+            Permissions::from_bits_truncate(0b10),
+        )
+        .unwrap_err();
+        assert_eq!(err, "Insufficient permissions".to_string());
+    }
+
+    #[test]
+    fn rejects_missing_headers_and_bad_token() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "plinth-auth");
+        let auth = format!("Bearer {token}");
+        assert_eq!(
+            verify_context_from_headers(None, Some(location.clone()), Some(&auth), "unit_secret", Permissions::empty()).unwrap_err(),
+            "Missing x-tenant-id header".to_string()
+        );
+        assert_eq!(
+            verify_context_from_headers(Some(tenant.clone()), Some(location.clone()), None, "unit_secret", Permissions::empty()).unwrap_err(),
+            "Missing Authorization header".to_string()
+        );
+        let bad = "Bearer not.a.token".to_string();
+        assert!(
+            verify_context_from_headers(Some(tenant), Some(location), Some(&bad), "unit_secret", Permissions::empty()).is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_wrong_issuer() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "evil-issuer");
+        let auth = format!("Bearer {token}");
+        assert!(
+            verify_context_from_headers(Some(tenant), Some(location), Some(&auth), "unit_secret", Permissions::empty()).is_err()
+        );
+    }
 }
