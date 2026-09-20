@@ -2,6 +2,7 @@
 
 pub mod db;
 pub mod migrations;
+pub mod printing;
 
 /// Launches the Tauri POS application.
 ///
