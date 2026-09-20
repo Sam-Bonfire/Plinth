@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result};
 use std::path::Path;
 
-/// Opens (creating if needed) the POS local SQLite database and applies the
+/// Opens (creating if needed) the POS local `SQLite` database and applies the
 /// bundled durability pragmas: WAL journaling, foreign-key enforcement, and
 /// NORMAL synchronous mode.
 ///
@@ -49,10 +49,8 @@ mod tests {
     }
 
     fn pragma(conn: &Connection, name: &str) -> String {
-        conn.query_row(&format!("PRAGMA {name}"), params![], |row| {
-            row.get(0)
-        })
-        .expect("pragma readable")
+        conn.query_row(&format!("PRAGMA {name}"), params![], |row| row.get(0))
+            .expect("pragma readable")
     }
 
     #[test]
