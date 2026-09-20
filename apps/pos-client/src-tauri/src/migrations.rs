@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Result, params};
+use rusqlite::{params, Connection, Result};
 
 /// A single versioned schema migration.
 ///
@@ -16,7 +16,187 @@ pub struct Migration {
 }
 
 /// Ordered schema migrations. Empty until table tasks append entries.
-pub const MIGRATIONS: &[Migration] = &[];
+pub const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "0001_orders",
+        sql: "
+            CREATE TABLE IF NOT EXISTS orders (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                terminal_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                status TEXT NOT NULL,
+                table_id TEXT,
+                seat_number INTEGER,
+                subtotal_minor INTEGER NOT NULL,
+                discount_minor INTEGER NOT NULL DEFAULT 0,
+                tax_minor INTEGER NOT NULL DEFAULT 0,
+                total_minor INTEGER NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                deleted_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS order_line_items (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                menu_item_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                unit_price_minor INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                fired_quantity INTEGER NOT NULL DEFAULT 0,
+                tax_rate TEXT NOT NULL,
+                notes TEXT,
+                seat_number INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS order_payments (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                method TEXT NOT NULL,
+                amount_minor INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                reference TEXT,
+                recorded_by TEXT NOT NULL,
+                recorded_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_orders_tenant_location_created ON orders(tenant_id, location_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_orders_tenant_location_status ON orders(tenant_id, location_id, status);
+        ",
+    },
+    Migration {
+        version: 2,
+        name: "0002_menu",
+        sql: "
+            CREATE TABLE IF NOT EXISTS menu_categories (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                display_order INTEGER NOT NULL DEFAULT 0,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                deleted_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS menu_items (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                primary_category_id TEXT NOT NULL REFERENCES menu_categories(id),
+                name TEXT NOT NULL,
+                description TEXT,
+                price_minor INTEGER NOT NULL,
+                tax_rate TEXT NOT NULL,
+                is_veg INTEGER NOT NULL DEFAULT 1,
+                is_available INTEGER NOT NULL DEFAULT 1,
+                sku TEXT,
+                kitchen_station TEXT NOT NULL,
+                deleted_at TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_menu_items_catalog ON menu_items(tenant_id, location_id, primary_category_id, is_available);
+        ",
+    },
+    Migration {
+        version: 3,
+        name: "0003_tickets",
+        sql: "
+            CREATE TABLE IF NOT EXISTS kitchen_tickets (
+                id TEXT PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                station TEXT NOT NULL,
+                kot_number INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                sla_warning_sec INTEGER NOT NULL,
+                sla_late_sec INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                bumped_at TEXT,
+                bumped_by TEXT,
+                cancelled_at TEXT,
+                cancellation_reason TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS ticket_line_items (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                ticket_id TEXT NOT NULL REFERENCES kitchen_tickets(id) ON DELETE CASCADE,
+                line_item_id TEXT NOT NULL,
+                menu_item_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                modifiers_json TEXT,
+                special_instructions TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_kitchen_tickets_active ON kitchen_tickets(tenant_id, location_id, station, status);
+        ",
+    },
+    Migration {
+        version: 4,
+        name: "0004_sync_queue",
+        sql: sync_protocol::queue::SYNC_QUEUE_SQLITE_DDL,
+    },
+    Migration {
+        version: 5,
+        name: "0005_staff_audit_shifts",
+        sql: "
+            CREATE TABLE IF NOT EXISTS staff_members (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                role TEXT NOT NULL,
+                permissions INTEGER NOT NULL DEFAULT 0,
+                pin_hash TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                deleted_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                actor_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                payload_json TEXT,
+                is_anomaly INTEGER NOT NULL DEFAULT 0,
+                timestamp TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS store_shifts (
+                id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                location_id TEXT NOT NULL,
+                terminal_id TEXT NOT NULL,
+                opened_by TEXT NOT NULL,
+                opened_at TEXT NOT NULL,
+                closed_at TEXT,
+                opening_float_minor INTEGER NOT NULL,
+                closing_cash_minor INTEGER,
+                expected_cash_minor INTEGER,
+                is_closed INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_staff_members_tenant_location ON staff_members(tenant_id, location_id, is_active);
+            CREATE INDEX IF NOT EXISTS idx_audit_events_tenant_time ON audit_events(tenant_id, location_id, timestamp DESC);
+        ",
+    }
+];
 
 /// Applies [`MIGRATIONS`] to an open connection.
 ///
@@ -86,10 +266,13 @@ mod tests {
     #[test]
     fn applies_pending_in_order_and_reaps_versions() {
         let mut conn = Connection::open_in_memory().expect("memory db");
-        let applied = apply_migrations(&mut conn, &[CREATE_WIDGETS, SEED_WIDGETS]).expect("migrate");
+        let applied =
+            apply_migrations(&mut conn, &[CREATE_WIDGETS, SEED_WIDGETS]).expect("migrate");
         assert_eq!(applied, vec![1, 2]);
         let label: String = conn
-            .query_row("SELECT label FROM widgets WHERE id = 1", params![], |row| row.get(0))
+            .query_row("SELECT label FROM widgets WHERE id = 1", params![], |row| {
+                row.get(0)
+            })
             .expect("seeded row");
         assert_eq!(label, "sprocket");
     }
@@ -98,7 +281,8 @@ mod tests {
     fn second_run_is_idempotent() {
         let mut conn = Connection::open_in_memory().expect("memory db");
         apply_migrations(&mut conn, &[CREATE_WIDGETS, SEED_WIDGETS]).expect("first migrate");
-        let applied = apply_migrations(&mut conn, &[CREATE_WIDGETS, SEED_WIDGETS]).expect("second migrate");
+        let applied =
+            apply_migrations(&mut conn, &[CREATE_WIDGETS, SEED_WIDGETS]).expect("second migrate");
         assert!(applied.is_empty(), "nothing pending on second run");
     }
 
@@ -131,10 +315,26 @@ mod tests {
     }
 
     #[test]
-    fn migrate_with_empty_list_applies_nothing() {
+    fn migrate_applies_all_and_is_idempotent() {
         let mut conn = Connection::open_in_memory().expect("memory db");
-        let applied = migrate(&mut conn).expect("migrate");
-        assert!(applied.is_empty());
+        let applied = migrate(&mut conn).expect("first migrate");
+        assert_eq!(applied, vec![1, 2, 3, 4, 5]);
+
+        let applied_second = migrate(&mut conn).expect("second migrate");
+        assert!(applied_second.is_empty());
+    }
+
+    #[test]
+    fn fk_enforcement() {
+        let mut conn = Connection::open_in_memory().expect("memory db");
+        conn.execute("PRAGMA foreign_keys = ON", params![]).expect("fk");
+        migrate(&mut conn).expect("migrate");
+
+        let res = conn.execute(
+            "INSERT INTO order_line_items (id, tenant_id, location_id, order_id, menu_item_id, name, unit_price_minor, quantity, fired_quantity, tax_rate) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params!["oli1", "t1", "loc1", "nonexistent_order", "mi1", "pizza", 1000, 1, 0, "0.0"],
+        );
+        assert!(res.is_err(), "should fail foreign key constraint");
     }
 
     #[test]
