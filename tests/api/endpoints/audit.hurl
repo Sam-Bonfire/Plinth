@@ -41,3 +41,18 @@ HTTP 400
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "Invalid"
+
+# Negative: Wrong tenant isolation (non-existent/mismatched UUID)
+POST {{base_url}}/api/v1/audit
+Authorization: Bearer {{token}}
+x-tenant-id: 00000000-0000-0000-0000-000000000999
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "action": "PRICE_OVERRIDE",
+  "target_type": "OrderLineItem",
+  "target_id": "00000000-0000-0000-0000-000000000011",
+  "payload_json": "{\"old_price\":45000,\"new_price\":35000}",
+  "is_anomaly": false
+}
+HTTP 401
