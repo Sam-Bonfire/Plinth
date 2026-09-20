@@ -1,6 +1,7 @@
 pub mod aggregator;
 pub mod audit;
 pub mod catalog;
+pub mod customer;
 pub mod inventory;
 pub mod kitchen;
 pub mod location_config;
@@ -13,6 +14,7 @@ pub mod table;
 pub use aggregator::*;
 pub use audit::*;
 pub use catalog::*;
+pub use customer::*;
 pub use inventory::*;
 pub use kitchen::*;
 pub use location_config::*;

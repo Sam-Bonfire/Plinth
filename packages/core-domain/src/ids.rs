@@ -104,6 +104,10 @@ define_id!(
     /// Identifier for an Audit Event
     AuditEventId
 );
+define_id!(
+    /// Identifier for a Customer
+    CustomerId
+);
 
 #[cfg(test)]
 mod tests {
