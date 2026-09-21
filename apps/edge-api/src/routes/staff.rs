@@ -355,4 +355,18 @@ mod tests {
         assert_eq!(parse_role("Owner"), StaffRole::Owner);
         assert_eq!(parse_role("Unknown"), StaffRole::Waiter);
     }
+
+    #[test]
+    fn test_pin_hash_round_trip() {
+        let hash = hash_pin("4321").expect("hash");
+        assert!(hash.starts_with("$argon2"));
+        assert!(verify_pin_hash(&hash, "4321"));
+        assert!(!verify_pin_hash(&hash, "0000"));
+    }
+
+    #[test]
+    fn test_pin_verify_rejects_garbage() {
+        assert!(!verify_pin_hash("", "4321"));
+        assert!(!verify_pin_hash("plaintext-legacy", "plaintext-legacy"));
+    }
 }
