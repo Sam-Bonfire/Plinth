@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 use sync_protocol::mutation::MutationRecord;
 use sync_protocol::queue::{SyncQueueEntry, SyncQueueError, SyncQueueStatus, SyncQueueStore};
 use uuid::Uuid;
 
-fn db_err(e: rusqlite::Error) -> SyncQueueError {
+fn db_err(e: &rusqlite::Error) -> SyncQueueError {
     SyncQueueError::Database(e.to_string())
 }
 
@@ -36,8 +36,7 @@ fn parse_time(text: &str) -> Result<DateTime<Utc>, SyncQueueError> {
         .map_err(|e| SyncQueueError::Internal(format!("bad timestamp {text}: {e}")))
 }
 
-#[allow(clippy::too_many_lines)]
-fn read_entry(
+struct QueueRow {
     mutation_id: String,
     entity_type: String,
     entity_id: String,
@@ -48,21 +47,24 @@ fn read_entry(
     last_error: Option<String>,
     created_at: String,
     updated_at: String,
-) -> Result<SyncQueueEntry, SyncQueueError> {
-    let mutation: MutationRecord = serde_json::from_str(&mutation_json)
+}
+
+#[allow(clippy::too_many_lines)]
+fn read_entry(row: QueueRow) -> Result<SyncQueueEntry, SyncQueueError> {
+    let mutation: MutationRecord = serde_json::from_str(&row.mutation_json)
         .map_err(|e| SyncQueueError::Serialization(format!("bad mutation json: {e}")))?;
     Ok(SyncQueueEntry {
-        mutation_id: Uuid::parse_str(&mutation_id)
+        mutation_id: Uuid::parse_str(&row.mutation_id)
             .map_err(|e| SyncQueueError::Internal(format!("bad mutation id: {e}")))?,
-        entity_type,
-        entity_id,
+        entity_type: row.entity_type,
+        entity_id: row.entity_id,
         mutation,
-        status: parse_status(&status)?,
-        retry_count: u32::try_from(retry_count).unwrap_or(u32::MAX),
-        next_retry_at: next_retry_at.map(|s| parse_time(&s)).transpose()?,
-        last_error,
-        created_at: parse_time(&created_at)?,
-        updated_at: parse_time(&updated_at)?,
+        status: parse_status(&row.status)?,
+        retry_count: u32::try_from(row.retry_count).unwrap_or(u32::MAX),
+        next_retry_at: row.next_retry_at.map(|s| parse_time(&s)).transpose()?,
+        last_error: row.last_error,
+        created_at: parse_time(&row.created_at)?,
+        updated_at: parse_time(&row.updated_at)?,
     })
 }
 
@@ -102,7 +104,7 @@ impl SyncQueueStore for SqliteSyncQueueStore {
                 entry.updated_at.to_rfc3339(),
             ],
         )
-        .map_err(db_err)?;
+        .map_err(|e| db_err(&e))?;
         Ok(())
     }
 
@@ -114,7 +116,7 @@ impl SyncQueueStore for SqliteSyncQueueStore {
                  FROM sync_queue WHERE status = 'Pending' AND (next_retry_at IS NULL OR next_retry_at <= ?1)
                  ORDER BY created_at LIMIT {limit}"
             ))
-            .map_err(db_err)?;
+            .map_err(|e| db_err(&e))?;
         let rows = stmt
             .query_map(params![now.to_rfc3339()], |row| {
                 Ok((
@@ -130,12 +132,23 @@ impl SyncQueueStore for SqliteSyncQueueStore {
                     row.get::<_, String>(9)?,
                 ))
             })
-            .map_err(db_err)?;
+            .map_err(|e| db_err(&e))?;
         let mut out = Vec::new();
         for row in rows {
             let (id, etype, eid, mjson, status, retries, next, err, created, updated) =
-                row.map_err(db_err)?;
-            out.push(read_entry(id, etype, eid, mjson, status, retries, next, err, created, updated)?);
+                row.map_err(|e| db_err(&e))?;
+            out.push(read_entry(QueueRow {
+                mutation_id: id,
+                entity_type: etype,
+                entity_id: eid,
+                mutation_json: mjson,
+                status,
+                retry_count: retries,
+                next_retry_at: next,
+                last_error: err,
+                created_at: created,
+                updated_at: updated,
+            })?);
         }
         Ok(out)
     }
@@ -165,7 +178,7 @@ impl SyncQueueStore for SqliteSyncQueueStore {
                 mutation_id.to_string(),
             ],
         )
-        .map_err(db_err)?;
+        .map_err(|e| db_err(&e))?;
         Ok(())
     }
 
@@ -175,7 +188,7 @@ impl SyncQueueStore for SqliteSyncQueueStore {
             "UPDATE sync_queue SET status = 'DeadLetter', last_error = ?1, updated_at = ?2 WHERE mutation_id = ?3",
             params![reason, updated_at.to_rfc3339(), mutation_id.to_string()],
         )
-        .map_err(db_err)?;
+        .map_err(|e| db_err(&e))?;
         Ok(())
     }
 
@@ -186,7 +199,7 @@ impl SyncQueueStore for SqliteSyncQueueStore {
                 "DELETE FROM sync_queue WHERE status = 'Settled' AND updated_at < ?1",
                 params![cutoff.to_rfc3339()],
             )
-            .map_err(db_err)?;
+            .map_err(|e| db_err(&e))?;
         Ok(count)
     }
 }
@@ -199,7 +212,7 @@ impl SqliteSyncQueueStore {
                 "UPDATE sync_queue SET status = ?1, updated_at = ?2 WHERE mutation_id = ?3",
                 params![status_name(status), updated_at.to_rfc3339(), id.to_string()],
             )
-            .map_err(db_err)?;
+            .map_err(|e| db_err(&e))?;
         }
         Ok(())
     }
@@ -208,7 +221,7 @@ impl SqliteSyncQueueStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sync_protocol::mutation::{EntityType, MutationPayload, OperationType};
+    use sync_protocol::mutation::{EntityType, OperationType};
 
     fn memory_store() -> SqliteSyncQueueStore {
         let conn = Connection::open_in_memory().expect("memory db");
