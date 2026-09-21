@@ -77,107 +77,137 @@ pub async fn apply_mutation(stores: &LocalStores, record: &MutationRecord) -> Re
     let payload: MutationPayload = serde_json::from_str(&record.payload_json)
         .map_err(|e| ApplyError::BadPayload(format!("unparsable mutation payload: {e}")))?;
     match &payload {
-        MutationPayload::OrderCreated(p) => {
-            let (mut order, _) = Order::new(
-                TenantId::from(p.tenant_id),
-                LocationId::from(p.location_id),
-                core_domain::ids::TerminalId::from(Uuid::nil()),
-                parse_channel(&p.channel)?,
-                StaffMemberId::from(p.created_by),
-                p.table_id.map(FloorTableId::from),
-                p.seat_number
-                    .map(SeatNumber::new)
-                    .transpose()
-                    .map_err(|_| ApplyError::BadPayload("bad seat number".to_string()))?,
-            );
-            // Preserve the inbound identity instead of the fresh one.
-            order.id = OrderId::from(record.entity_id);
-            stores.orders.save(&order).await?;
-            Ok(ApplyOutcome::Applied)
+        MutationPayload::OrderCreated(p) => apply_order_created(stores, record, p).await,
+        MutationPayload::OrderStatusUpdated(p) => apply_order_status(stores, p).await,
+        MutationPayload::OrderDiscountApplied(p) => apply_order_discount(stores, p).await,
+        MutationPayload::OrderVoided(p) => apply_order_void(stores, p).await,
+        MutationPayload::TicketBumped(p) => apply_ticket_bumped(stores, p).await,
+        MutationPayload::StockAdjusted(_) | MutationPayload::AggregatorOrderIngested(_) => {
+            Ok(ApplyOutcome::SkippedUnsupported)
         }
-        MutationPayload::OrderStatusUpdated(p) => {
-            let id = OrderId::from(p.order_id);
-            let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
-            let target = parse_status(&p.to_status)?;
-            if target == OrderStatus::Voided {
-                let by = p.updated_by.map(StaffMemberId::from).ok_or(ApplyError::MissingActor)?;
-                order
-                    .void_order("remote sync void".to_string(), by, false)
-                    .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
-            } else {
-                if !order.status.can_transition_to(&target) {
-                    return Err(ApplyError::BadPayload(format!(
-                        "illegal transition {:?} -> {target:?}",
-                        order.status
-                    )));
-                }
-                order.status = target;
-            }
-            stores.orders.save(&order).await?;
-            Ok(ApplyOutcome::Applied)
-        }
-        MutationPayload::OrderDiscountApplied(p) => {
-            let id = OrderId::from(p.order_id);
-            let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
-            let discount_type = if let Some(pct) = &p.discount_percent {
-                let rate = Decimal::from_str_exact(pct)
-                    .map_err(|_| ApplyError::BadPayload(format!("bad percent {pct}")))?;
-                DiscountType::Percentage(rate)
-            } else if let Some(minor) = p.discount_amount_minor {
-                let currency = order
-                    .items
-                    .first()
-                    .map(|i| i.unit_price.currency)
-                    .unwrap_or(core_domain::value_objects::money::Currency::Inr);
-                DiscountType::FlatAmount(core_domain::value_objects::money::Money::from_minor_units(minor, currency))
-            } else {
-                return Err(ApplyError::BadPayload("discount needs percent or amount".to_string()));
-            };
-            order
-                .apply_discount(Discount {
-                    discount_type,
-                    reason: DiscountReason::Custom(p.reason.clone()),
-                    authorized_by: p.authorized_by.map(StaffMemberId::from),
-                })
-                .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
-            stores.orders.save(&order).await?;
-            Ok(ApplyOutcome::Applied)
-        }
-        MutationPayload::OrderVoided(p) => {
-            let id = OrderId::from(p.order_id);
-            let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
-            order
-                .void_order(p.reason.clone(), StaffMemberId::from(p.voided_by), p.requires_supervisor)
-                .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
-            stores.orders.save(&order).await?;
-            Ok(ApplyOutcome::Applied)
-        }
-        MutationPayload::TicketBumped(p) => {
-            let id = core_domain::ids::KitchenTicketId::from(p.ticket_id);
-            let mut ticket = stores
-                .tickets
-                .find_by_id(id)
-                .await?
-                .ok_or_else(|| ApplyError::TicketNotFound(p.ticket_id.to_string()))?;
-            ticket
-                .bump(p.bumped_by.map(StaffMemberId::from))
-                .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
-            stores.tickets.save(&ticket).await?;
-            Ok(ApplyOutcome::Applied)
-        }
-        MutationPayload::StockAdjusted(_)
-        | MutationPayload::AggregatorOrderIngested(_) => Ok(ApplyOutcome::SkippedUnsupported),
-        MutationPayload::MenuItemAvailabilityToggled(p) => {
-            stores
-                .menu
-                .set_availability(core_domain::ids::MenuItemId::from(p.menu_item_id), p.is_available)
-                .await?;
-            Ok(ApplyOutcome::Applied)
-        }
-        MutationPayload::Unknown => Ok(ApplyOutcome::SkippedUnknown),
-        // #[non_exhaustive] future variants fail safe until mapped.
+        MutationPayload::MenuItemAvailabilityToggled(p) => apply_availability(stores, p).await,
+        // Unknown and future non-exhaustive variants fail safe until mapped.
         _ => Ok(ApplyOutcome::SkippedUnknown),
     }
+}
+
+async fn apply_order_created(
+    stores: &LocalStores,
+    record: &MutationRecord,
+    p: &sync_protocol::mutation::OrderCreatedPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    let (mut order, _) = Order::new(
+        TenantId::from(p.tenant_id),
+        LocationId::from(p.location_id),
+        core_domain::ids::TerminalId::from(Uuid::nil()),
+        parse_channel(&p.channel)?,
+        StaffMemberId::from(p.created_by),
+        p.table_id.map(FloorTableId::from),
+        p.seat_number
+            .map(SeatNumber::new)
+            .transpose()
+            .map_err(|_| ApplyError::BadPayload("bad seat number".to_string()))?,
+    );
+    // Preserve the inbound identity instead of the fresh one.
+    order.id = OrderId::from(record.entity_id);
+    stores.orders.save(&order).await?;
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn apply_order_status(
+    stores: &LocalStores,
+    p: &sync_protocol::mutation::OrderStatusUpdatedPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    let id = OrderId::from(p.order_id);
+    let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
+    let target = parse_status(&p.to_status)?;
+    if target == OrderStatus::Voided {
+        let by = p.updated_by.map(StaffMemberId::from).ok_or(ApplyError::MissingActor)?;
+        order
+            .void_order("remote sync void".to_string(), by, false)
+            .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
+    } else {
+        if !order.status.can_transition_to(&target) {
+            return Err(ApplyError::BadPayload(format!(
+                "illegal transition {:?} -> {target:?}",
+                order.status
+            )));
+        }
+        order.status = target;
+    }
+    stores.orders.save(&order).await?;
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn apply_order_discount(
+    stores: &LocalStores,
+    p: &sync_protocol::mutation::OrderDiscountAppliedPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    let id = OrderId::from(p.order_id);
+    let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
+    let discount_type = if let Some(pct) = &p.discount_percent {
+        let rate = Decimal::from_str_exact(pct)
+            .map_err(|_| ApplyError::BadPayload(format!("bad percent {pct}")))?;
+        DiscountType::Percentage(rate)
+    } else if let Some(minor) = p.discount_amount_minor {
+        let currency = order
+            .items
+            .first()
+            .map_or(core_domain::value_objects::money::Currency::Inr, |i| i.unit_price.currency);
+        DiscountType::FlatAmount(core_domain::value_objects::money::Money::from_minor_units(minor, currency))
+    } else {
+        return Err(ApplyError::BadPayload("discount needs percent or amount".to_string()));
+    };
+    order
+        .apply_discount(Discount {
+            discount_type,
+            reason: DiscountReason::Custom(p.reason.clone()),
+            authorized_by: p.authorized_by.map(StaffMemberId::from),
+        })
+        .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
+    stores.orders.save(&order).await?;
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn apply_order_void(
+    stores: &LocalStores,
+    p: &sync_protocol::mutation::OrderVoidedPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    let id = OrderId::from(p.order_id);
+    let mut order = stores.orders.find_by_id(id).await?.ok_or(ApplyError::OrderNotFound(id))?;
+    order
+        .void_order(p.reason.clone(), StaffMemberId::from(p.voided_by), p.requires_supervisor)
+        .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
+    stores.orders.save(&order).await?;
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn apply_ticket_bumped(
+    stores: &LocalStores,
+    p: &sync_protocol::mutation::TicketBumpedPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    let id = core_domain::ids::KitchenTicketId::from(p.ticket_id);
+    let mut ticket = stores
+        .tickets
+        .find_by_id(id)
+        .await?
+        .ok_or_else(|| ApplyError::TicketNotFound(p.ticket_id.to_string()))?;
+    ticket
+        .bump(p.bumped_by.map(StaffMemberId::from))
+        .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
+    stores.tickets.save(&ticket).await?;
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn apply_availability(
+    stores: &LocalStores,
+    p: &sync_protocol::mutation::MenuItemAvailabilityPayload,
+) -> Result<ApplyOutcome, ApplyError> {
+    stores
+        .menu
+        .set_availability(core_domain::ids::MenuItemId::from(p.menu_item_id), p.is_available)
+        .await?;
+    Ok(ApplyOutcome::Applied)
 }
 
 #[cfg(test)]
@@ -213,7 +243,7 @@ mod tests {
         path
     }
 
-    fn record(payload: MutationPayload) -> MutationRecord {
+    fn record(payload: &MutationPayload) -> MutationRecord {
         MutationRecord {
             mutation_id: Uuid::now_v7(),
             session_id: Uuid::now_v7(),
@@ -245,7 +275,7 @@ mod tests {
             created_by: staff,
             created_at: Utc::now(),
         };
-        let mut rec = record(MutationPayload::OrderCreated(created));
+        let mut rec = record(&MutationPayload::OrderCreated(created));
         rec.entity_id = rec.mutation_id;
         // Align entity identity: applier keys off record.entity_id.
         let order_id = OrderId::from(rec.entity_id);
@@ -261,7 +291,7 @@ mod tests {
             voided_by: staff,
             requires_supervisor: true,
         };
-        let rec2 = MutationRecord { entity_id: rec.entity_id, ..record(MutationPayload::OrderVoided(voided)) };
+        let rec2 = MutationRecord { entity_id: rec.entity_id, ..record(&MutationPayload::OrderVoided(voided)) };
         assert_eq!(
             apply_mutation(&stores, &rec2).await.expect("void"),
             ApplyOutcome::Applied
@@ -287,7 +317,7 @@ mod tests {
         stores.orders.save(&order).await.expect("save");
         let bad = MutationRecord {
             entity_id: order.id.into(),
-            ..record(MutationPayload::OrderStatusUpdated(
+            ..record(&MutationPayload::OrderStatusUpdated(
                 sync_protocol::mutation::OrderStatusUpdatedPayload {
                     order_id: order.id.into(),
                     from_status: "Draft".to_string(),
@@ -298,7 +328,7 @@ mod tests {
             ))
         };
         assert!(apply_mutation(&stores, &bad).await.is_err());
-        let unknown = record(MutationPayload::Unknown);
+        let unknown = record(&MutationPayload::Unknown);
         assert_eq!(
             apply_mutation(&stores, &unknown).await.expect("unknown"),
             ApplyOutcome::SkippedUnknown
@@ -334,7 +364,7 @@ mod tests {
         );
         stores.menu.save_item(&item).await.expect("item");
         let toggle = MutationRecord {
-            ..record(MutationPayload::MenuItemAvailabilityToggled(
+            ..record(&MutationPayload::MenuItemAvailabilityToggled(
                 sync_protocol::mutation::MenuItemAvailabilityPayload {
                     menu_item_id: item.id.into(),
                     is_available: false,
