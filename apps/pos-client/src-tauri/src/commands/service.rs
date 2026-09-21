@@ -108,6 +108,16 @@ struct StaffRow {
     pin_hash: String,
 }
 
+/// Verifies a PIN against an Argon2 hash, using the same scheme as the
+/// edge staff routes. Non-PHC values never match.
+fn verify_pin_hash(hash: &str, pin: &str) -> bool {
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
+    let Ok(parsed) = PasswordHash::new(hash) else {
+        return false;
+    };
+    Argon2::default().verify_password(pin.as_bytes(), &parsed).is_ok()
+}
+
 /// Verifies a staff PIN against active local staff.
 ///
 /// # Errors
@@ -139,7 +149,7 @@ pub fn authenticate_pin(
         .map_err(|e| e.to_string())?;
     for row in rows {
         let row = row.map_err(|e| e.to_string())?;
-        if row.pin_hash == req.pin {
+        if verify_pin_hash(&row.pin_hash, &req.pin) {
             return Ok(AuthenticatePinResponse {
                 staff_id: StaffMemberId::from(
                     uuid::Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
@@ -317,9 +327,22 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    #[test]
+    fn pin_hash_round_trip_matches_server_scheme() {
+        use argon2::{Argon2, PasswordHasher, password_hash::SaltString, password_hash::rand_core::OsRng};
+        let salt = SaltString::generate(&mut OsRng);
+        let hash = Argon2::default()
+            .hash_password(b"4321", &salt)
+            .expect("hash")
+            .to_string();
+        assert!(verify_pin_hash(&hash, "4321"));
+        assert!(!verify_pin_hash(&hash, "0000"));
+        assert!(!verify_pin_hash("plaintext-legacy", "plaintext-legacy"));
+        assert!(!verify_pin_hash("", "4321"));
+    }
+
     #[tokio::test]
-    async fn audit_append_and_sync_counts() {
-        let path = migrated_path("svc-audit");
+    async fn audit_append_and_sync_counts() {        let path = migrated_path("svc-audit");
         let audit = SqliteAuditRepository::new(path.clone());
         audit
             .append(&AuditEvent::new(
