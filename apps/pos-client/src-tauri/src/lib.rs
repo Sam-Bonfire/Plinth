@@ -1,10 +1,12 @@
 #![deny(unsafe_code)]
 
+pub mod commands;
 pub mod db;
 pub mod lan_kds;
 pub mod migrations;
 pub mod printing;
 pub mod repos;
+pub mod state;
 pub mod sync_daemon;
 
 use tokio_util::sync::CancellationToken;
@@ -43,4 +45,3 @@ mod tests {
         assert_eq!(val, 1);
     }
 }
-pub mod state;

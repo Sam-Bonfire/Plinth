@@ -5,20 +5,10 @@ use core_domain::models::{Order, OrderLineItem};
 use core_domain::ports::OrderRepository;
 use core_domain::value_objects::table::SeatNumber;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use tauri::AppHandle;
-use tauri::Manager;
 
 use crate::repos::SqliteOrderRepository;
-
-fn get_db_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let mut path = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|e| e.to_string())?;
-    path.push("pos.db");
-    Ok(path)
-}
+use crate::state::db_path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct SubmitOrderRequest {
@@ -59,7 +49,7 @@ pub async fn submit_order(
 ) -> Result<OrderId, String> {
     req.tenant_id = state.tenant_id;
     req.location_id = state.location_id;
-    let db_path = get_db_path(&app)?;
+    let db_path = db_path(&app)?;
     let repo = SqliteOrderRepository::new(db_path);
 
     let (mut order, _event) = Order::new(
@@ -94,7 +84,7 @@ pub async fn get_active_orders(
     state: tauri::State<'_, crate::state::AppContext>,
     table_id: FloorTableId,
 ) -> Result<Vec<Order>, String> {
-    let db_path = get_db_path(&app)?;
+    let db_path = db_path(&app)?;
     let repo = SqliteOrderRepository::new(db_path);
 
     core_domain::ports::OrderRepository::find_active_by_table(&repo, state.location_id, table_id)
@@ -113,7 +103,7 @@ pub async fn advance_order_status(
     state: tauri::State<'_, crate::state::AppContext>,
     req: AdvanceOrderStatusRequest,
 ) -> Result<(), String> {
-    let db_path = get_db_path(&app)?;
+    let db_path = db_path(&app)?;
     let repo = SqliteOrderRepository::new(db_path);
 
     let mut order = core_domain::ports::OrderRepository::find_by_id(&repo, req.order_id)
@@ -145,7 +135,7 @@ pub async fn void_order(
     state: tauri::State<'_, crate::state::AppContext>,
     req: VoidOrderRequest,
 ) -> Result<(), String> {
-    let db_path = get_db_path(&app)?;
+    let db_path = db_path(&app)?;
     let repo = SqliteOrderRepository::new(db_path);
 
     let mut order = core_domain::ports::OrderRepository::find_by_id(&repo, req.order_id)

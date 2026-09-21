@@ -41,6 +41,16 @@ const ACTIVE_STATUSES: [&str; 5] = [
     "\"Served\"",
 ];
 
+/// Comma list of active statuses as single-quoted SQL string literals.
+/// (Double quotes would parse as identifiers and match nothing.)
+fn active_status_list() -> String {
+    ACTIVE_STATUSES
+        .iter()
+        .map(|s| format!("'{s}'"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 #[derive(Debug, Clone)]
 pub struct SqliteOrderRepository {
     store: Store,
@@ -336,7 +346,7 @@ impl OrderRepository for SqliteOrderRepository {
     ) -> impl std::future::Future<Output = Result<Vec<Order>, PortError>> + Send {
         let result = (|| -> Result<Vec<Order>, PortError> {
             let conn = self.store.conn()?;
-            let placeholders = ACTIVE_STATUSES.join(",");
+            let placeholders = active_status_list();
             let mut stmt = conn
                 .prepare(&format!("SELECT id FROM orders WHERE location_id = ?1 AND table_id = ?2 AND status IN ({placeholders}) AND deleted_at IS NULL"))
                 .map_err(|e| PortError::StorageUnavailable {
