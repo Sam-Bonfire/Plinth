@@ -1,6 +1,6 @@
 use std::time::Duration;
 use thiserror::Error;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
@@ -71,13 +71,24 @@ impl TcpDispatcher {
             .map_err(|_| Error::ConnectTimeout)?
             .map_err(Error::Io)?;
 
-        timeout(self.write_timeout, stream.write_all(payload))
-            .await
-            .map_err(|_| Error::WriteTimeout)?
-            .map_err(Error::Io)?;
+        write_with_timeout(&mut stream, payload, self.write_timeout).await?;
 
         Ok(())
     }
+}
+
+/// Writes a payload with a deadline. Split out so the timeout path is
+/// testable without depending on loopback timing.
+async fn write_with_timeout<S: AsyncWrite + Unpin>(
+    stream: &mut S,
+    payload: &[u8],
+    write_timeout: Duration,
+) -> Result<(), Error> {
+    timeout(write_timeout, stream.write_all(payload))
+        .await
+        .map_err(|_| Error::WriteTimeout)?
+        .map_err(Error::Io)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -141,39 +152,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_dispatch_write_timeout() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
+    async fn test_write_timeout_is_deterministic() {
+        // 64-byte buffer that nobody drains: a 4 KiB write cannot finish.
+        let (mut writer, _reader) = tokio::io::duplex(64);
+        let payload = vec![0u8; 4096];
+        let err = write_with_timeout(&mut writer, &payload, Duration::from_secs(5))
+            .await
+            .expect_err("64-byte undrained buffer must time out");
+        assert!(matches!(err, Error::WriteTimeout), "got {err:?}");
+    }
 
-        let dispatcher = TcpDispatcher::new(
-            Duration::from_secs(1),
-            Duration::from_millis(10), // Short write timeout
-            1,
-            Duration::from_millis(10),
-        );
-
-        let payload = vec![0u8; 1024 * 1024 * 10]; // 10MB payload
-
-        let server_task = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            // Accept the connection but do not read the data
-            // Keep the socket alive long enough for the write timeout to trigger
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            // Drop it to avoid warning
-            drop(socket);
-        });
-
-        let result = dispatcher.dispatch(&addr.to_string(), &payload).await;
-
-        match result {
-            Err(e) => {
-                assert!(
-                    matches!(e, Error::MaxRetriesExceeded(_)),
-                    "Expected MaxRetriesExceeded error, got {e:?}"
-                );
+    #[tokio::test]
+    async fn test_write_success_small_payload() {
+        let (mut writer, mut reader) = tokio::io::duplex(4096);
+        let payload = b"hello";
+        let (result, _) = tokio::join!(
+            write_with_timeout(&mut writer, payload, Duration::from_secs(5)),
+            async {
+                let mut buf = [0u8; 5];
+                tokio::io::AsyncReadExt::read_exact(&mut reader, &mut buf).await.unwrap();
+                buf
             }
-            _ => panic!("Expected Error"),
-        }
-        server_task.await.unwrap();
+        );
+        assert!(result.is_ok());
     }
 }
