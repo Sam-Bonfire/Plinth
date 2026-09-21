@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 pub mod db;
+pub mod lan_kds;
 pub mod migrations;
 pub mod printing;
 
