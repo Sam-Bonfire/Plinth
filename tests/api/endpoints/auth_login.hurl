@@ -46,3 +46,14 @@ HTTP 400
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "PIN cannot be empty"
+
+# Negative: Wrong tenant isolation (non-existent/mismatched UUID)
+POST {{base_url}}/api/v1/auth/login
+x-tenant-id: 00000000-0000-0000-0000-000000000999
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "staff_id": "{{staff_id}}",
+  "pin": "1234"
+}
+HTTP 401

@@ -37,3 +37,16 @@ Content-Type: application/json
 HTTP 400
 [Asserts]
 header "Content-Type" contains "Invalid"
+
+# Negative: Wrong tenant isolation (non-existent/mismatched UUID)
+POST {{base_url}}/api/v1/eod/close
+Authorization: Bearer {{token}}
+x-tenant-id: 00000000-0000-0000-0000-000000000999
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "shift_id": "00000000-0000-0000-0000-000000000099",
+  "physical_cash_minor": 50000,
+  "notes": "Safe reconciliation"
+}
+HTTP 403
