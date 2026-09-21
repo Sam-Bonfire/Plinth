@@ -3029,8 +3029,10 @@ dependencies = [
 name = "pos-client-tauri"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "core-domain",
  "rusqlite",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sync-protocol",
@@ -3038,6 +3040,7 @@ dependencies = [
  "tauri-build",
  "thiserror 1.0.69",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
