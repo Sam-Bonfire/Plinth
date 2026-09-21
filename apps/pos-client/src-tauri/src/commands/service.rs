@@ -113,7 +113,7 @@ struct StaffRow {
 /// # Errors
 /// Returns an error if no active staff matches the PIN.
 #[tauri::command]
-pub async fn authenticate_pin(
+pub fn authenticate_pin(
     app: AppHandle,
     state: State<'_, AppContext>,
     req: AuthenticatePinRequest,
@@ -184,7 +184,7 @@ pub async fn record_audit_event(
 /// # Errors
 /// Returns an error if the database cannot be read.
 #[tauri::command]
-pub async fn get_sync_status(app: AppHandle) -> Result<SyncStatusResponse, String> {
+pub fn get_sync_status(app: AppHandle) -> Result<SyncStatusResponse, String> {
     let path = db_path(&app)?;
     let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
     let count = |status: &str| -> Result<i64, String> {

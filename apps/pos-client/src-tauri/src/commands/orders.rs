@@ -2,7 +2,6 @@ use core_domain::enums::order_channel::OrderChannel;
 use core_domain::enums::order_status::OrderStatus;
 use core_domain::ids::{FloorTableId, LocationId, OrderId, StaffMemberId, TenantId, TerminalId};
 use core_domain::models::{Order, OrderLineItem};
-use core_domain::ports::OrderRepository;
 use core_domain::value_objects::table::SeatNumber;
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
