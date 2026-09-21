@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! SQLite [`OrderRepository`] over the `orders`, `order_line_items`, and
+//! `SQLite` [`OrderRepository`] over the `orders`, `order_line_items`, and
 //! `order_payments` tables.
 //!
 //! Fidelity ceiling: discounts, charges, tips, and `split_from` have no
@@ -8,13 +8,13 @@
 //! `unit_price_minor` (line totals round-trip exactly). Full-fidelity order
 //! history travels in sync-queue events, not this operational cache.
 
-use super::{Store, from_json, id_from_text, minor, opt_time_from_text, time_from_text, to_json};
+use super::{from_json, id_from_text, minor, opt_time_from_text, time_from_text, to_json, Store};
 use core_domain::enums::payment::PaymentMethod;
 use core_domain::ids::{FloorTableId, LocationId, OrderId};
 use core_domain::models::{Order, OrderLineItem, PaymentEntry};
 use core_domain::ports::{OrderFilter, OrderRepository, PortError};
 use core_domain::value_objects::money::Money;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -33,7 +33,13 @@ type OrderRow = (
     Option<String>,
 );
 
-const ACTIVE_STATUSES: [&str; 5] = ["\"Draft\"", "\"Confirmed\"", "\"Preparing\"", "\"Ready\"", "\"Served\""];
+const ACTIVE_STATUSES: [&str; 5] = [
+    "\"Draft\"",
+    "\"Confirmed\"",
+    "\"Preparing\"",
+    "\"Ready\"",
+    "\"Served\"",
+];
 
 #[derive(Debug, Clone)]
 pub struct SqliteOrderRepository {
@@ -50,9 +56,11 @@ impl SqliteOrderRepository {
 
     fn save_blocking(&self, order: &Order) -> Result<(), PortError> {
         let mut conn = self.store.conn()?;
-        let tx = conn.transaction().map_err(|e| PortError::StorageUnavailable {
-            reason: e.to_string(),
-        })?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| PortError::StorageUnavailable {
+                reason: e.to_string(),
+            })?;
         tx.execute(
             "INSERT INTO orders (id, tenant_id, location_id, terminal_id, channel, status, table_id, seat_number, subtotal_minor, discount_minor, tax_minor, total_minor, created_by, created_at, updated_at, deleted_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, 0, ?9, ?10, ?11, ?12, ?13)
@@ -142,7 +150,12 @@ impl SqliteOrderRepository {
         Ok(())
     }
 
-    fn load_items(&self, order_id: &str, tenant: &str, location: &str) -> Result<Vec<OrderLineItem>, PortError> {
+    fn load_items(
+        &self,
+        order_id: &str,
+        tenant: &str,
+        location: &str,
+    ) -> Result<Vec<OrderLineItem>, PortError> {
         let conn = self.store.conn()?;
         let mut stmt = conn
             .prepare("SELECT id, menu_item_id, name, unit_price_minor, quantity, fired_quantity, tax_rate, notes, seat_number FROM order_line_items WHERE order_id = ?1 ORDER BY name")
@@ -168,9 +181,10 @@ impl SqliteOrderRepository {
             })?;
         let mut items = Vec::new();
         for row in rows {
-            let (id, menu_item_id, name, unit_minor, qty, fired, tax, notes, seat) = row.map_err(|e| PortError::StorageUnavailable {
-                reason: e.to_string(),
-            })?;
+            let (id, menu_item_id, name, unit_minor, qty, fired, tax, notes, seat) =
+                row.map_err(|e| PortError::StorageUnavailable {
+                    reason: e.to_string(),
+                })?;
             let unit = minor(unit_minor);
             items.push(OrderLineItem {
                 id: id_from_text(&id)?,
@@ -214,9 +228,10 @@ impl SqliteOrderRepository {
             })?;
         let mut out = Vec::new();
         for row in rows {
-            let (method, minor_amount, status, reference, by, at) = row.map_err(|e| PortError::StorageUnavailable {
-                reason: e.to_string(),
-            })?;
+            let (method, minor_amount, status, reference, by, at) =
+                row.map_err(|e| PortError::StorageUnavailable {
+                    reason: e.to_string(),
+                })?;
             let method: PaymentMethod = from_json(&method)?;
             out.push(PaymentEntry {
                 method,
@@ -257,7 +272,21 @@ impl SqliteOrderRepository {
             .map_err(|e| PortError::StorageUnavailable {
                 reason: e.to_string(),
             })?;
-        let Some((id, tenant, location, terminal, channel, status, table, seat, by, created, updated, deleted)) = row else {
+        let Some((
+            id,
+            tenant,
+            location,
+            terminal,
+            channel,
+            status,
+            table,
+            seat,
+            by,
+            created,
+            updated,
+            deleted,
+        )) = row
+        else {
             return Ok(None);
         };
         Ok(Some(Order {
@@ -267,7 +296,9 @@ impl SqliteOrderRepository {
             terminal_id: id_from_text(&terminal)?,
             channel: from_json(&channel)?,
             status: from_json(&status)?,
-            table_id: table.map(|t| id_from_text::<FloorTableId>(&t)).transpose()?,
+            table_id: table
+                .map(|t| id_from_text::<FloorTableId>(&t))
+                .transpose()?,
             seat_number: seat.map(|s| from_json(&s)).transpose()?,
             items: self.load_items(&id, &tenant, &location)?,
             discounts: Vec::new(),
@@ -284,11 +315,17 @@ impl SqliteOrderRepository {
 }
 
 impl OrderRepository for SqliteOrderRepository {
-    fn save(&self, order: &Order) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
+    fn save(
+        &self,
+        order: &Order,
+    ) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
         std::future::ready(self.save_blocking(order))
     }
 
-    fn find_by_id(&self, id: OrderId) -> impl std::future::Future<Output = Result<Option<Order>, PortError>> + Send {
+    fn find_by_id(
+        &self,
+        id: OrderId,
+    ) -> impl std::future::Future<Output = Result<Option<Order>, PortError>> + Send {
         std::future::ready(self.read_order(&id.to_string()))
     }
 
@@ -306,7 +343,10 @@ impl OrderRepository for SqliteOrderRepository {
                     reason: e.to_string(),
                 })?;
             let ids: Vec<String> = stmt
-                .query_map(params![location_id.to_string(), table_id.to_string()], |row| row.get(0))
+                .query_map(
+                    params![location_id.to_string(), table_id.to_string()],
+                    |row| row.get(0),
+                )
                 .map_err(|e| PortError::StorageUnavailable {
                     reason: e.to_string(),
                 })?
@@ -333,7 +373,10 @@ impl OrderRepository for SqliteOrderRepository {
         std::future::ready(Ok(Vec::new()))
     }
 
-    fn query(&self, filter: &OrderFilter) -> impl std::future::Future<Output = Result<Vec<Order>, PortError>> + Send {
+    fn query(
+        &self,
+        filter: &OrderFilter,
+    ) -> impl std::future::Future<Output = Result<Vec<Order>, PortError>> + Send {
         let result = (|| -> Result<Vec<Order>, PortError> {
             let conn = self.store.conn()?;
             let mut sql = "SELECT id FROM orders WHERE deleted_at IS NULL".to_string();
@@ -361,10 +404,13 @@ impl OrderRepository for SqliteOrderRepository {
                     let _ = write!(sql, " OFFSET {offset}");
                 }
             }
-            let mut stmt = conn.prepare(&sql).map_err(|e| PortError::StorageUnavailable {
-                reason: e.to_string(),
-            })?;
-            let params: Vec<&dyn rusqlite::ToSql> = args.iter().map(|a| a as &dyn rusqlite::ToSql).collect();
+            let mut stmt = conn
+                .prepare(&sql)
+                .map_err(|e| PortError::StorageUnavailable {
+                    reason: e.to_string(),
+                })?;
+            let params: Vec<&dyn rusqlite::ToSql> =
+                args.iter().map(|a| a as &dyn rusqlite::ToSql).collect();
             let ids: Vec<String> = stmt
                 .query_map(params.as_slice(), |row| row.get(0))
                 .map_err(|e| PortError::StorageUnavailable {
@@ -392,7 +438,9 @@ mod tests {
     use crate::repos::tests::{cleanup, migrated_file_db};
     use core_domain::enums::order_channel::OrderChannel;
     use core_domain::enums::order_status::OrderStatus;
-    use core_domain::ids::{LocationId, MenuItemId, OrderLineItemId, StaffMemberId, TenantId, TerminalId};
+    use core_domain::ids::{
+        LocationId, MenuItemId, OrderLineItemId, StaffMemberId, TenantId, TerminalId,
+    };
     use core_domain::models::Order;
     use core_domain::value_objects::money::{Currency, Money};
     use core_domain::value_objects::tax::GstRate;
@@ -437,7 +485,11 @@ mod tests {
         let repo = SqliteOrderRepository::new(path.clone());
         let order = sample_order();
         repo.save(&order).await.expect("save");
-        let back = repo.find_by_id(order.id).await.expect("find").expect("present");
+        let back = repo
+            .find_by_id(order.id)
+            .await
+            .expect("find")
+            .expect("present");
         assert_eq!(back.id, order.id);
         assert_eq!(back.status, OrderStatus::Draft);
         assert_eq!(back.items.len(), 1);
@@ -450,7 +502,11 @@ mod tests {
     async fn missing_order_returns_none() {
         let (_conn, path) = migrated_file_db("order-miss");
         let repo = SqliteOrderRepository::new(path.clone());
-        assert!(repo.find_by_id(OrderId::new()).await.expect("find").is_none());
+        assert!(repo
+            .find_by_id(OrderId::new())
+            .await
+            .expect("find")
+            .is_none());
         cleanup(&path);
     }
 

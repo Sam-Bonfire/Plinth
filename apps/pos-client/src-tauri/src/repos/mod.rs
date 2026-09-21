@@ -60,7 +60,7 @@ pub(crate) fn opt_time_from_text(text: Option<String>) -> Result<Option<DateTime
     text.map(|s| time_from_text(&s)).transpose()
 }
 
-/// File-backed SQLite repository base. Each call opens a short-lived
+/// File-backed `SQLite` repository base. Each call opens a short-lived
 /// connection; no connection is held across `.await` points.
 #[derive(Debug, Clone)]
 pub(crate) struct Store {

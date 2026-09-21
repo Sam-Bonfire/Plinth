@@ -327,7 +327,8 @@ mod tests {
     #[test]
     fn fk_enforcement() {
         let mut conn = Connection::open_in_memory().expect("memory db");
-        conn.execute("PRAGMA foreign_keys = ON", params![]).expect("fk");
+        conn.execute("PRAGMA foreign_keys = ON", params![])
+            .expect("fk");
         migrate(&mut conn).expect("migrate");
 
         let res = conn.execute(

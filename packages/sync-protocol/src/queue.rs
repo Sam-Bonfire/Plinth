@@ -124,11 +124,13 @@ pub trait SyncQueueStore: Send + Sync {
     async fn purge_settled_before(&self, cutoff: DateTime<Utc>) -> Result<usize, SyncQueueError>;
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers {
-    use super::*;
+    use super::{SyncQueueEntry, SyncQueueError, SyncQueueStatus, SyncQueueStore};
+    use chrono::{DateTime, Utc};
     use std::sync::Arc;
     use std::sync::Mutex;
+    use uuid::Uuid;
 
     pub struct InMemorySyncQueueStore {
         pub entries: Arc<Mutex<Vec<SyncQueueEntry>>>,

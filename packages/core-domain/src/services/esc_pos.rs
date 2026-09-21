@@ -97,6 +97,12 @@ pub fn kot_bytes(doc: &EscPosDoc) -> Vec<u8> {
     out
 }
 
+/// Cash drawer kick pulse: `ESC p 0 25 250` (pin 2, 50ms on, 500ms off).
+#[must_use]
+pub fn cash_drawer_kick() -> Vec<u8> {
+    vec![0x1B, 0x70, 0x00, 25, 250]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,5 +160,10 @@ mod tests {
     fn empty_doc_still_cuts() {
         let b = receipt_bytes(&EscPosDoc::default(), &money(0));
         assert!(b.ends_with(CUT));
+    }
+
+    #[test]
+    fn drawer_kick_emits_exact_pulse() {
+        assert_eq!(cash_drawer_kick(), vec![0x1B, 0x70, 0x00, 25, 250]);
     }
 }

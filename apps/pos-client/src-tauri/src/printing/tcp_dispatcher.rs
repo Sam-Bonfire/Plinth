@@ -83,8 +83,8 @@ impl TcpDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::net::TcpListener;
     use tokio::io::AsyncReadExt;
+    use tokio::net::TcpListener;
 
     #[tokio::test]
     async fn test_dispatch_success() {
@@ -131,7 +131,10 @@ mod tests {
 
         match result {
             Err(e) => {
-                assert!(matches!(e, Error::MaxRetriesExceeded(_)), "Expected MaxRetriesExceeded error, got {e:?}");
+                assert!(
+                    matches!(e, Error::MaxRetriesExceeded(_)),
+                    "Expected MaxRetriesExceeded error, got {e:?}"
+                );
             }
             _ => panic!("Expected Error"),
         }
@@ -164,7 +167,10 @@ mod tests {
 
         match result {
             Err(e) => {
-                assert!(matches!(e, Error::MaxRetriesExceeded(_)), "Expected MaxRetriesExceeded error, got {e:?}");
+                assert!(
+                    matches!(e, Error::MaxRetriesExceeded(_)),
+                    "Expected MaxRetriesExceeded error, got {e:?}"
+                );
             }
             _ => panic!("Expected Error"),
         }

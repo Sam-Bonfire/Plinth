@@ -19,11 +19,21 @@ tauri = { version = "2.0.0", features = [] }
 rusqlite = { workspace = true }
 core-domain = { path = "../../../packages/core-domain" }
 sync-protocol = { path = "../../../packages/sync-protocol" }
+
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
+
+reqwest = { version = "0.13.5", features = ["json"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
+async-trait = { workspace = true }
+
+argon2 = { version = "0.6.0", features = ["password-hash"] }
+specta.workspace = true
+tauri-specta = { version = "2.0.0-rc.20", features = ["derive"] }
+
 
 [features]
 default = ["custom-protocol"]
@@ -31,3 +41,7 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+sync-protocol = { path = "../../../packages/sync-protocol", features = ["test-helpers"] }
+mockito = "1.7.2"

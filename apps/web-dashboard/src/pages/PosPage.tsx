@@ -1,37 +1,19 @@
 import { mockCategories, mockMenuItems, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, List, Modal, Radio, Row, Segmented, Space, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { useCartStore, type CartRow } from "../stores/cartStore.js";
 
 const CHANNELS: string[] = ["Dine-in", "Takeaway", "Swiggy", "Zomato"];
 const PAY_METHODS: string[] = ["UPI", "Cash", "Card"];
 
-interface CartLine {
-  key: string;
-  itemId: string;
-  name: string;
-  detail: string;
-  qty: number;
-  rate: number;
-  gstRate: number;
-}
-
-interface CartRow extends CartLine {
-  amount: number;
-}
-
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
-
-let lineSeq = 0;
-const nextKey = (): string => {
-  lineSeq += 1;
-  return `line-${lineSeq}`;
-};
 
 export const PosPage: React.FC = () => {
   const [categoryId, setCategoryId] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
-  const [lines, setLines] = useState<CartLine[]>([]);
+  const lines = useCartStore((s) => s.lines);
+  const addLine = useCartStore((s) => s.addLine);
   const [channel, setChannel] = useState<string>(CHANNELS[0]);
   const [payMethod, setPayMethod] = useState<string>(PAY_METHODS[0]);
   const [discountPct, setDiscountPct] = useState<number>(0);
@@ -54,10 +36,7 @@ export const PosPage: React.FC = () => {
   }, [categoryId, query]);
 
   const pushLine = (item: MenuItem, modifiers: string[]): void => {
-    setLines((prev: CartLine[]): CartLine[] => [
-      ...prev,
-      { key: nextKey(), itemId: item.id, name: item.name, detail: modifiers.join(" · "), qty: 1, rate: item.price, gstRate: item.gstRate },
-    ]);
+    addLine(item, modifiers);
   };
 
   const handleItemClick = (item: MenuItem): void => {
@@ -78,20 +57,19 @@ export const PosPage: React.FC = () => {
   };
 
   const changeQty = (key: string, qty: number | null): void => {
-    if (qty === null || qty < 1) return;
-    setLines((prev: CartLine[]): CartLine[] => prev.map((l: CartLine): CartLine => (l.key === key ? { ...l, qty } : l)));
+    useCartStore.getState().changeQty(key, qty);
   };
 
   const removeLine = (key: string): void => {
-    setLines((prev: CartLine[]): CartLine[] => prev.filter((l: CartLine): boolean => l.key !== key));
+    useCartStore.getState().removeLine(key);
   };
 
-  const subtotal = lines.reduce((sum: number, l: CartLine): number => sum + l.qty * l.rate, 0);
-  const gstTotal = lines.reduce((sum: number, l: CartLine): number => sum + (l.qty * l.rate * l.gstRate) / 100, 0);
+  const subtotal = useMemo(() => lines.reduce((sum, l) => sum + l.qty * l.rate, 0), [lines]);
+  const gstTotal = useMemo(() => lines.reduce((sum, l) => sum + (l.qty * l.rate * l.gstRate) / 100, 0), [lines]);
   const discount = (subtotal * discountPct) / 100;
   const total = subtotal + gstTotal - discount;
 
-  const rows: CartRow[] = lines.map((l: CartLine): CartRow => ({ ...l, amount: l.qty * l.rate }));
+  const rows: CartRow[] = useMemo(() => lines.map((l) => ({ ...l, amount: l.qty * l.rate })), [lines]);
 
   const columns: TableColumnsType<CartRow> = [
     {
@@ -141,7 +119,7 @@ export const PosPage: React.FC = () => {
   ];
 
   const clearOrder = (): void => {
-    setLines([]);
+    useCartStore.getState().clear();
     setDiscountPct(0);
     setOrderNote("");
   };
@@ -171,7 +149,7 @@ export const PosPage: React.FC = () => {
       void message.warning("Cart is empty — add items before placing the order.");
       return;
     }
-    const itemCount = lines.reduce((sum: number, l: CartLine): number => sum + l.qty, 0);
+    const itemCount = useCartStore.getState().lines.reduce((sum: number, l): number => sum + l.qty, 0);
     void message.success(`Order #${orderSeq} placed · ${itemCount} items · ${inr(total)} via ${payMethod}.`);
     setOrderSeq((seq: number): number => seq + 1);
     clearOrder();

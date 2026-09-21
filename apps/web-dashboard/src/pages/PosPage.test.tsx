@@ -1,6 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
+import { useCartStore } from "../stores/cartStore.js";
 import { PosPage } from "./PosPage.js";
 
 function renderPage(): HTMLElement {
@@ -13,6 +14,10 @@ function renderPage(): HTMLElement {
 }
 
 describe("PosPage", () => {
+  beforeEach(() => {
+    useCartStore.getState().reset();
+  });
+
   it("renders the menu with availability states", async () => {
     renderPage();
     expect(await screen.findByText("Butter Chicken")).toBeDefined();
