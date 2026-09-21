@@ -49,3 +49,21 @@ HTTP 404
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "Menu item not found"
+
+# Negative: Retrieve full menu catalog with incorrect tenant_id (tenant-isolation)
+GET {{base_url}}/api/v1/menu
+Authorization: Bearer {{token}}
+x-tenant-id: 11111111-1111-1111-1111-111111111111
+x-location-id: {{location_id}}
+HTTP 401
+
+# Negative: Toggle item availability with incorrect tenant_id (tenant-isolation)
+PATCH {{base_url}}/api/v1/menu/items/00000000-0000-0000-0000-000000000010/availability
+Authorization: Bearer {{token}}
+x-tenant-id: 11111111-1111-1111-1111-111111111111
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "is_available": false
+}
+HTTP 401
