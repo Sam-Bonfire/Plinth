@@ -49,6 +49,7 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = Router::with_data(auth_context);
     let router = crate::routes::auth::register(router);
     let router = crate::routes::staff::register(router);
+    let router = crate::routes::webhooks::register(router);
     let router = crate::routes::inventory::register(router);
     let router = crate::routes::orders::register(router);
     let router = crate::routes::kds::register(router);
