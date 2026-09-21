@@ -3292,6 +3292,7 @@ dependencies = [
  "rust_decimal",
  "serde",
  "serde_json",
+ "specta",
  "sync-protocol",
  "tauri",
  "tauri-build",
