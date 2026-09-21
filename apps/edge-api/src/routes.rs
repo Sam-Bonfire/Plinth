@@ -7,6 +7,7 @@ pub mod menu;
 pub mod orders;
 pub mod reports;
 pub mod staff;
+pub mod webhooks;
 pub mod ws;
 
 
