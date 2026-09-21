@@ -1,16 +1,16 @@
 #![forbid(unsafe_code)]
 
-//! SQLite [`KitchenTicketRepository`] over `kitchen_tickets` and
+//! `SQLite` [`KitchenTicketRepository`] over `kitchen_tickets` and
 //! `ticket_line_items`.
 
-use super::{Store, from_json, id_from_text, opt_time_from_text, time_from_text, to_json};
+use super::{from_json, id_from_text, opt_time_from_text, time_from_text, to_json, Store};
 use core_domain::enums::kitchen::StationId;
 use core_domain::ids::{KitchenTicketId, LocationId, OrderId};
 use core_domain::models::{KitchenTicket, TicketLineItem};
 use core_domain::ports::{KitchenTicketRepository, PortError, TicketFilter};
 use core_domain::value_objects::modifier::ModifierSelection;
 use core_domain::value_objects::preparation::PreparationSla;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -47,9 +47,11 @@ impl SqliteKitchenTicketRepository {
 
     fn save_blocking(&self, ticket: &KitchenTicket) -> Result<(), PortError> {
         let mut conn = self.store.conn()?;
-        let tx = conn.transaction().map_err(|e| PortError::StorageUnavailable {
-            reason: e.to_string(),
-        })?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| PortError::StorageUnavailable {
+                reason: e.to_string(),
+            })?;
         tx.execute(
             "INSERT INTO kitchen_tickets (id, order_id, tenant_id, location_id, station, kot_number, status, sla_warning_sec, sla_late_sec, created_at, bumped_at, bumped_by, cancelled_at, cancellation_reason)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
@@ -133,15 +135,19 @@ impl SqliteKitchenTicketRepository {
             })?;
         let mut out = Vec::new();
         for row in rows {
-            let (line_id, menu_id, name, qty, mods, notes) = row.map_err(|e| PortError::StorageUnavailable {
-                reason: e.to_string(),
-            })?;
+            let (line_id, menu_id, name, qty, mods, notes) =
+                row.map_err(|e| PortError::StorageUnavailable {
+                    reason: e.to_string(),
+                })?;
             out.push(TicketLineItem {
                 line_item_id: id_from_text(&line_id)?,
                 menu_item_id: id_from_text(&menu_id)?,
                 name,
                 quantity: u32::try_from(qty).unwrap_or(u32::MAX),
-                modifiers: mods.map(|m| from_json::<Vec<ModifierSelection>>(&m)).transpose()?.unwrap_or_default(),
+                modifiers: mods
+                    .map(|m| from_json::<Vec<ModifierSelection>>(&m))
+                    .transpose()?
+                    .unwrap_or_default(),
                 special_instructions: notes,
             });
         }
@@ -168,7 +174,23 @@ impl SqliteKitchenTicketRepository {
             .map_err(|e| PortError::StorageUnavailable {
                 reason: e.to_string(),
             })?;
-        let Some((id, order_id, tenant, location, station, kot, status, warn, late, created, bumped_at, bumped_by, cancelled_at, reason)) = row else {
+        let Some((
+            id,
+            order_id,
+            tenant,
+            location,
+            station,
+            kot,
+            status,
+            warn,
+            late,
+            created,
+            bumped_at,
+            bumped_by,
+            cancelled_at,
+            reason,
+        )) = row
+        else {
             return Ok(None);
         };
         Ok(Some(KitchenTicket {
@@ -195,10 +217,13 @@ impl SqliteKitchenTicketRepository {
     fn ids_where(&self, where_sql: &str, args: &[String]) -> Result<Vec<KitchenTicket>, PortError> {
         let conn = self.store.conn()?;
         let sql = format!("SELECT id FROM kitchen_tickets WHERE {where_sql}");
-        let mut stmt = conn.prepare(&sql).map_err(|e| PortError::StorageUnavailable {
-            reason: e.to_string(),
-        })?;
-        let params: Vec<&dyn rusqlite::ToSql> = args.iter().map(|a| a as &dyn rusqlite::ToSql).collect();
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| PortError::StorageUnavailable {
+                reason: e.to_string(),
+            })?;
+        let params: Vec<&dyn rusqlite::ToSql> =
+            args.iter().map(|a| a as &dyn rusqlite::ToSql).collect();
         let ids: Vec<String> = stmt
             .query_map(params.as_slice(), |row| row.get(0))
             .map_err(|e| PortError::StorageUnavailable {
@@ -219,7 +244,10 @@ impl SqliteKitchenTicketRepository {
 }
 
 impl KitchenTicketRepository for SqliteKitchenTicketRepository {
-    fn save(&self, ticket: &KitchenTicket) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
+    fn save(
+        &self,
+        ticket: &KitchenTicket,
+    ) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
         std::future::ready(self.save_blocking(ticket))
     }
 
@@ -244,11 +272,17 @@ impl KitchenTicketRepository for SqliteKitchenTicketRepository {
         std::future::ready(result)
     }
 
-    fn find_by_order(&self, order_id: OrderId) -> impl std::future::Future<Output = Result<Vec<KitchenTicket>, PortError>> + Send {
+    fn find_by_order(
+        &self,
+        order_id: OrderId,
+    ) -> impl std::future::Future<Output = Result<Vec<KitchenTicket>, PortError>> + Send {
         std::future::ready(self.ids_where("order_id = ?1", &[order_id.to_string()]))
     }
 
-    fn query(&self, filter: &TicketFilter) -> impl std::future::Future<Output = Result<Vec<KitchenTicket>, PortError>> + Send {
+    fn query(
+        &self,
+        filter: &TicketFilter,
+    ) -> impl std::future::Future<Output = Result<Vec<KitchenTicket>, PortError>> + Send {
         let result = (|| -> Result<Vec<KitchenTicket>, PortError> {
             let mut where_sql = "1 = 1".to_string();
             let mut args = Vec::new();
@@ -315,7 +349,11 @@ mod tests {
         let repo = SqliteKitchenTicketRepository::new(path.clone());
         let ticket = sample_ticket();
         repo.save(&ticket).await.expect("save");
-        let back = repo.find_by_id(ticket.id).await.expect("find").expect("present");
+        let back = repo
+            .find_by_id(ticket.id)
+            .await
+            .expect("find")
+            .expect("present");
         assert_eq!(back.id, ticket.id);
         assert_eq!(back.kot_number, 7);
         assert_eq!(back.items.len(), 1);
@@ -347,7 +385,11 @@ mod tests {
     async fn missing_ticket_returns_none() {
         let (_conn, path) = migrated_file_db("ticket-miss");
         let repo = SqliteKitchenTicketRepository::new(path.clone());
-        assert!(repo.find_by_id(KitchenTicketId::new()).await.expect("find").is_none());
+        assert!(repo
+            .find_by_id(KitchenTicketId::new())
+            .await
+            .expect("find")
+            .is_none());
         cleanup(&path);
     }
 }
