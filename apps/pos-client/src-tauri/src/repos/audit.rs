@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 
-//! Append-only SQLite [`AuditRepository`] over `audit_events`. No UPDATE or
+//! Append-only `SQLite` [`AuditRepository`] over `audit_events`. No UPDATE or
 //! DELETE API exists by design; immutability is structural, not conventional.
 
-use super::{Store, id_from_text, time_from_text};
+use super::{id_from_text, time_from_text, Store};
 use core_domain::ids::{LocationId, TenantId};
 use core_domain::models::AuditEvent;
 use core_domain::ports::{AuditRepository, PortError};
@@ -25,7 +25,10 @@ impl SqliteAuditRepository {
 }
 
 impl AuditRepository for SqliteAuditRepository {
-    fn append(&self, event: &AuditEvent) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
+    fn append(
+        &self,
+        event: &AuditEvent,
+    ) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
         let result = (|| -> Result<(), PortError> {
             let conn = self.store.conn()?;
             conn.execute(
@@ -66,29 +69,42 @@ impl AuditRepository for SqliteAuditRepository {
                     reason: e.to_string(),
                 })?;
             let rows = stmt
-                .query_map(params![tenant_id.to_string(), location_id.to_string()], |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
-                        row.get::<_, String>(4)?,
-                        row.get::<_, String>(5)?,
-                        row.get::<_, String>(6)?,
-                        row.get::<_, Option<String>>(7)?,
-                        row.get::<_, i64>(8)?,
-                        row.get::<_, String>(9)?,
-                    ))
-                })
+                .query_map(
+                    params![tenant_id.to_string(), location_id.to_string()],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, String>(3)?,
+                            row.get::<_, String>(4)?,
+                            row.get::<_, String>(5)?,
+                            row.get::<_, String>(6)?,
+                            row.get::<_, Option<String>>(7)?,
+                            row.get::<_, i64>(8)?,
+                            row.get::<_, String>(9)?,
+                        ))
+                    },
+                )
                 .map_err(|e| PortError::StorageUnavailable {
                     reason: e.to_string(),
                 })?;
             let mut out = Vec::new();
             for row in rows {
-                let (id, tenant, location, actor, action, target_type, target_id, payload, anomaly, ts) =
-                    row.map_err(|e| PortError::StorageUnavailable {
-                        reason: e.to_string(),
-                    })?;
+                let (
+                    id,
+                    tenant,
+                    location,
+                    actor,
+                    action,
+                    target_type,
+                    target_id,
+                    payload,
+                    anomaly,
+                    ts,
+                ) = row.map_err(|e| PortError::StorageUnavailable {
+                    reason: e.to_string(),
+                })?;
                 out.push(AuditEvent {
                     id: id_from_text(&id)?,
                     tenant_id: id_from_text(&tenant)?,

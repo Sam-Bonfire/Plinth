@@ -1,18 +1,18 @@
 #![forbid(unsafe_code)]
 
-//! SQLite [`MenuRepository`] over `menu_categories` and `menu_items`.
+//! `SQLite` [`MenuRepository`] over `menu_categories` and `menu_items`.
 //!
 //! Fidelity ceiling: `category_tags`, `modifier_groups`, and the pricing
 //! validity window have no columns and are not persisted; price, flags, and
 //! station round-trip exactly.
 
-use super::{Store, from_json, id_from_text, minor, opt_time_from_text, to_json};
+use super::{from_json, id_from_text, minor, opt_time_from_text, to_json, Store};
 use chrono::Utc;
 use core_domain::ids::{LocationId, MenuItemId, TenantId};
 use core_domain::models::{MenuCategory, MenuItem};
 use core_domain::ports::{MenuRepository, PortError};
 use core_domain::value_objects::pricing::PricingVersion;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 use std::path::PathBuf;
 
 type MenuItemRow = (
@@ -63,7 +63,22 @@ impl SqliteMenuRepository {
             .map_err(|e| PortError::StorageUnavailable {
                 reason: e.to_string(),
             })?;
-        let Some((id, tenant, location, category, name, description, price, tax, veg, available, sku, station, deleted)) = row else {
+        let Some((
+            id,
+            tenant,
+            location,
+            category,
+            name,
+            description,
+            price,
+            tax,
+            veg,
+            available,
+            sku,
+            station,
+            deleted,
+        )) = row
+        else {
             return Ok(None);
         };
         let category_id = id_from_text(&category)?;
@@ -121,7 +136,10 @@ impl MenuRepository for SqliteMenuRepository {
         std::future::ready(result)
     }
 
-    fn save_item(&self, item: &MenuItem) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
+    fn save_item(
+        &self,
+        item: &MenuItem,
+    ) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
         let result = (|| -> Result<(), PortError> {
             let conn = self.store.conn()?;
             conn.execute(
@@ -155,7 +173,10 @@ impl MenuRepository for SqliteMenuRepository {
         std::future::ready(result)
     }
 
-    fn find_item(&self, id: MenuItemId) -> impl std::future::Future<Output = Result<Option<MenuItem>, PortError>> + Send {
+    fn find_item(
+        &self,
+        id: MenuItemId,
+    ) -> impl std::future::Future<Output = Result<Option<MenuItem>, PortError>> + Send {
         std::future::ready(self.read_item(&id.to_string()))
     }
 
@@ -172,7 +193,10 @@ impl MenuRepository for SqliteMenuRepository {
                     reason: e.to_string(),
                 })?;
             let ids: Vec<String> = stmt
-                .query_map(params![tenant_id.to_string(), location_id.to_string()], |row| row.get(0))
+                .query_map(
+                    params![tenant_id.to_string(), location_id.to_string()],
+                    |row| row.get(0),
+                )
                 .map_err(|e| PortError::StorageUnavailable {
                     reason: e.to_string(),
                 })?
@@ -191,7 +215,11 @@ impl MenuRepository for SqliteMenuRepository {
         std::future::ready(result)
     }
 
-    fn set_availability(&self, id: MenuItemId, available: bool) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
+    fn set_availability(
+        &self,
+        id: MenuItemId,
+        available: bool,
+    ) -> impl std::future::Future<Output = Result<(), PortError>> + Send {
         let result = (|| -> Result<(), PortError> {
             let conn = self.store.conn()?;
             let changed = conn
@@ -264,19 +292,28 @@ mod tests {
         item.tenant_id = category.tenant_id;
         item.location_id = category.location_id;
         repo.save_item(&item).await.expect("save item");
-        let back = repo.find_item(item.id).await.expect("find").expect("present");
+        let back = repo
+            .find_item(item.id)
+            .await
+            .expect("find")
+            .expect("present");
         assert_eq!(back.name, "Paneer Tikka");
         assert_eq!(back.pricing.price.to_minor_units(), 32000);
         assert!(back.is_available);
         repo.set_availability(item.id, false).await.expect("toggle");
-        assert!(!repo.find_item(item.id).await.expect("find").expect("present").is_available);
         assert!(
-            repo
-                .query_available(category.tenant_id, category.location_id)
+            !repo
+                .find_item(item.id)
                 .await
-                .expect("query")
-                .is_empty()
+                .expect("find")
+                .expect("present")
+                .is_available
         );
+        assert!(repo
+            .query_available(category.tenant_id, category.location_id)
+            .await
+            .expect("query")
+            .is_empty());
         cleanup(&path);
     }
 
@@ -284,7 +321,10 @@ mod tests {
     async fn toggle_missing_item_reports_not_found() {
         let (_conn, path) = migrated_file_db("menu-miss");
         let repo = SqliteMenuRepository::new(path.clone());
-        let err = repo.set_availability(MenuItemId::new(), false).await.expect_err("must fail");
+        let err = repo
+            .set_availability(MenuItemId::new(), false)
+            .await
+            .expect_err("must fail");
         assert!(matches!(err, PortError::NotFound { .. }));
         cleanup(&path);
     }
