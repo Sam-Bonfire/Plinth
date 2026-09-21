@@ -69,3 +69,28 @@ HTTP 400
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.error" contains "Invalid"
+
+# Negative: Create order with incorrect tenant_id (tenant-isolation)
+POST {{base_url}}/api/v1/orders
+Authorization: Bearer {{token}}
+x-tenant-id: 11111111-1111-1111-1111-111111111111
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "channel": "DineIn",
+  "terminal_id": "{{terminal_id}}",
+  "table_id": "{{table_id}}",
+  "seat_number": 1,
+  "items": [],
+  "discounts": [],
+  "charges": [],
+  "tip": null
+}
+HTTP 401
+
+# Negative: List orders with incorrect tenant_id (tenant-isolation)
+GET {{base_url}}/api/v1/orders?page=1&page_size=10
+Authorization: Bearer {{token}}
+x-tenant-id: 11111111-1111-1111-1111-111111111111
+x-location-id: {{location_id}}
+HTTP 401
