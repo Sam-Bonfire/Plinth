@@ -21,6 +21,9 @@ core-domain = { path = "../../../packages/core-domain" }
 sync-protocol = { path = "../../../packages/sync-protocol" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
 
 [features]
 default = ["custom-protocol"]

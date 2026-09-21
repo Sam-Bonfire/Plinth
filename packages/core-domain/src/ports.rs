@@ -7,7 +7,7 @@ use crate::ids::{
 };
 use crate::enums::{KitchenTicketStatus, OrderStatus, StationId};
 use crate::events::order::OrderEvent;
-use crate::models::{Order, KitchenTicket, StockItem, Recipe};
+use crate::models::{AuditEvent, MenuCategory, MenuItem, Order, KitchenTicket, StockItem, Recipe};
 
 #[derive(Debug, Error)]
 pub enum PortError {
@@ -148,6 +148,19 @@ pub trait PrinterGateway: Send + Sync {
 pub trait SyncGateway: Send + Sync {
     fn dispatch_event(&self, event: &OrderEvent) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
     fn dispatch_events(&self, events: &[OrderEvent]) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
+}
+
+pub trait MenuRepository: Send + Sync {
+    fn save_category(&self, category: &MenuCategory) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
+    fn save_item(&self, item: &MenuItem) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
+    fn find_item(&self, id: MenuItemId) -> impl std::future::Future<Output = Result<Option<MenuItem>, PortError>> + Send;
+    fn query_available(&self, tenant_id: TenantId, location_id: LocationId) -> impl std::future::Future<Output = Result<Vec<MenuItem>, PortError>> + Send;
+    fn set_availability(&self, id: MenuItemId, available: bool) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
+}
+
+pub trait AuditRepository: Send + Sync {
+    fn append(&self, event: &AuditEvent) -> impl std::future::Future<Output = Result<(), PortError>> + Send;
+    fn query(&self, tenant_id: TenantId, location_id: LocationId, limit: usize) -> impl std::future::Future<Output = Result<Vec<AuditEvent>, PortError>> + Send;
 }
 
 #[cfg(test)]
