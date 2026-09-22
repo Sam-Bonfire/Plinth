@@ -1,12 +1,15 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../providers/AuthProvider.js";
 import { MenuPage } from "./MenuPage.js";
 
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <MenuPage />
+      <AuthProvider>
+        <MenuPage />
+      </AuthProvider>
     </PlinthThemeProvider>,
   );
 }
@@ -54,5 +57,24 @@ describe("MenuPage", () => {
     fireEvent.click(deletes[0] as HTMLElement);
     fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
     expect(screen.queryByText("Butter Chicken")).toBeNull();
+  }, 15000);
+
+  it("queues a menu sync with item count", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ success: true, runs: [{ id: "r-1", platform: "Swiggy", status: "queued" }] }),
+      headers: new Headers(),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+    await screen.findByText("Butter Chicken");
+    fireEvent.click(screen.getByRole("button", { name: "Sync" }));
+    expect(await screen.findByText(/Menu sync queued/)).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/menu/sync"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    vi.unstubAllGlobals();
   }, 15000);
 });

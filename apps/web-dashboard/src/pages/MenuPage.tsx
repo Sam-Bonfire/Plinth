@@ -1,6 +1,7 @@
 import { mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Typography, message } from "antd";
 import React, { useMemo, useState } from "react";
+import { useAuth } from "../providers/AuthProvider.js";
 
 interface ItemFormValues {
   name: string;
@@ -21,6 +22,8 @@ export const MenuPage: React.FC = () => {
   const [catOpen, setCatOpen] = useState<boolean>(false);
   const [catName, setCatName] = useState<string>("");
   const [form] = Form.useForm<ItemFormValues>();
+  const { client } = useAuth();
+  const [syncing, setSyncing] = useState<boolean>(false);
 
   const visible = useMemo((): MenuItem[] => {
     const q = query.trim().toLowerCase();
@@ -79,7 +82,22 @@ export const MenuPage: React.FC = () => {
   };
 
   const sync = (): void => {
-    void message.success(`Menu synced to aggregators · ${items.length} items.`);
+    setSyncing(true);
+    client
+      .queueMenuSync({
+        platforms: ["Swiggy", "Zomato"],
+        menu_version: `v${items.length}`,
+        item_count: items.length,
+      })
+      .then((res) => {
+        void message.success(`Menu sync queued · ${res.runs.length} platforms.`);
+      })
+      .catch((e: unknown) => {
+        void message.error(e instanceof Error ? e.message : "Menu sync failed");
+      })
+      .finally(() => {
+        setSyncing(false);
+      });
   };
 
   return (
@@ -112,7 +130,7 @@ export const MenuPage: React.FC = () => {
               <Space>
                 <Input allowClear placeholder="Search items…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 200 }} />
                 <Typography.Text type="secondary">{visible.length} items</Typography.Text>
-                <Button size="small" onClick={sync}>
+                <Button size="small" onClick={sync} loading={syncing}>
                   Sync
                 </Button>
                 <Button size="small" type="primary" onClick={openAdd}>
