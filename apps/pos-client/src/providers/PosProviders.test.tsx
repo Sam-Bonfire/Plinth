@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { usePosSession } from "./PosSessionProvider.js";
 import { PosProviders } from "./PosProviders.js";
+import { usePosSession } from "./PosSessionProvider.js";
 
 function Probe(): React.JSX.Element {
   const { session, signIn, signOut } = usePosSession();
