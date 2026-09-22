@@ -220,6 +220,39 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
     );
   });
 
+  it("queues menu sync runs per platform", async () => {
+    const mockSync = {
+      success: true,
+      runs: [
+        { id: "run-1", platform: "Swiggy", status: "queued" },
+        { id: "run-2", platform: "Zomato", status: "queued" },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => mockSync,
+      headers: new Headers(),
+    });
+
+    const res = await client.queueMenuSync({
+      platforms: ["Swiggy", "Zomato"],
+      menu_version: "v42",
+      item_count: 12,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.runs).toHaveLength(2);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://api.plinth.local/api/v1/menu/sync",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ platforms: ["Swiggy", "Zomato"], menu_version: "v42", item_count: 12 }),
+      }),
+    );
+  });
+
   it("handles KDS ticket listing and bump operations", async () => {
     const mockTickets: KitchenTicketDto[] = [
       {

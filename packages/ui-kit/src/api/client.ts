@@ -78,6 +78,23 @@ export interface SalesReportParams {
   date_to?: string;
 }
 
+export interface MenuSyncRequest {
+  platforms: string[];
+  menu_version: string;
+  item_count: number;
+}
+
+export interface MenuSyncRun {
+  id: string;
+  platform: string;
+  status: string;
+}
+
+export interface MenuSyncResponse {
+  success: boolean;
+  runs: MenuSyncRun[];
+}
+
 /**
  * Strongly-typed HTTP Client for PlinthOS API.
  */
@@ -250,6 +267,9 @@ export class PlinthApiClient {
     );
   }
 
+  public async queueMenuSync(req: MenuSyncRequest): Promise<MenuSyncResponse> {
+    return this.request<MenuSyncResponse>("/api/v1/menu/sync", "POST", req);
+  }
   // --- Kitchen Display System (KDS) Endpoints ---
   public async listKitchenTickets(
     params?: TicketQueryParams,
