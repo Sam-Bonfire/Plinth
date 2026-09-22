@@ -1,6 +1,6 @@
-import { AlertBanner, DoughnutChart } from "@plinth/ui-kit";
-import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
+import { DoughnutChart } from "@plinth/ui-kit";import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { FraudAlerts } from "../components/FraudAlerts.js";
 import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
 import { UpiQrModal } from "../components/UpiQrModal.js";
 
@@ -233,10 +233,12 @@ export const PaymentsPage: React.FC = () => {
               </Button>
             </Space>
           </Card>
-          <Card title="Fraud Alerts">
-            <AlertBanner type="warning" message="Refund velocity" description="3 refunds above ₹2,000 by the same cashier in the last hour." />
-            <AlertBanner type="error" message="Payout shortfall" description="Zomato payout is short by ₹1,240 against expected settlement." />
-          </Card>
+          <FraudAlerts
+            alerts={[
+              { id: "a-1", kind: "warning", message: "Refund velocity", description: "3 refunds above ₹2,000 by the same cashier in the last hour." },
+              { id: "a-2", kind: "error", message: "Payout shortfall", description: "Zomato payout is short by ₹1,240 against expected settlement." },
+            ]}
+          />
           {drops.length > 0 && (
             <Card title="Cash Drops" style={{ marginTop: 16 }}>
               <Space direction="vertical" style={{ width: "100%" }}>
