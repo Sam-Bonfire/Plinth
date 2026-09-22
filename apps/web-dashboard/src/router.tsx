@@ -14,6 +14,7 @@ import { PosPage } from "./pages/PosPage.js";
 import { ReportsPage } from "./pages/ReportsPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
 import { StaffPage } from "./pages/StaffPage.js";
+import { TablesPage } from "./pages/TablesPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
 const ProtectedRoute: React.FC = () => {
@@ -44,7 +45,7 @@ export const router = createBrowserRouter([
           { path: "/staff", element: <StaffPage /> },
           { path: "/reports", element: <ReportsPage /> },
           { path: "/settings", element: <SettingsPage /> },
-          { path: "/floor", element: <PlaceholderPage title="Floor Plan" description="Tabular table editor" /> },
+          { path: "/floor", element: <TablesPage /> },
           { path: "/audit", element: <PlaceholderPage title="Audit Log" description="Immutable audit viewer" /> },
           { path: "/onboarding", element: <PlaceholderPage title="Onboarding Wizard" description="7-step setup flow" /> },
         ],
