@@ -7,3 +7,6 @@ export * from "./menuStore.js";
 export * from "./inventoryStore.js";
 export * from "./customerStore.js";
 export * from "./recipeStore.js";
+export * from "./paymentsStore.js";
+export * from "./eodStore.js";
+export * from "./reportsStore.js";
