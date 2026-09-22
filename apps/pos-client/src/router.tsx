@@ -1,5 +1,6 @@
 import React from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { CheckoutPage } from "./pages/CheckoutPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { PosProviders, usePosSession } from "./providers/PosProviders.js";
 import { ShowcaseView } from "./showcase/ShowcaseView.js";
@@ -18,6 +19,14 @@ export const PosRouter: React.FC = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/showcase" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/checkout"
+          element={
+            <RequireSession>
+              <CheckoutPage />
+            </RequireSession>
+          }
+        />
         <Route
           path="/showcase"
           element={
