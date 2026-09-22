@@ -44,12 +44,23 @@ pub struct VoidOrderRequest {
 pub async fn submit_order(
     app: AppHandle,
     state: tauri::State<'_, crate::state::AppContext>,
+    req: SubmitOrderRequest,
+) -> Result<OrderId, String> {
+    submit_order_impl(&db_path(&app)?, &state, req).await
+}
+
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
+pub async fn submit_order_impl(
+    db: &std::path::Path,
+    ctx: &crate::state::AppContext,
     mut req: SubmitOrderRequest,
 ) -> Result<OrderId, String> {
-    req.tenant_id = state.tenant_id;
-    req.location_id = state.location_id;
-    let db_path = db_path(&app)?;
-    let repo = SqliteOrderRepository::new(db_path);
+    req.tenant_id = ctx.tenant_id;
+    req.location_id = ctx.location_id;
+    let repo = SqliteOrderRepository::new(db.to_path_buf());
 
     let (mut order, _event) = Order::new(
         req.tenant_id,
@@ -83,10 +94,21 @@ pub async fn get_active_orders(
     state: tauri::State<'_, crate::state::AppContext>,
     table_id: FloorTableId,
 ) -> Result<Vec<Order>, String> {
-    let db_path = db_path(&app)?;
-    let repo = SqliteOrderRepository::new(db_path);
+    get_active_orders_impl(&db_path(&app)?, &state, table_id).await
+}
 
-    core_domain::ports::OrderRepository::find_active_by_table(&repo, state.location_id, table_id)
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
+pub async fn get_active_orders_impl(
+    db: &std::path::Path,
+    ctx: &crate::state::AppContext,
+    table_id: FloorTableId,
+) -> Result<Vec<Order>, String> {
+    let repo = SqliteOrderRepository::new(db.to_path_buf());
+
+    core_domain::ports::OrderRepository::find_active_by_table(&repo, ctx.location_id, table_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -102,15 +124,26 @@ pub async fn advance_order_status(
     state: tauri::State<'_, crate::state::AppContext>,
     req: AdvanceOrderStatusRequest,
 ) -> Result<(), String> {
-    let db_path = db_path(&app)?;
-    let repo = SqliteOrderRepository::new(db_path);
+    advance_order_status_impl(&db_path(&app)?, &state, req).await
+}
+
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
+pub async fn advance_order_status_impl(
+    db: &std::path::Path,
+    ctx: &crate::state::AppContext,
+    req: AdvanceOrderStatusRequest,
+) -> Result<(), String> {
+    let repo = SqliteOrderRepository::new(db.to_path_buf());
 
     let mut order = core_domain::ports::OrderRepository::find_by_id(&repo, req.order_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Order not found".to_string())?;
 
-    if order.tenant_id != state.tenant_id || order.location_id != state.location_id {
+    if order.tenant_id != ctx.tenant_id || order.location_id != ctx.location_id {
         return Err("Permission denied".to_string());
     }
 
@@ -134,15 +167,26 @@ pub async fn void_order(
     state: tauri::State<'_, crate::state::AppContext>,
     req: VoidOrderRequest,
 ) -> Result<(), String> {
-    let db_path = db_path(&app)?;
-    let repo = SqliteOrderRepository::new(db_path);
+    void_order_impl(&db_path(&app)?, &state, req).await
+}
+
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
+pub async fn void_order_impl(
+    db: &std::path::Path,
+    ctx: &crate::state::AppContext,
+    req: VoidOrderRequest,
+) -> Result<(), String> {
+    let repo = SqliteOrderRepository::new(db.to_path_buf());
 
     let mut order = core_domain::ports::OrderRepository::find_by_id(&repo, req.order_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Order not found".to_string())?;
 
-    if order.tenant_id != state.tenant_id || order.location_id != state.location_id {
+    if order.tenant_id != ctx.tenant_id || order.location_id != ctx.location_id {
         return Err("Permission denied".to_string());
     }
 
