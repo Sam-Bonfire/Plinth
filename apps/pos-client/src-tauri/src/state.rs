@@ -20,7 +20,7 @@ impl Default for AppContext {
     }
 }
 
-/// Local SQLite path shared by all commands.
+/// Local `SQLite` path shared by all commands.
 ///
 /// # Errors
 /// Returns an error if the platform data directory is unavailable.

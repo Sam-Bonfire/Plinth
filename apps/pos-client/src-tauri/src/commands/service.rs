@@ -106,7 +106,14 @@ pub async fn bump_ticket_impl(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Ticket not found".to_string())?;
     ticket.bump(req.bumped_by).map_err(|e| e.to_string())?;
-    repo.save(&ticket).await.map_err(|e| e.to_string())
+    repo.save(&ticket).await.map_err(|e| e.to_string())?;
+
+    // Broadcast the bumped ticket to other stations on the LAN
+    if let Ok(broadcaster) = crate::lan_kds::KdsBroadcaster::new().await {
+        let _ = broadcaster.broadcast_ticket(&ticket).await;
+    }
+
+    Ok(())
 }
 
 /// Toggles menu item availability (86).
@@ -354,6 +361,57 @@ mod tests {
             .await
             .expect("find");
         assert!(missing.is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn kds_bump_broadcasts_to_lan() {
+        let path = migrated_path("svc-bump-broadcast");
+        let repo = SqliteKitchenTicketRepository::new(path.clone());
+        let (mut ticket, _) = KitchenTicket::new(
+            OrderId::new(),
+            TenantId::new(),
+            LocationId::new(),
+            StationId::Grill,
+            10,
+            Vec::new(),
+            PreparationSla::default_restaurant(),
+        );
+        ticket.start_prep().expect("prep");
+        ticket.mark_ready().expect("ready");
+        repo.save(&ticket).await.expect("save");
+
+        // Setup a receiver to listen on the LAN for the broadcast
+        let receiver = crate::lan_kds::KdsReceiver::new().expect("Failed to create receiver");
+        let mut rx = receiver.start();
+
+        // Give receiver time to join multicast
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Perform the bump, which should now broadcast
+        bump_ticket_impl(
+            &path,
+            BumpTicketRequest {
+                ticket_id: ticket.id,
+                bumped_by: None,
+            },
+        )
+        .await
+        .expect("bump");
+
+        // We should receive the bumped ticket over UDP
+        let received_ticket = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+            .await
+            .expect("Timeout waiting for broadcast ticket")
+            .expect("Channel closed");
+
+        assert_eq!(received_ticket.id, ticket.id);
+        assert_eq!(
+            received_ticket.status,
+            core_domain::enums::kitchen::KitchenTicketStatus::Bumped
+        );
+
         let _ = std::fs::remove_file(&path);
     }
 

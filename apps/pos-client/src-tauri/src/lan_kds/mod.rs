@@ -32,6 +32,7 @@ mod tests {
     use tokio::time::timeout;
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_broadcast_and_receive_dedupe() {
         // Setup receiver
         let receiver = KdsReceiver::new().expect("Failed to create receiver");
