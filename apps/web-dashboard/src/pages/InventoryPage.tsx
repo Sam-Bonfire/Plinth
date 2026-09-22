@@ -1,6 +1,7 @@
 import { AlertBanner, BarChart, InventoryStockBar } from "@plinth/ui-kit";
 import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { seedRecipes, type Recipe } from "../data/recipes.js";
 
 interface Ingredient {
   key: string;
@@ -10,14 +11,6 @@ interface Ingredient {
   current: number;
   par: number;
   lastCount: string;
-}
-
-interface Recipe {
-  key: string;
-  item: string;
-  uses: string;
-  cost: number;
-  margin: string;
 }
 
 type VariancePoint = {
@@ -45,13 +38,6 @@ const seedIngredients = (): Ingredient[] => [
   { key: "ING-06", name: "Milk", category: "Dairy", unit: "L", current: 4, par: 12, lastCount: "Today 08:10" },
   { key: "ING-07", name: "Onion", category: "Produce", unit: "kg", current: 30, par: 15, lastCount: "Today 08:10" },
   { key: "ING-08", name: "Butter", category: "Dairy", unit: "kg", current: 9, par: 6, lastCount: "Today 08:10" },
-];
-
-const seedRecipes = (): Recipe[] => [
-  { key: "REC-01", item: "Butter Chicken", uses: "Chicken, Garam Masala, Butter", cost: 98, margin: "69%" },
-  { key: "REC-02", item: "Paneer Tikka", uses: "Paneer, Garam Masala", cost: 72, margin: "74%" },
-  { key: "REC-03", item: "Dal Makhani", uses: "Butter, Garam Masala", cost: 48, margin: "78%" },
-  { key: "REC-04", item: "Garlic Naan", uses: "Butter", cost: 12, margin: "80%" },
 ];
 
 const seedVariance = (): VariancePoint[] => [

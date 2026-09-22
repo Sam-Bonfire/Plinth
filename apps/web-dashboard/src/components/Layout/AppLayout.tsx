@@ -18,6 +18,7 @@ const ROUTE_META: Record<string, RouteMeta> = {
   "/payments": { title: "Payments", sub: "Tenders, recon and payouts" },
   "/menu": { title: "Menu Management", sub: "Catalog, categories and 86 status" },
   "/inventory": { title: "Inventory", sub: "Stock, recipes and PAR levels" },
+  "/recipes": { title: "Recipes", sub: "Recipe costs and margins" },
   "/customers": { title: "Customers", sub: "Directory and loyalty" },
   "/staff": { title: "Staff Management", sub: "Roles, permissions and PIN" },
   "/reports": { title: "Reports & Analytics", sub: "Sales, labor and tax" },
@@ -50,6 +51,7 @@ const navItems: MenuProps["items"] = [
     type: "group",
     children: [
       { key: "/menu", label: "Menu" },
+      { key: "/recipes", label: "Recipes" },
       { key: "/inventory", label: "Inventory" },
       { key: "/customers", label: "Customers" },
       { key: "/staff", label: "Staff" },
