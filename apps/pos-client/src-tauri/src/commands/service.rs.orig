@@ -365,7 +365,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial_test::serial]
     async fn kds_bump_broadcasts_to_lan() {
         let path = migrated_path("svc-bump-broadcast");
         let repo = SqliteKitchenTicketRepository::new(path.clone());

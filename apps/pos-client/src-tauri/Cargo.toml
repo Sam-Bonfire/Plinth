@@ -33,6 +33,7 @@ async-trait = { workspace = true }
 tokio-tungstenite = "0.30.0"
 url = "2.5.8"
 futures-util = "0.3.34"
+serial_test = "4.0.1"
 
 [features]
 default = ["custom-protocol"]
