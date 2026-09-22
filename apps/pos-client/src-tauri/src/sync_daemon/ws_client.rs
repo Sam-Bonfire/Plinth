@@ -216,8 +216,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_ws_client_backoff_progression() {
+        // Bind then drop a listener to reserve a port that is guaranteed
+        // to refuse connections (port 0 may hang instead of refusing).
+        let refused_port = {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            listener.local_addr().unwrap().port()
+        };
         let config = WsClientConfig {
-            base_url: "ws://127.0.0.1:0".into(), // Unreachable server
+            base_url: format!("ws://127.0.0.1:{refused_port}"),
             tenant_id: "t1".into(),
             location_id: "l1".into(),
             client_node_id: "n1".into(),
