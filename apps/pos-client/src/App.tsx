@@ -1,6 +1,7 @@
 ﻿import { getThemeConfig } from '@plinth/ui-kit';
 import { ConfigProvider } from 'antd';
 import React, { useMemo } from 'react';
+import { PosApp } from './router.js';
 import { ShowcaseView } from './showcase/ShowcaseView.js';
 
 export const PlinthThemeProvider: React.FC<{ children: React.ReactNode; isDark?: boolean }> = ({ children, isDark = false }) => {
@@ -24,11 +25,7 @@ const App: React.FC = () => {
     );
   }
 
-  return (
-    <PlinthThemeProvider isDark={isDark}>
-      <ShowcaseView scene="active-order" />
-    </PlinthThemeProvider>
-  );
+  return <PosApp isDark={isDark} />;
 };
 
 export default App;
