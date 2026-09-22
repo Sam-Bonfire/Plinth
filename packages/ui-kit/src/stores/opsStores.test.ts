@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { usePaymentsStore, selectCashShare } from "./paymentsStore.js";
 import { useEodStore, selectVariance, selectIsClosed } from "./eodStore.js";
+import { usePaymentsStore, selectCashShare } from "./paymentsStore.js";
 import { useReportsStore, selectPeriodLabel } from "./reportsStore.js";
 
 describe("PaymentsStore", () => {
