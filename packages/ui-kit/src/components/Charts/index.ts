@@ -9,3 +9,6 @@ export type { BarChartProps } from "./BarChart.js";
 
 export { LineChart } from "./LineChart.js";
 export type { LineChartProps } from "./LineChart.js";
+
+export { VarianceChart, toVarianceRows, varianceTotal } from "./VarianceChart.js";
+export type { VarianceChartProps, VarianceEntry, VarianceRow } from "./VarianceChart.js";
