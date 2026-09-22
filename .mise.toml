@@ -61,6 +61,14 @@ description = "Compile Rust WASM worker and deploy to Cloudflare Edge"
 dir = "apps/edge-api"
 run = "pnpm wrangler deploy"
 
+[tasks."deploy:edge"]
+description = "Deploy edge API to production (remote D1 migrations, then worker). Needs CLOUDFLARE_API_TOKEN and JWT_SECRET set."
+dir = "apps/edge-api"
+run = [
+    "pnpm wrangler d1 migrations apply plinth_cellar --remote",
+    "pnpm wrangler deploy",
+]
+
 [tasks."build:wasm"]
 description = "Compile Rust core-domain to WebAssembly"
 dir = "packages/core-domain"
