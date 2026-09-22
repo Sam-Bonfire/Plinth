@@ -1,4 +1,4 @@
-import { Card, Col, Input, Row, Space, Statistic, Table, Typography, type TableColumnsType } from "antd";
+import { Card, Input, Space, Statistic, Table, Typography, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { seedRecipes, type Recipe } from "../data/recipes.js";
 
