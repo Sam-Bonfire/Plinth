@@ -1,6 +1,7 @@
 import { AlertBanner, DoughnutChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
 type TxnStatus = "Settled" | "Pending" | "Refunded";
@@ -50,11 +51,14 @@ export const PaymentsPage: React.FC = () => {
   const [cashOpen, setCashOpen] = useState<boolean>(false);
   const [counted, setCounted] = useState<number>(0);
   const [reconAt, setReconAt] = useState<string | null>(null);
+  const [drops, setDrops] = useState<CashDrop[]>([]);
+  const [dropOpen, setDropOpen] = useState<boolean>(false);
 
   const settled = useMemo((): Txn[] => txns.filter((t: Txn): boolean => t.status === "Settled"), [txns]);
   const sumBy = (m: PayMethod): number => settled.filter((t: Txn): boolean => t.method === m).reduce((s: number, t: Txn): number => s + t.amount, 0);
   const collected = settled.reduce((s: number, t: Txn): number => s + t.amount, 0);
-  const cashExpected = sumBy("Cash");
+  const dropsTotal = drops.reduce((s: number, d: CashDrop): number => s + d.amount, 0);
+  const cashExpected = sumBy("Cash") - dropsTotal;
 
   const rows = useMemo((): Txn[] => {
     const q = query.trim().toLowerCase();
@@ -72,6 +76,12 @@ export const PaymentsPage: React.FC = () => {
     setTxns((prev: Txn[]): Txn[] => prev.map((t: Txn): Txn => (t.key === refundTarget.key ? { ...t, status: "Refunded" } : t)));
     void message.success(`Refund of ${inr(refundTarget.amount)} for ${refundTarget.id} processed.`);
     setRefundKey(null);
+  };
+
+  const recordDrop = (drop: CashDrop): void => {
+    setDrops((prev: CashDrop[]): CashDrop[] => [...prev, drop]);
+    setDropOpen(false);
+    void message.success(`Cash drop of ${inr(drop.amount)} recorded (${drop.reason}).`);
   };
 
   const saveCashVariance = (): void => {
@@ -207,6 +217,9 @@ export const PaymentsPage: React.FC = () => {
               <Button block onClick={(): void => { setCounted(cashExpected); setCashOpen(true); }}>
                 Cash Variance
               </Button>
+              <Button block onClick={(): void => setDropOpen(true)}>
+                Cash Drop
+              </Button>
               <Button block onClick={runRecon}>
                 Reconcile All
               </Button>
@@ -219,6 +232,19 @@ export const PaymentsPage: React.FC = () => {
             <AlertBanner type="warning" message="Refund velocity" description="3 refunds above ₹2,000 by the same cashier in the last hour." />
             <AlertBanner type="error" message="Payout shortfall" description="Zomato payout is short by ₹1,240 against expected settlement." />
           </Card>
+          {drops.length > 0 && (
+            <Card title="Cash Drops" style={{ marginTop: 16 }}>
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {drops.map((d: CashDrop, i: number): React.ReactNode => (
+                  <Typography.Text key={i}>
+                    {inr(d.amount)} · {d.reason}
+                    {d.note !== "" ? ` · ${d.note}` : ""}
+                  </Typography.Text>
+                ))}
+                <Typography.Text strong>Total dropped: {inr(dropsTotal)}</Typography.Text>
+              </Space>
+            </Card>
+          )}
         </Col>
       </Row>
 
@@ -238,6 +264,8 @@ export const PaymentsPage: React.FC = () => {
           )}
         </Space>
       </Modal>
+
+      <CashDropModal open={dropOpen} onClose={(): void => setDropOpen(false)} onSubmit={recordDrop} />
 
       <Modal title="Cash Variance" open={cashOpen} onOk={saveCashVariance} onCancel={(): void => setCashOpen(false)} okText="Record Variance">
         <Space direction="vertical">
