@@ -49,6 +49,10 @@ pub async fn submit_order(
     submit_order_impl(&db_path(&app)?, &state, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn submit_order_impl(
     db: &std::path::Path,
     ctx: &crate::state::AppContext,
@@ -93,6 +97,10 @@ pub async fn get_active_orders(
     get_active_orders_impl(&db_path(&app)?, &state, table_id).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn get_active_orders_impl(
     db: &std::path::Path,
     ctx: &crate::state::AppContext,
@@ -119,6 +127,10 @@ pub async fn advance_order_status(
     advance_order_status_impl(&db_path(&app)?, &state, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn advance_order_status_impl(
     db: &std::path::Path,
     ctx: &crate::state::AppContext,
@@ -158,6 +170,10 @@ pub async fn void_order(
     void_order_impl(&db_path(&app)?, &state, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn void_order_impl(
     db: &std::path::Path,
     ctx: &crate::state::AppContext,

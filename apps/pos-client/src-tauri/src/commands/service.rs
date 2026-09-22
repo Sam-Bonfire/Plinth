@@ -64,6 +64,10 @@ pub async fn get_kds_tickets(
     get_kds_tickets_impl(&db_path(&app)?, &state, station).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn get_kds_tickets_impl(
     db: &std::path::Path,
     ctx: &AppContext,
@@ -87,6 +91,10 @@ pub async fn bump_ticket(
     bump_ticket_impl(&db_path(&app)?, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn bump_ticket_impl(
     db: &std::path::Path,
     req: BumpTicketRequest,
@@ -113,6 +121,10 @@ pub async fn toggle_menu_item_avail(
     toggle_menu_item_avail_impl(&db_path(&app)?, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn toggle_menu_item_avail_impl(
     db: &std::path::Path,
     req: ToggleAvailabilityRequest,
@@ -154,6 +166,10 @@ pub fn authenticate_pin(
     authenticate_pin_impl(&db_path(&app)?, &state, req)
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub fn authenticate_pin_impl(
     db: &std::path::Path,
     ctx: &AppContext,
@@ -204,6 +220,10 @@ pub async fn record_audit_event(
     record_audit_event_impl(&db_path(&app)?, &state, req).await
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub async fn record_audit_event_impl(
     db: &std::path::Path,
     ctx: &AppContext,
@@ -237,6 +257,10 @@ pub fn get_sync_status(app: AppHandle) -> Result<SyncStatusResponse, String> {
     get_sync_status_impl(&db_path(&app)?)
 }
 
+/// Testable core behind the Tauri command.
+///
+/// # Errors
+/// Returns an error if storage fails or the request is invalid.
 pub fn get_sync_status_impl(db: &std::path::Path) -> Result<SyncStatusResponse, String> {
     let conn = rusqlite::Connection::open(db).map_err(|e| e.to_string())?;
     let count = |status: &str| -> Result<i64, String> {
