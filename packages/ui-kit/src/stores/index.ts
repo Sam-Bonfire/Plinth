@@ -5,3 +5,5 @@ export * from "./kdsStore.js";
 export * from "./ordersStore.js";
 export * from "./menuStore.js";
 export * from "./inventoryStore.js";
+export * from "./customerStore.js";
+export * from "./recipeStore.js";
