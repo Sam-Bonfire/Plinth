@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! Inbound mutation applier: remote [`MutationRecord`]s into local SQLite.
+//! Inbound mutation applier: remote [`MutationRecord`]s into local `SQLite`.
 //!
 //! Transport-agnostic: the caller fetches mutations (WebSocket, poll) and
 //! hands each record here. Fidelity ceiling: order discounts, charges, tips,
@@ -69,7 +69,7 @@ fn parse_channel(text: &str) -> Result<core_domain::enums::order_channel::OrderC
         .map_err(|_| ApplyError::BadPayload(format!("unknown channel {text}")))
 }
 
-/// Applies one inbound mutation to local SQLite.
+/// Applies one inbound mutation to local `SQLite`.
 ///
 /// # Errors
 /// Returns [`ApplyError`] when the payload is malformed or storage fails.
