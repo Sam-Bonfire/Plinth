@@ -61,8 +61,16 @@ pub async fn get_kds_tickets(
     state: State<'_, AppContext>,
     station: StationId,
 ) -> Result<Vec<KitchenTicket>, String> {
-    let repo = SqliteKitchenTicketRepository::new(db_path(&app)?);
-    repo.find_active_by_station(state.location_id, &station)
+    get_kds_tickets_impl(&db_path(&app)?, &state, station).await
+}
+
+pub async fn get_kds_tickets_impl(
+    db: &std::path::Path,
+    ctx: &AppContext,
+    station: StationId,
+) -> Result<Vec<KitchenTicket>, String> {
+    let repo = SqliteKitchenTicketRepository::new(db.to_path_buf());
+    repo.find_active_by_station(ctx.location_id, &station)
         .await
         .map_err(|e| e.to_string())
 }
@@ -76,7 +84,14 @@ pub async fn bump_ticket(
     app: AppHandle,
     req: BumpTicketRequest,
 ) -> Result<(), String> {
-    let repo = SqliteKitchenTicketRepository::new(db_path(&app)?);
+    bump_ticket_impl(&db_path(&app)?, req).await
+}
+
+pub async fn bump_ticket_impl(
+    db: &std::path::Path,
+    req: BumpTicketRequest,
+) -> Result<(), String> {
+    let repo = SqliteKitchenTicketRepository::new(db.to_path_buf());
     let mut ticket = repo
         .find_by_id(req.ticket_id)
         .await
@@ -95,7 +110,14 @@ pub async fn toggle_menu_item_avail(
     app: AppHandle,
     req: ToggleAvailabilityRequest,
 ) -> Result<(), String> {
-    let repo = SqliteMenuRepository::new(db_path(&app)?);
+    toggle_menu_item_avail_impl(&db_path(&app)?, req).await
+}
+
+pub async fn toggle_menu_item_avail_impl(
+    db: &std::path::Path,
+    req: ToggleAvailabilityRequest,
+) -> Result<(), String> {
+    let repo = SqliteMenuRepository::new(db.to_path_buf());
     repo.set_availability(req.menu_item_id, req.is_available)
         .await
         .map_err(|e| e.to_string())
@@ -129,14 +151,21 @@ pub fn authenticate_pin(
     state: State<'_, AppContext>,
     req: AuthenticatePinRequest,
 ) -> Result<AuthenticatePinResponse, String> {
-    let path = db_path(&app)?;
-    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    authenticate_pin_impl(&db_path(&app)?, &state, req)
+}
+
+pub fn authenticate_pin_impl(
+    db: &std::path::Path,
+    ctx: &AppContext,
+    req: AuthenticatePinRequest,
+) -> Result<AuthenticatePinResponse, String> {
+    let conn = rusqlite::Connection::open(db).map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare("SELECT id, name, role, pin_hash FROM staff_members WHERE tenant_id = ?1 AND location_id = ?2 AND is_active = 1")
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map(
-            rusqlite::params![state.tenant_id.to_string(), state.location_id.to_string()],
+            rusqlite::params![ctx.tenant_id.to_string(), ctx.location_id.to_string()],
             |row| {
                 Ok(StaffRow {
                     id: row.get(0)?,
@@ -172,13 +201,21 @@ pub async fn record_audit_event(
     state: State<'_, AppContext>,
     req: RecordAuditEventRequest,
 ) -> Result<(), String> {
-    let repo = SqliteAuditRepository::new(db_path(&app)?);
+    record_audit_event_impl(&db_path(&app)?, &state, req).await
+}
+
+pub async fn record_audit_event_impl(
+    db: &std::path::Path,
+    ctx: &AppContext,
+    req: RecordAuditEventRequest,
+) -> Result<(), String> {
+    let repo = SqliteAuditRepository::new(db.to_path_buf());
     // Actor attribution comes from the session in a follow-up; the system
     // actor keeps the append path usable before login wiring lands.
     let system = StaffMemberId::from(uuid::Uuid::nil());
     repo.append(&AuditEvent::new(
-        state.tenant_id,
-        state.location_id,
+        ctx.tenant_id,
+        ctx.location_id,
         system,
         req.action,
         req.target_type,
@@ -197,8 +234,11 @@ pub async fn record_audit_event(
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value, reason = "Tauri injects owned command args")]
 pub fn get_sync_status(app: AppHandle) -> Result<SyncStatusResponse, String> {
-    let path = db_path(&app)?;
-    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    get_sync_status_impl(&db_path(&app)?)
+}
+
+pub fn get_sync_status_impl(db: &std::path::Path) -> Result<SyncStatusResponse, String> {
+    let conn = rusqlite::Connection::open(db).map_err(|e| e.to_string())?;
     let count = |status: &str| -> Result<i64, String> {
         conn.query_row(
             "SELECT COUNT(*) FROM sync_queue WHERE status = ?1",
