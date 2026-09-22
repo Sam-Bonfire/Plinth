@@ -37,6 +37,7 @@ pub fn test_db(tag: &str) -> std::path::PathBuf {
     path
 }
 
+#[must_use]
 pub fn test_context() -> AppContext {
     AppContext {
         tenant_id: TenantId::new(),
