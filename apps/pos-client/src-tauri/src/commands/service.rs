@@ -163,7 +163,7 @@ pub fn authenticate_pin(
     state: State<'_, AppContext>,
     req: AuthenticatePinRequest,
 ) -> Result<AuthenticatePinResponse, String> {
-    authenticate_pin_impl(&db_path(&app)?, &state, req)
+    authenticate_pin_impl(&db_path(&app)?, &state, &req.pin)
 }
 
 /// Testable core behind the Tauri command.
@@ -173,7 +173,7 @@ pub fn authenticate_pin(
 pub fn authenticate_pin_impl(
     db: &std::path::Path,
     ctx: &AppContext,
-    req: AuthenticatePinRequest,
+    pin: &str,
 ) -> Result<AuthenticatePinResponse, String> {
     let conn = rusqlite::Connection::open(db).map_err(|e| e.to_string())?;
     let mut stmt = conn
@@ -194,7 +194,7 @@ pub fn authenticate_pin_impl(
         .map_err(|e| e.to_string())?;
     for row in rows {
         let row = row.map_err(|e| e.to_string())?;
-        if verify_pin_hash(&row.pin_hash, &req.pin) {
+        if verify_pin_hash(&row.pin_hash, pin) {
             return Ok(AuthenticatePinResponse {
                 staff_id: StaffMemberId::from(
                     uuid::Uuid::parse_str(&row.id).map_err(|e| e.to_string())?,
