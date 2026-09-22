@@ -2,8 +2,8 @@ import * as tauriApiCore from "@tauri-apps/api/core";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { LoginPage } from "./LoginPage.js";
 import { PosProviders } from "../providers/PosProviders.js";
+import { LoginPage } from "./LoginPage.js";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

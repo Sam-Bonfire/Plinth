@@ -1,7 +1,7 @@
 import React from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import { PosProviders, usePosSession } from "./providers/PosProviders.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { PosProviders, usePosSession } from "./providers/PosProviders.js";
 import { ShowcaseView } from "./showcase/ShowcaseView.js";
 
 function RequireSession({ children }: { children: React.JSX.Element }): React.JSX.Element {
