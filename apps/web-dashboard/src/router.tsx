@@ -11,6 +11,7 @@ import { OrdersPage } from "./pages/OrdersPage.js";
 import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
+import { RecipesPage } from "./pages/RecipesPage.js";
 import { ReportsPage } from "./pages/ReportsPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
 import { StaffPage } from "./pages/StaffPage.js";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: "/payments", element: <PaymentsPage /> },
           { path: "/menu", element: <MenuPage /> },
           { path: "/inventory", element: <InventoryPage /> },
+          { path: "/recipes", element: <RecipesPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/staff", element: <StaffPage /> },
           { path: "/reports", element: <ReportsPage /> },
