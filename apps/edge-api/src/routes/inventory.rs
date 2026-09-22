@@ -104,10 +104,10 @@ struct AdjustResponse {
 /// Returns an error if database operations fail, data binding fails, or invalid context is passed.
 pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, core_domain::enums::staff::Permissions::empty()) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let url = req.url()?;
@@ -204,14 +204,14 @@ pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Resp
 #[allow(clippy::too_many_lines)]
 pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, core_domain::enums::staff::Permissions::empty()) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let Ok(adjust_req) = req.json::<AdjustStockRequest>().await else {
-        return Response::error("Bad Request", 400);
+        return crate::router::json_error("Bad Request", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let db = ctx.env.d1("CELLAR_DB")?;
@@ -232,7 +232,7 @@ pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let mut rows: Vec<DbStockItem> = result.results()?;
 
     if rows.is_empty() {
-        return Response::error("Not Found", 404);
+        return crate::router::json_error("Not Found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     }
 
     let row = rows.remove(0);
@@ -315,7 +315,7 @@ pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let update_result: worker::d1::D1Result = update_stmt.run().await?;
 
     if !update_result.success() || update_result.meta().map_or(0, |m| m.map_or(0, |inner_m| inner_m.changes.unwrap_or(0))) == 0 {
-        return Response::error("Conflict: Stock quantity was updated by another process", 409);
+        return crate::router::json_error("Conflict: Stock quantity was updated by another process", "CONFLICT", &crate::router::get_request_id(&req), 409);
     }
 
     // Insert audit ONLY if update succeeded

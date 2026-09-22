@@ -80,23 +80,23 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 #[allow(clippy::too_many_lines)]
 pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Forbidden: Insufficient permissions to close shift", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions to close shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::OPEN_CLOSE_SHIFT,
     ) else {
-        return Response::error("Forbidden: Insufficient permissions to close shift", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions to close shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
 
     let Ok(payload) = req.json::<CloseShiftRequest>().await else {
-        return Response::error("Invalid JSON payload", 400);
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     // 1. Verify no active open orders exist for this location
@@ -129,11 +129,11 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let shift_rows: Vec<ShiftRow> = shift_res.results()?;
 
     let Some(shift_record) = shift_rows.into_iter().next() else {
-        return Response::error("Shift not found", 404);
+        return crate::router::json_error("Shift not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
 
     if shift_record.is_closed != 0 {
-        return Response::error("Shift is already closed", 400);
+        return crate::router::json_error("Shift is already closed", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
     // 3. Aggregate totals for settled orders in shift

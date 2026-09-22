@@ -51,23 +51,23 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     let header_location_id = req.headers().get("x-location-id").ok().flatten();
 
     let Some(tenant_id_str) = header_tenant_id else {
-        return Response::error("Missing x-tenant-id header", 400);
+        return crate::router::json_error("Missing x-tenant-id header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
     let Some(location_id_str) = header_location_id else {
-        return Response::error("Missing x-location-id header", 400);
+        return crate::router::json_error("Missing x-location-id header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     if Uuid::parse_str(&tenant_id_str).is_err() || Uuid::parse_str(&location_id_str).is_err() {
-        return Response::error("Invalid tenant or location UUID format", 400);
+        return crate::router::json_error("Invalid tenant or location UUID format", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
     let payload: LoginRequest = match req.json().await {
         Ok(p) => p,
-        Err(e) => return Response::error(format!("Invalid JSON payload: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid JSON payload: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
 
     if payload.pin.trim().is_empty() {
-        return Response::error("PIN cannot be empty", 400);
+        return crate::router::json_error("PIN cannot be empty", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
     // Verify PIN against D1 if available; fallback to role from request for tests
@@ -88,7 +88,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
             if let Ok(Some(row)) = stmt.first::<serde_json::Value>(None).await {
                 if let Some(hash) = row.get("pin_hash").and_then(serde_json::Value::as_str) {
                     if !verify_pin_hash(hash, &payload.pin) {
-                        return Response::error("Invalid PIN", 401);
+                        return crate::router::json_error("Invalid PIN", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
                     }
                 }
                 if let Some(role_str) = row.get("role").and_then(serde_json::Value::as_str) {
@@ -126,12 +126,12 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
 
     let header = Header::new(Algorithm::HS256);
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("JWT secret not configured", 500);
+        return crate::router::json_error("JWT secret not configured", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
     };
     let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
-        Err(e) => return Response::error(format!("Failed to sign token: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Failed to sign token: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let response_body = LoginResponse {

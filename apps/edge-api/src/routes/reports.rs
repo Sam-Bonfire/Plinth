@@ -40,19 +40,19 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns an error if authentication fails or query execution fails
 pub async fn get_sales_report<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Forbidden: Insufficient permissions to view reports", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions to view reports", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::ACCESS_REPORTS,
     ) else {
-        return Response::error("Forbidden: Insufficient permissions to view reports", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions to view reports", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let url = req.url()?;

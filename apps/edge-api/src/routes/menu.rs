@@ -50,19 +50,19 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns an error if the database query fails or authentication context is invalid
 pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::empty(),
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let cat_query = "SELECT id, name, display_order, is_active FROM menu_categories WHERE tenant_id = ? AND location_id = ? AND deleted_at IS NULL ORDER BY display_order ASC";
@@ -156,27 +156,27 @@ pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<R
 /// Returns an error if the item is not found, user lacks permissions, or database update fails
 pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Forbidden: Insufficient permissions", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::MANAGE_MENU,
     ) else {
-        return Response::error("Forbidden: Insufficient permissions", 403);
+        return crate::router::json_error("Forbidden: Insufficient permissions", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let Some(item_id_str) = ctx.param("id") else {
-        return Response::error("Missing item ID parameter", 400);
+        return crate::router::json_error("Missing item ID parameter", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let Ok(update_req) = req.json::<UpdateItemAvailabilityRequest>().await else {
-        return Response::error("Invalid JSON payload", 400);
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let is_avail_int = i64::from(update_req.is_available);
@@ -203,7 +203,7 @@ pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>)
     let raw_items: Vec<RawMenuItemRow> = fetch_res.results()?;
 
     let Some(item) = raw_items.into_iter().next() else {
-        return Response::error("Menu item not found", 404);
+        return crate::router::json_error("Menu item not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
 
     let item_id = item

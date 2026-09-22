@@ -30,14 +30,14 @@ pub async fn create_order<D>(
     ctx: RouteContext<D>,
 ) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::TAKE_ORDER,
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let tenant_id = tenant_ctx.tenant_id;
@@ -46,7 +46,7 @@ pub async fn create_order<D>(
 
     let payload: CreateOrderRequest = match req.json().await {
         Ok(p) => p,
-        Err(e) => return Response::error(format!("Invalid JSON payload: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid JSON payload: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
 
     let db = ctx.env.d1("CELLAR_DB")?;
@@ -96,18 +96,18 @@ pub async fn create_order<D>(
 
     let grand_total = match order.grand_total(&GstApplicability::IntraState) {
         Ok(total) => total,
-        Err(e) => return Response::error(format!("Invalid order totals: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid order totals: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
     let balance_due = match order.balance_due(&GstApplicability::IntraState) {
         Ok(due) => due,
-        Err(e) => return Response::error(format!("Invalid order totals: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid order totals: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
     let grand_total_minor = grand_total.to_minor_units();
     let balance_due_minor = balance_due.to_minor_units();
 
     let order_json = match serde_json::to_string(&order) {
         Ok(j) => j,
-        Err(e) => return Response::error(format!("Serialization error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Serialization error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let table_id_str = order.table_id.map(|t| t.to_string()).unwrap_or_default();
@@ -167,7 +167,7 @@ pub async fn create_order<D>(
     batch.push(stmt_audit);
 
     if let Err(e) = db.batch(batch).await {
-        return Response::error(format!("Database error: {e:?}"), 500);
+        return crate::router::json_error(format!("Database error: {e:?}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
     }
 
     let response_body = OrderResponseDto { order };
@@ -196,14 +196,14 @@ pub async fn list_orders<D>(
     ctx: RouteContext<D>,
 ) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::empty(),
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let tenant_id = tenant_ctx.tenant_id;
