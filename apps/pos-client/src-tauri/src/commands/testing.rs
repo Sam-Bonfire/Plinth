@@ -16,6 +16,11 @@ use core_domain::value_objects::money::{Currency, Money};
 use core_domain::value_objects::tax::GstRate;
 use rust_decimal::Decimal;
 
+/// Migrated temp database for command tests.
+///
+/// # Panics
+/// Panics if the temp database cannot be created or migrated.
+#[must_use]
 pub fn test_db(tag: &str) -> std::path::PathBuf {
     let mut path = std::env::temp_dir();
     path.push(format!(
