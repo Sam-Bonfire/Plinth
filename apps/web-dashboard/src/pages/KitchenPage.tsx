@@ -1,6 +1,7 @@
 import { KDSTicketCard, PlinthEmptyState, mockKitchenTickets, type KDSTicketItem, type KitchenTicketItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Row, Space, Statistic, Typography, message } from "antd";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useKdsTick } from "../hooks/useKdsTick.js";
 
 type Sla = "OnTime" | "Warning" | "Late";
 
@@ -48,6 +49,11 @@ export const KitchenPage: React.FC = () => {
   const [bumpedToday, setBumpedToday] = useState<number>(389);
   const [kotSeq, setKotSeq] = useState<number>(45);
   const [injectIdx, setInjectIdx] = useState<number>(0);
+
+  const applyTick = useCallback((step: (prev: TicketView[]) => TicketView[]): void => {
+    setTickets(step);
+  }, []);
+  useKdsTick<TicketView>(applyTick);
 
   const stations = useMemo((): string[] => {
     const names = tickets.map((t: TicketView): string => t.station);
