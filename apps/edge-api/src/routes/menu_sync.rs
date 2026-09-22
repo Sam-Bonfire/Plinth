@@ -1,4 +1,4 @@
-use core_domain::{enums::staff::Permissions, ids::TenantId};
+use core_domain::enums::staff::Permissions;
 use serde::{Deserialize, Serialize};
 use worker::{
     wasm_bindgen::JsValue,
@@ -109,6 +109,7 @@ impl MenuSyncRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core_domain::ids::TenantId;
 
     #[test]
     fn test_sync_request_serde() {
