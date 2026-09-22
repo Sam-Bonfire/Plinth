@@ -1,7 +1,9 @@
 import { getThemeConfig } from "@plinth/ui-kit";
 import { ConfigProvider } from "antd";
 import React from "react";
-import { PosSessionProvider } from "./PosSessionProvider.js";
+import { PosSessionProvider, usePosSession } from "./PosSessionProvider.js";
+
+export { usePosSession };
 
 export const PosProviders: React.FC<{ children: React.ReactNode; isDark?: boolean }> = ({
   children,
