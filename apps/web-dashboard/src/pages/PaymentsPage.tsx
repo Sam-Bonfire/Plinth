@@ -1,7 +1,7 @@
 import { DoughnutChart } from "@plinth/ui-kit";import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
-import { FraudAlerts } from "../components/FraudAlerts.js";
 import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
+import { FraudAlerts } from "../components/FraudAlerts.js";
 import { UpiQrModal } from "../components/UpiQrModal.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
