@@ -1,11 +1,23 @@
 use core_domain::ids::{LocationId, TenantId};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct AppContext {
     pub tenant_id: TenantId,
     pub location_id: LocationId,
+}
+
+impl Default for AppContext {
+    /// Bootstrap context with nil IDs. The login flow replaces these with
+    /// the authenticated tenant/location before any command runs.
+    fn default() -> Self {
+        Self {
+            tenant_id: TenantId::from(Uuid::nil()),
+            location_id: LocationId::from(Uuid::nil()),
+        }
+    }
 }
 
 /// Local SQLite path shared by all commands.

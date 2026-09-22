@@ -9,6 +9,7 @@ pub mod repos;
 pub mod state;
 pub mod sync_daemon;
 
+use crate::state::AppContext;
 use tokio_util::sync::CancellationToken;
 
 /// Launches the Tauri POS application.
@@ -19,6 +20,19 @@ use tokio_util::sync::CancellationToken;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppContext::default())
+        .invoke_handler(tauri::generate_handler![
+            commands::orders::submit_order,
+            commands::orders::get_active_orders,
+            commands::orders::advance_order_status,
+            commands::orders::void_order,
+            commands::service::get_kds_tickets,
+            commands::service::bump_ticket,
+            commands::service::toggle_menu_item_avail,
+            commands::service::authenticate_pin,
+            commands::service::record_audit_event,
+            commands::service::get_sync_status,
+        ])
         .setup(|_app| {
             // Setup cancellation token for graceful shutdown of background services
             let _shutdown_token = CancellationToken::new();
