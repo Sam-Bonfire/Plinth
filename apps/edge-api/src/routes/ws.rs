@@ -16,11 +16,11 @@ pub async fn handle_ws_sync<D>(req: Request, ctx: RouteContext<D>) -> Result<Res
     let query_params: HashMap<String, String> = url.query_pairs().into_owned().collect();
 
     let Some(tenant_id) = query_params.get("tenant_id") else {
-        return Response::error("Missing tenant_id query parameter", 400);
+        return crate::router::json_error("Missing tenant_id query parameter", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let Some(location_id) = query_params.get("location_id") else {
-        return Response::error("Missing location_id query parameter", 400);
+        return crate::router::json_error("Missing location_id query parameter", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let do_namespace = ctx.env.durable_object("HEARTH_SYNC_ROOM")?;

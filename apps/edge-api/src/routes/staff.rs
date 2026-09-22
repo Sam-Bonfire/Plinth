@@ -82,22 +82,22 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 #[allow(clippy::missing_errors_doc)]
 pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let payload: CreateStaffRequest = match req.json().await {
         Ok(p) => p,
-        Err(e) => return Response::error(format!("Invalid JSON payload: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid JSON payload: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
 
     if payload.name.trim().is_empty() {
-        return Response::error("Staff name cannot be empty", 400);
+        return crate::router::json_error("Staff name cannot be empty", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
     if payload.pin.len() < 4 || payload.pin.len() > 6 {
-        return Response::error("PIN must be 4-6 digits", 400);
+        return crate::router::json_error("PIN must be 4-6 digits", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
     let staff_id = StaffMemberId::new();
@@ -105,7 +105,7 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let now = chrono::Utc::now().to_rfc3339();
     let pin_hash = match hash_pin(&payload.pin) {
         Ok(h) => h,
-        Err(e) => return Response::error(format!("Failed to hash PIN: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Failed to hash PIN: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     // Persist to D1 if available; fall back to mock on missing binding in tests
@@ -127,7 +127,7 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
                 now.clone().into(),
             ])?;
         if let Err(e) = stmt.run().await {
-            return Response::error(format!("Database error: {e:?}"), 500);
+            return crate::router::json_error(format!("Database error: {e:?}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
         }
     }
 
@@ -152,10 +152,10 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 #[allow(clippy::missing_errors_doc, clippy::manual_let_else, clippy::single_match_else, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let Ok(db) = ctx.env.d1("CELLAR_DB") else {
@@ -206,10 +206,10 @@ pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Respons
 #[allow(clippy::missing_errors_doc, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v);
@@ -223,7 +223,7 @@ pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response
         ])?;
     let result = stmt.first::<serde_json::Value>(None).await?;
     let Some(row) = result else {
-        return Response::error("Staff not found", 404);
+        return crate::router::json_error("Staff not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
 
     let dto = StaffResponseDto {
@@ -247,16 +247,16 @@ pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response
 #[allow(clippy::missing_errors_doc)]
 pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v).to_string();
     let payload: UpdateStaffRequest = match req.json().await {
         Ok(p) => p,
-        Err(e) => return Response::error(format!("Invalid JSON payload: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid JSON payload: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
 
     let db = ctx.env.d1("CELLAR_DB")?;
@@ -292,16 +292,16 @@ pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 #[allow(clippy::missing_errors_doc)]
 pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v).to_string();
     let payload: PinVerifyRequest = match req.json().await {
         Ok(p) => p,
-        Err(e) => return Response::error(format!("Invalid JSON payload: {e}"), 400),
+        Err(e) => return crate::router::json_error(format!("Invalid JSON payload: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
     };
 
     let db = ctx.env.d1("CELLAR_DB")?;
@@ -310,7 +310,7 @@ pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
         .bind(&[staff_id_str.clone().into(), tenant_ctx.tenant_id.to_string().into()])?;
     let result = stmt.first::<serde_json::Value>(None).await?;
     let Some(row) = result else {
-        return Response::error("Staff not found", 404);
+        return crate::router::json_error("Staff not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
     let pin_hash = row.get("pin_hash").and_then(|v| v.as_str()).unwrap_or("");
     let valid = verify_pin_hash(pin_hash, &payload.pin);

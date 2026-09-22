@@ -42,31 +42,31 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns an error if authentication fails, input is invalid, or database write fails
 pub async fn queue_menu_sync<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         Permissions::empty(),
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let Ok(payload) = req.json::<MenuSyncRequest>().await else {
-        return Response::error("Invalid JSON payload", 400);
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
     if !payload.is_valid() {
-        return Response::error("platforms and menu_version are required", 400);
+        return crate::router::json_error("platforms and menu_version are required", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
     for platform in &payload.platforms {
         if !PLATFORMS.contains(&platform.as_str()) {
-            return Response::error(format!("Unknown platform: {platform}"), 400);
+            return crate::router::json_error(format!("Unknown platform: {platform}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
         }
     }
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let now = chrono::Utc::now().to_rfc3339();

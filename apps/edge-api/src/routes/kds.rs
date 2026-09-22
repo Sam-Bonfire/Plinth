@@ -195,19 +195,19 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns an error if the database query fails or authentication context is missing
 pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         core_domain::enums::staff::Permissions::empty(),
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let url = req.url()?;
@@ -283,23 +283,23 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
 /// Returns an error if the ticket is not found, state transition is invalid, or database update fails
 pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
     let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
         &req,
         &secret,
         core_domain::enums::staff::Permissions::empty(),
     ) else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let Some(ticket_id_str) = ctx.param("id") else {
-        return Response::error("Missing ticket ID", 400);
+        return crate::router::json_error("Missing ticket ID", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     let body_res = req.json::<BumpTicketRequest>().await;
@@ -340,13 +340,13 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let rows: Vec<RawTicketRow> = result.results()?;
 
     let Some(row) = rows.into_iter().next() else {
-        return Response::error("Ticket not found", 404);
+        return crate::router::json_error("Ticket not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
 
     let mut ticket = KitchenTicket::try_from(row)?;
 
     if ticket.bump(bumped_by).is_err() {
-        return Response::error("Ticket cannot be bumped from its current status", 409);
+        return crate::router::json_error("Ticket cannot be bumped from its current status", "CONFLICT", &crate::router::get_request_id(&req), 409);
     }
 
     let status_str = match ticket.status {

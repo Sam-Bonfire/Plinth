@@ -52,23 +52,23 @@ pub fn is_valid_razorpay_payload(payload: &serde_json::Value) -> bool {
 pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -> Result<Response> {
     let tenant_id = match req.headers().get("x-tenant-id").ok().flatten() {
         Some(id) if !id.is_empty() => id,
-        _ => return Response::error("Unauthorized", 401),
+        _ => return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401),
     };
 
     let Ok(raw) = req.text().await else {
-        return Response::error("Invalid payload", 400);
+        return crate::router::json_error("Invalid payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
     let Ok(payload) = serde_json::from_str::<serde_json::Value>(&raw) else {
-        return Response::error("Invalid JSON payload", 400);
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
     if provider == "razorpay" && !is_valid_razorpay_payload(&payload) {
-        return Response::error("Invalid Razorpay payload shape", 400);
+        return crate::router::json_error("Invalid Razorpay payload shape", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
     let tenant_param: JsValue = tenant_id.into();
@@ -78,7 +78,7 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
         .first::<EndpointRow>(None)
         .await?;
     let Some(endpoint) = endpoint else {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
     let provided_secret = req.headers().get("x-webhook-secret").ok().flatten();
@@ -100,7 +100,7 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
     let _ = stmt.run().await?;
 
     if !accepted {
-        return Response::error("Unauthorized", 401);
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     }
 
     let mut resp = Response::from_json(&WebhookIngestResponse {
