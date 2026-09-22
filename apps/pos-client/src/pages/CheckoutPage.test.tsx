@@ -1,11 +1,11 @@
 import * as tauriApiCore from "@tauri-apps/api/core";
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { usePosCartStore } from "../stores/posCart.js";
 import { PosProviders, usePosSession } from "../providers/PosProviders.js";
+import { usePosCartStore } from "../stores/posCart.js";
 import { CheckoutPage } from "./CheckoutPage.js";
-import React from "react";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

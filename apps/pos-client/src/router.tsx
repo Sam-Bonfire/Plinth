@@ -1,7 +1,7 @@
 import React from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import { LoginPage } from "./pages/LoginPage.js";
 import { CheckoutPage } from "./pages/CheckoutPage.js";
+import { LoginPage } from "./pages/LoginPage.js";
 import { PosProviders, usePosSession } from "./providers/PosProviders.js";
 import { ShowcaseView } from "./showcase/ShowcaseView.js";
 
