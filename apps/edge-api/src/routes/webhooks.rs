@@ -20,6 +20,7 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .post_async("/api/v1/webhooks/swiggy", |req, ctx| ingest(req, ctx, "swiggy"))
         .post_async("/api/v1/webhooks/zomato", |req, ctx| ingest(req, ctx, "zomato"))
+        .post_async("/api/v1/webhooks/razorpay", |req, ctx| ingest(req, ctx, "razorpay"))
 }
 
 /// Compares the provided secret against the endpoint secret.
@@ -31,6 +32,15 @@ pub fn verify_secret(provided: Option<&str>, expected: &str) -> bool {
     }
 }
 
+/// Validates that a Razorpay webhook payload contains a string `event` field.
+#[must_use]
+pub fn is_valid_razorpay_payload(payload: &serde_json::Value) -> bool {
+    payload
+        .get("event")
+        .and_then(|v| v.as_str())
+        .is_some()
+}
+
 /// Ingests an aggregator webhook delivery.
 ///
 /// Flow: tenant header required, body must be valid JSON, endpoint secret
@@ -39,7 +49,7 @@ pub fn verify_secret(provided: Option<&str>, expected: &str) -> bool {
 ///
 /// # Errors
 /// Returns an error if request reading or database access fails
-pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, _provider: &str) -> Result<Response> {
+pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -> Result<Response> {
     let tenant_id = match req.headers().get("x-tenant-id").ok().flatten() {
         Some(id) if !id.is_empty() => id,
         _ => return Response::error("Unauthorized", 401),
@@ -48,8 +58,12 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, _provider: &str) 
     let Ok(raw) = req.text().await else {
         return Response::error("Invalid payload", 400);
     };
-    if serde_json::from_str::<serde_json::Value>(&raw).is_err() {
+    let Ok(payload) = serde_json::from_str::<serde_json::Value>(&raw) else {
         return Response::error("Invalid JSON payload", 400);
+    };
+
+    if provider == "razorpay" && !is_valid_razorpay_payload(&payload) {
+        return Response::error("Invalid Razorpay payload shape", 400);
     }
 
     let db = match ctx.env.d1("CELLAR_DB") {
@@ -67,8 +81,8 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, _provider: &str) 
         return Response::error("Unauthorized", 401);
     };
 
-    let provided = req.headers().get("x-webhook-secret").ok().flatten();
-    let accepted = verify_secret(provided.as_deref(), &endpoint.secret);
+    let provided_secret = req.headers().get("x-webhook-secret").ok().flatten();
+    let accepted = verify_secret(provided_secret.as_deref(), &endpoint.secret);
     let status = if accepted { "received" } else { "rejected" };
     let code: i64 = if accepted { 202 } else { 401 };
     let delivery_id = uuid::Uuid::now_v7().to_string();
@@ -117,5 +131,29 @@ mod tests {
         };
         let json = serde_json::to_string(&res).unwrap();
         assert!(json.contains("d-1"));
+    }
+
+    #[test]
+    fn razorpay_payload_validation() {
+        let valid_json = serde_json::json!({
+            "event": "payment.captured",
+            "payload": {}
+        });
+        assert!(is_valid_razorpay_payload(&valid_json));
+
+        let missing_event = serde_json::json!({
+            "not_event": "something"
+        });
+        assert!(!is_valid_razorpay_payload(&missing_event));
+
+        let numeric_event = serde_json::json!({
+            "event": 12345
+        });
+        assert!(!is_valid_razorpay_payload(&numeric_event));
+
+        let null_event = serde_json::json!({
+            "event": null
+        });
+        assert!(!is_valid_razorpay_payload(&null_event));
     }
 }
