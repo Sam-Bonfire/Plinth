@@ -1,6 +1,7 @@
 import { BarChart, LineChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Row, Segmented, Space, Statistic, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
+import { type GstInputRow, summarizeGst, type GstSlabSummary } from "../lib/gst.js";
 
 type RevenuePoint = {
   day: string;
@@ -80,6 +81,13 @@ const TOP_ITEMS: TopItem[] = [
   { key: "5", rank: 5, item: "Mango Lassi", qty: 203, revenue: 22330, share: "8%" },
 ];
 
+const MOCK_GST_ROWS: GstInputRow[] = [
+  { rate: "FivePercent", taxableAmount: 145000 },
+  { rate: "TwelvePercent", taxableAmount: 42000 },
+  { rate: "EighteenPercent", taxableAmount: 97500 },
+  { rate: "Exempt", taxableAmount: 12000 },
+];
+
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
@@ -97,6 +105,14 @@ export const ReportsPage: React.FC = () => {
     { title: "Qty", dataIndex: "qty", key: "qty", width: 80, align: "right" },
     { title: "Revenue", dataIndex: "revenue", key: "revenue", width: 110, align: "right", render: (r: number): React.ReactNode => inr(r) },
     { title: "Share", dataIndex: "share", key: "share", width: 80, align: "right" },
+  ];
+
+  const gstSummary = summarizeGst(MOCK_GST_ROWS);
+
+  const gstColumns: TableColumnsType<GstSlabSummary> = [
+    { title: "Slab", dataIndex: "rate", key: "rate", render: (_: string, record: GstSlabSummary): React.ReactNode => <Typography.Text strong>{record.ratePercent}% ({record.rate})</Typography.Text> },
+    { title: "Taxable Value", dataIndex: "taxableAmount", key: "taxableAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
+    { title: "Tax Amount", dataIndex: "taxAmount", key: "taxAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
   ];
 
   return (
@@ -142,7 +158,7 @@ export const ReportsPage: React.FC = () => {
           <BarChart data={HOURLY} xField="hour" yField="orders" title="Orders by Hour" height={220} />
         </Col>
       </Row>
-      <Row gutter={16}>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={12}>
           <Card title="Top Selling Items">
             <Table<TopItem> dataSource={TOP_ITEMS} columns={topColumns} rowKey="key" pagination={false} size="small" />
@@ -150,6 +166,13 @@ export const ReportsPage: React.FC = () => {
         </Col>
         <Col span={12}>
           <BarChart data={LOCATIONS} xField="outlet" yField="revenue" isCurrency currencySymbol="₹" title="Performance by Location" height={220} />
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={24}>
+          <Card title="Tax Liability (GST) Summary" extra={<Statistic value={gstSummary.totalTax} prefix="Total Tax: ₹" valueStyle={{ fontSize: 16, fontWeight: "bold" }} formatter={(val) => new Intl.NumberFormat("en-IN").format(Number(val))} />}>
+            <Table<GstSlabSummary> dataSource={gstSummary.slabs} columns={gstColumns} rowKey="rate" pagination={false} size="small" />
+          </Card>
         </Col>
       </Row>
     </div>
