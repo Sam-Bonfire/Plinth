@@ -2,6 +2,7 @@ import { AlertBanner, DoughnutChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
+import { UpiQrModal } from "../components/UpiQrModal.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
 type TxnStatus = "Settled" | "Pending" | "Refunded";
@@ -53,6 +54,7 @@ export const PaymentsPage: React.FC = () => {
   const [reconAt, setReconAt] = useState<string | null>(null);
   const [drops, setDrops] = useState<CashDrop[]>([]);
   const [dropOpen, setDropOpen] = useState<boolean>(false);
+  const [upiOpen, setUpiOpen] = useState<boolean>(false);
 
   const settled = useMemo((): Txn[] => txns.filter((t: Txn): boolean => t.status === "Settled"), [txns]);
   const sumBy = (m: PayMethod): number => settled.filter((t: Txn): boolean => t.method === m).reduce((s: number, t: Txn): number => s + t.amount, 0);
@@ -211,6 +213,9 @@ export const PaymentsPage: React.FC = () => {
           </Card>
           <Card title="Quick Actions" style={{ marginBottom: 16 }}>
             <Space direction="vertical" style={{ width: "100%" }}>
+              <Button block onClick={(): void => setUpiOpen(true)}>
+                Generate UPI QR
+              </Button>
               <Button block onClick={(): void => setRefundKey(settled[0]?.key ?? null)} disabled={settled.length === 0}>
                 Process Refund
               </Button>
@@ -277,6 +282,13 @@ export const PaymentsPage: React.FC = () => {
           <Typography.Text strong>Variance: {inr(counted - cashExpected)}</Typography.Text>
         </Space>
       </Modal>
+
+      <UpiQrModal
+        open={upiOpen}
+        onClose={(): void => setUpiOpen(false)}
+        pa="store@upi"
+        pn="Plinth Store"
+      />
     </div>
   );
 };
