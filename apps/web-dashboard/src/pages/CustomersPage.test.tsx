@@ -43,11 +43,38 @@ describe("CustomersPage", () => {
     expect(await screen.findByText("Kiran Bose")).toBeDefined();
   });
 
-  it("opens the customer detail modal", async () => {
+  it("filters the directory by behavioral filters", async () => {
     renderPage();
     await screen.findByText("Vikram Rao");
+
+    // Filter by Min Visits = 20
+    const minVisitsInput = screen.getByPlaceholderText("Min Visits");
+    fireEvent.change(minVisitsInput, { target: { value: "20" } });
+
+    // Aarav (48), Priya (36), Rohan (21) should be visible
+    expect(await screen.findAllByText("Aarav Sharma")).toBeDefined();
+    expect(await screen.findAllByText("Rohan Mehta")).toBeDefined();
+
+    // Sneha (12), Vikram (5), Ananya (1) should be hidden
+    expect(screen.queryByText("Sneha Iyer")).toBeNull();
+    expect(screen.queryByText("Vikram Rao")).toBeNull();
+  });
+
+  it("opens the customer profile drawer with timeline", async () => {
+    renderPage();
+    await screen.findByText("Vikram Rao");
+
     const views = screen.getAllByRole("button", { name: "View" });
     fireEvent.click(views[0] as HTMLElement);
-    expect((await screen.findAllByText("+91 98200 11223")).length).toBe(2);
+
+    expect(await screen.findByText("Customer Profile")).toBeDefined();
+
+    // Check for timeline presence
+    expect(await screen.findByText("Activity Timeline")).toBeDefined();
+
+    // The first user has 48 visits, so timeline maxes out at 5 items.
+    // Wait for the "Spent" lines to show up which indicates timeline items rendered.
+    const spentLines = await screen.findAllByText(/Spent ₹/);
+    expect(spentLines.length).toBeGreaterThan(0);
   });
 });
