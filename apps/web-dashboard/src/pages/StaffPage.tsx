@@ -1,5 +1,6 @@
 import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { buildAuditCsv } from "../lib/auditExport.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
 type StaffStatus = "Active" | "Off duty";
@@ -169,6 +170,15 @@ export const StaffPage: React.FC = () => {
   };
 
   const exportAudit = (): void => {
+    const csv = buildAuditCsv(auditRows);
+    if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "audit.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
     void message.success(`Exported ${auditRows.length} audit entries.`);
   };
 
