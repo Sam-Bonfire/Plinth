@@ -1,17 +1,36 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import { InventoryPage } from "./InventoryPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
 vi.mock("@ant-design/charts", () => ({
   Column: () => <div data-testid="mock-column-chart" />,
+  BarChart: () => <div data-testid="mock-barchart" />
 }));
+// Also mock window.matchMedia if needed
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
 
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <InventoryPage />
+      <App>
+        <InventoryPage />
+      </App>
     </PlinthThemeProvider>,
   );
 }
@@ -42,6 +61,7 @@ describe("InventoryPage", () => {
     fireEvent.click(adjusts[0] as HTMLElement);
     expect(await screen.findByText("Adjust Chicken Breast")).toBeDefined();
     fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+    // wait for success message text
     expect(await screen.findByText(/set to 24 kg/)).toBeDefined();
   }, 15000);
 

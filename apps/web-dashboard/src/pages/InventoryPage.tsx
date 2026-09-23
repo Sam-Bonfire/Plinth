@@ -1,6 +1,7 @@
 import { AlertBanner, BarChart, InventoryStockBar } from "@plinth/ui-kit";
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
+import { App, Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { StockCountSheet } from "../components/StockCountSheet.js";
 import { seedRecipes, type Recipe } from "../data/recipes.js";
 
 interface Ingredient {
@@ -77,7 +78,9 @@ export const InventoryPage: React.FC = () => {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recipeCosts, setRecipeCosts] = useState<Record<string, number>>({});
   const [recipesOpen, setRecipesOpen] = useState<boolean>(false);
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [form] = Form.useForm<IngredientFormValues>();
+  const { message } = App.useApp();
 
   const rows = useMemo(
     (): Ingredient[] => ingredients.filter((i: Ingredient): boolean => category === "all" || i.category === category),
@@ -228,6 +231,9 @@ export const InventoryPage: React.FC = () => {
             extra={
               <Space>
                 <Segmented value={category} onChange={(v): void => setCategory(v as string)} options={["all", ...CATEGORIES]} />
+                <Button size="small" onClick={() => setSheetOpen(true)}>
+                  Open Sheet
+                </Button>
                 <Button size="small" onClick={openCount}>
                   Stock Count
                 </Button>
@@ -339,6 +345,12 @@ export const InventoryPage: React.FC = () => {
           ]}
         />
       </Modal>
+
+      <StockCountSheet
+        open={sheetOpen}
+        onClose={(): void => setSheetOpen(false)}
+        ingredients={ingredients}
+      />
     </div>
   );
 };
