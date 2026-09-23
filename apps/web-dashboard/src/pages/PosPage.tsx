@@ -1,6 +1,7 @@
 import { mockCategories, mockMenuItems, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, List, Modal, Radio, Row, Segmented, Space, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { usePosShortcuts } from "../hooks/usePosShortcuts.js";
 import { useCartStore, type CartRow } from "../stores/cartStore.js";
 
 const CHANNELS: string[] = ["Dine-in", "Takeaway", "Swiggy", "Zomato"];
@@ -156,6 +157,14 @@ export const PosPage: React.FC = () => {
   };
 
   const modsComplete = pendingItem !== null && pendingItem.modifierGroups.every((g): boolean => pendingMods[g.name] !== undefined);
+
+  usePosShortcuts({
+    pay: placeOrder,
+    clear: () => setQuery(""),
+    discount: () => { void message.info("Discount shortcut pressed"); },
+    hold: () => { void message.info("Hold shortcut pressed"); },
+    search: () => { void message.info("Search shortcut pressed"); },
+  });
 
   return (
     <div>
