@@ -53,4 +53,20 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Login")).toBeDefined();
     expect(screen.queryByText("Discount 10%")).toBeNull();
   });
+
+  it("submits and approves an escalation request", async () => {
+    renderPage();
+    await screen.findByText("Rajesh K");
+    fireEvent.click(screen.getByRole("tab", { name: /Escalations/ }));
+    expect(await screen.findByText("No escalation requests.")).toBeDefined();
+    fireEvent.mouseDown(screen.getAllByRole("combobox")[0] as HTMLElement);
+    fireEvent.click(await screen.findByText("Meera S · Cashier"));
+    fireEvent.change(screen.getByPlaceholderText("Reason for escalation…"), {
+      target: { value: "Shift lead duties" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Submit Request" }));
+    expect(await screen.findByText("Shift lead duties")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("Approved")).toBeDefined();
+  });
 });
