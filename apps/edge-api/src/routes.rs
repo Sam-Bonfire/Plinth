@@ -7,6 +7,7 @@ pub mod menu;
 pub mod menu_sync;
 pub mod orders;
 pub mod public_menu;
+pub mod public_orders;
 pub mod reports;
 pub mod staff;
 pub mod webhooks;
