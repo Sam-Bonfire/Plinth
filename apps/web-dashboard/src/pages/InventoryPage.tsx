@@ -1,6 +1,7 @@
 import { AlertBanner, BarChart, InventoryStockBar } from "@plinth/ui-kit";
 import { App, Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { PurchaseOrderCreator, type PurchaseOrder } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
 import { seedRecipes, type Recipe } from "../data/recipes.js";
 
@@ -75,6 +76,7 @@ export const InventoryPage: React.FC = () => {
   const [adjustValue, setAdjustValue] = useState<number>(0);
   const [adding, setAdding] = useState<boolean>(false);
   const [counting, setCounting] = useState<boolean>(false);
+  const [poOpen, setPoOpen] = useState<boolean>(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recipeCosts, setRecipeCosts] = useState<Record<string, number>>({});
   const [recipesOpen, setRecipesOpen] = useState<boolean>(false);
@@ -234,6 +236,9 @@ export const InventoryPage: React.FC = () => {
                 <Button size="small" onClick={() => setSheetOpen(true)}>
                   Open Sheet
                 </Button>
+                <Button size="small" onClick={(): void => setPoOpen(true)}>
+                  New PO
+                </Button>
                 <Button size="small" onClick={openCount}>
                   Stock Count
                 </Button>
@@ -350,6 +355,16 @@ export const InventoryPage: React.FC = () => {
         open={sheetOpen}
         onClose={(): void => setSheetOpen(false)}
         ingredients={ingredients}
+      />
+
+      <PurchaseOrderCreator
+        items={ingredients.map((i: Ingredient): string => i.name)}
+        open={poOpen}
+        onClose={(): void => setPoOpen(false)}
+        onSubmit={(po: PurchaseOrder): void => {
+          void message.success(`PO for ${po.supplier} submitted: ₹${po.total}.`);
+          setPoOpen(false);
+        }}
       />
     </div>
   );
