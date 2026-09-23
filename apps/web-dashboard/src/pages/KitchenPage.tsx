@@ -1,6 +1,7 @@
 import { KDSTicketCard, PlinthEmptyState, mockKitchenTickets, type KDSTicketItem, type KitchenTicketItem } from "@plinth/ui-kit";
-import { Button, Card, Col, Row, Space, Statistic, Typography, message } from "antd";
+import { Button, Card, Col, List, Row, Space, Statistic, Typography, message } from "antd";
 import React, { useCallback, useMemo, useState } from "react";
+import { buildReprintJob, type ReprintJob } from "../helpers/reprint.js";
 import { useKdsTick } from "../hooks/useKdsTick.js";
 
 type Sla = "OnTime" | "Warning" | "Late";
@@ -49,6 +50,7 @@ export const KitchenPage: React.FC = () => {
   const [bumpedToday, setBumpedToday] = useState<number>(389);
   const [kotSeq, setKotSeq] = useState<number>(45);
   const [injectIdx, setInjectIdx] = useState<number>(0);
+  const [reprintLog, setReprintLog] = useState<ReprintJob[]>([]);
 
   const applyTick = useCallback((step: (prev: TicketView[]) => TicketView[]): void => {
     setTickets(step);
@@ -68,6 +70,12 @@ export const KitchenPage: React.FC = () => {
     setTickets((prev: TicketView[]): TicketView[] => prev.filter((t: TicketView): boolean => t.id !== ticket.id));
     setBumpedToday((n: number): number => n + 1);
     void message.success(`${ticket.kotLabel} bumped.`);
+  };
+
+  const reprint = (ticket: TicketView): void => {
+    const job = buildReprintJob(ticket);
+    setReprintLog((prev: ReprintJob[]): ReprintJob[] => [job, ...prev].slice(0, 5));
+    void message.success(`${ticket.kotLabel} re-queued for printing.`);
   };
 
   const inject = (): void => {
@@ -114,6 +122,25 @@ export const KitchenPage: React.FC = () => {
           </Col>
         </Row>
       </Card>
+      {reprintLog.length > 0 && (
+        <Card style={{ marginBottom: 16 }} size="small" title="Recent Reprints">
+          <List
+            size="small"
+            dataSource={reprintLog}
+            renderItem={(item: ReprintJob): React.ReactNode => (
+              <List.Item>
+                <Typography.Text type="secondary">
+                  {new Date(item.queuedAt).toLocaleTimeString()}
+                </Typography.Text>
+                {" - "}
+                <Typography.Text strong>{item.ticketId}</Typography.Text>
+                {" - "}
+                <Typography.Text>{item.payload_lines.length - 1} items</Typography.Text>
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
       {openCount === 0 ? (
         <Card>
           <PlinthEmptyState preset="no-kds-tickets" />
@@ -138,6 +165,7 @@ export const KitchenPage: React.FC = () => {
                     slaStatus={t.sla}
                     items={t.items}
                     onBump={(): void => bump(t)}
+                    onReprint={(): void => reprint(t)}
                   />
                 ))}
               </Col>
