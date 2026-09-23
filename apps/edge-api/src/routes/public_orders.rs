@@ -137,7 +137,7 @@ pub async fn submit_public_order<D>(mut req: Request, ctx: RouteContext<D>) -> R
 
     let ticket_id = uuid::Uuid::now_v7().to_string();
     let now_secs = chrono::Utc::now().timestamp();
-    let kot_number = (now_secs % 100_000) as i64;
+    let kot_number = now_secs % 100_000;
     let ticket_params: Vec<JsValue> = vec![
         ticket_id.clone().into(),
         order_id.clone().into(),
