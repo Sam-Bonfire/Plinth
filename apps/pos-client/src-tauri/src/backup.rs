@@ -109,7 +109,6 @@ mod tests {
     }
 }
 #[allow(clippy::cast_sign_loss)]
-
 #[cfg(test)]
 mod command_tests {
     use super::*;
