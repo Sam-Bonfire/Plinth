@@ -1,6 +1,6 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { StaffPage } from "./StaffPage.js";
 
 function renderPage(): void {
@@ -68,5 +68,49 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Shift lead duties")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     expect(await screen.findByText("Approved")).toBeDefined();
+  });
+
+  it("exports filtered audit log to CSV", async () => {
+    const mockCreateObjectUrl = vi.fn().mockReturnValue("blob:test-url");
+    const mockRevokeObjectUrl = vi.fn();
+    const mockClick = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const mockCreateElement = vi.spyOn(document, "createElement").mockImplementation((tag) => {
+      if (tag === "a") {
+        return {
+          href: "",
+          download: "",
+          click: mockClick,
+        } as unknown as HTMLAnchorElement;
+      }
+      return originalCreateElement(tag);
+    });
+
+    global.URL.createObjectURL = mockCreateObjectUrl;
+    global.URL.revokeObjectURL = mockRevokeObjectUrl;
+
+    renderPage();
+    await screen.findByText("Rajesh K");
+    fireEvent.click(screen.getByRole("tab", { name: "Audit Log" }));
+
+    // Filter to just Logins
+    fireEvent.mouseDown(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByText("Logins"));
+    expect(await screen.findByText("Login")).toBeDefined();
+
+    // Export
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+
+    expect(mockCreateObjectUrl).toHaveBeenCalled();
+    expect(mockClick).toHaveBeenCalled();
+    expect(mockRevokeObjectUrl).toHaveBeenCalledWith("blob:test-url");
+
+    // Ensure Blob contains only Logins
+    const blobArg = mockCreateObjectUrl.mock.calls[0][0] as Blob;
+    const csvContent = await blobArg.text();
+    expect(csvContent).toContain("PIN"); // value from the login row
+    expect(csvContent).not.toContain("Discount 10%");
+
+    mockCreateElement.mockRestore();
   });
 });
