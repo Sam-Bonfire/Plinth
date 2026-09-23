@@ -1,5 +1,6 @@
 import { Button, Card, Form, Input, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
+import { useBarcodeScanner } from "../hooks/useBarcodeScanner.js";
 import { useTauriIpc, type OrderLineItem } from "../hooks/useTauriIpc.js";
 import { usePosSession } from "../providers/PosProviders.js";
 import { selectItemCount, selectSubtotal, usePosCartStore, type CartLine } from "../stores/posCart.js";
@@ -19,6 +20,11 @@ export const CheckoutPage: React.FC = () => {
   const { submitOrder } = useTauriIpc();
   const [placing, setPlacing] = useState<boolean>(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [sku, setSku] = useState<string>("");
+
+  useBarcodeScanner((code: string) => {
+    setSku(code);
+  });
 
   const placeOrder = async (values: CheckoutForm): Promise<void> => {
     if (!session) {
@@ -75,14 +81,22 @@ export const CheckoutPage: React.FC = () => {
   return (
     <div>
       <Card title="Checkout" style={{ marginBottom: 16 }}>
-        <Space size="large">
-          <Typography.Text>
-            Items: <strong>{itemCount}</strong>
-          </Typography.Text>
-          <Typography.Text>
-            Subtotal: <strong>₹{subtotal}</strong>
-          </Typography.Text>
-          {orderId !== null && <Typography.Text type="success">Last order: {orderId}</Typography.Text>}
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Space size="large">
+            <Typography.Text>
+              Items: <strong>{itemCount}</strong>
+            </Typography.Text>
+            <Typography.Text>
+              Subtotal: <strong>₹{subtotal}</strong>
+            </Typography.Text>
+            {orderId !== null && <Typography.Text type="success">Last order: {orderId}</Typography.Text>}
+          </Space>
+          <Input
+            value={sku}
+            onChange={(e): void => setSku(e.target.value)}
+            placeholder="SKU/search field"
+            style={{ maxWidth: 300 }}
+          />
         </Space>
       </Card>
       <Card title="Outlet & Terminal">
