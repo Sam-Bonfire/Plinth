@@ -1,7 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { StaffPage } from "./StaffPage.js";
+import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
 
 function renderPage(): void {
   render(
@@ -10,6 +10,30 @@ function renderPage(): void {
     </PlinthThemeProvider>,
   );
 }
+
+describe("shiftHours", () => {
+  it("computes normal completed shifts correctly", () => {
+    const entries: AttendanceEntry[] = [
+      { key: "1", staffKey: "s1", name: "Bob", clockIn: new Date(1000 * 60 * 60).toISOString(), clockOut: new Date(1000 * 60 * 60 * 4).toISOString() }
+    ];
+    expect(shiftHours(entries)).toBe(3);
+  });
+
+  it("handles missing-out shifts by using nowMs", () => {
+    const entries: AttendanceEntry[] = [
+      { key: "1", staffKey: "s1", name: "Bob", clockIn: new Date(1000 * 60 * 60).toISOString(), clockOut: null }
+    ];
+    const now = 1000 * 60 * 60 * 5;
+    expect(shiftHours(entries, now)).toBe(4);
+  });
+
+  it("handles overnight/long shifts correctly", () => {
+    const entries: AttendanceEntry[] = [
+      { key: "1", staffKey: "s1", name: "Bob", clockIn: new Date(1000 * 60 * 60 * 20).toISOString(), clockOut: new Date(1000 * 60 * 60 * 26).toISOString() }
+    ];
+    expect(shiftHours(entries)).toBe(6);
+  });
+});
 
 describe("StaffPage", () => {
   it("renders the staff list with role badges", async () => {
@@ -112,5 +136,29 @@ describe("StaffPage", () => {
     expect(csvContent).not.toContain("Discount 10%");
 
     mockCreateElement.mockRestore();
+  });
+
+  it("handles clocking in and out via the Attendance tab", async () => {
+    renderPage();
+    await screen.findByText("Rajesh K");
+    fireEvent.click(screen.getByRole("tab", { name: "Attendance" }));
+    expect(await screen.findByText("Clock In / Clock Out")).toBeDefined();
+
+    const clockInButtons = screen.getAllByRole("button", { name: "Clock In" });
+    expect(clockInButtons.length).toBeGreaterThan(0);
+    const firstClockIn = clockInButtons[0] as HTMLButtonElement;
+    expect(firstClockIn.disabled).toBe(false);
+
+    fireEvent.click(firstClockIn);
+    expect(await screen.findByText(/clocked in/i)).toBeDefined();
+
+    // Now it should be disabled
+    expect(firstClockIn.disabled).toBe(true);
+
+    const clockOutButtons = screen.getAllByRole("button", { name: "Clock Out" });
+    const matchingClockOut = clockOutButtons[0] as HTMLButtonElement;
+
+    fireEvent.click(matchingClockOut);
+    expect(await screen.findByText(/clocked out/i)).toBeDefined();
   });
 });

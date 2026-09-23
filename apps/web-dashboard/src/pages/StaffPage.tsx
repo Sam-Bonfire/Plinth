@@ -29,6 +29,23 @@ interface AuditEntry {
   flag: "OK" | "Review";
 }
 
+export interface AttendanceEntry {
+  key: string;
+  staffKey: string;
+  name: string;
+  clockIn: string; // ISO string
+  clockOut: string | null; // ISO string or null if still clocked in
+}
+
+export function shiftHours(entries: AttendanceEntry[], nowMs: number = Date.now()): number {
+  return entries.reduce((total, entry) => {
+    const start = new Date(entry.clockIn).getTime();
+    const end = entry.clockOut ? new Date(entry.clockOut).getTime() : nowMs;
+    const diff = Math.max(0, end - start);
+    return total + diff / (1000 * 60 * 60);
+  }, 0);
+}
+
 interface StaffFormValues {
   name: string;
   role: Role;
@@ -88,6 +105,12 @@ const seedAudit = (): AuditEntry[] => [
   { key: "A-05", time: "10:20", actor: "Rajesh K", role: "Manager", action: "86 Gulab Jamun", kind: "Menu changes", target: "MI-006", value: "Unavailable", approvedBy: "Self", flag: "OK" },
 ];
 
+const seedAttendance = (): AttendanceEntry[] => [
+  { key: "ATT-01", staffKey: "ST-01", name: "Rajesh K", clockIn: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), clockOut: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }, // Normal completed shift (3 hours)
+  { key: "ATT-02", staffKey: "ST-02", name: "Meera S", clockIn: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), clockOut: null }, // Missing-out shift (clocked in 2 hours ago)
+  { key: "ATT-03", staffKey: "ST-03", name: "Arun V", clockIn: new Date(Date.now() - 14 * 60 * 60 * 1000).toISOString(), clockOut: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() }, // Overnight/long shift (8 hours)
+];
+
 const roleColor = (r: Role): string => (r === "Owner" ? "purple" : r === "Manager" ? "blue" : r === "Cashier" ? "green" : "orange");
 
 export const StaffPage: React.FC = () => {
@@ -100,6 +123,34 @@ export const StaffPage: React.FC = () => {
   const [escStaffKey, setEscStaffKey] = useState<string | null>(null);
   const [escRole, setEscRole] = useState<Role>("Manager");
   const [escReason, setEscReason] = useState<string>("");
+  const [attendanceEntries, setAttendanceEntries] = useState<AttendanceEntry[]>(seedAttendance);
+
+  const handleClockIn = (member: StaffMember): void => {
+    const entry: AttendanceEntry = {
+      key: `ATT-${Date.now()}`,
+      staffKey: member.key,
+      name: member.name,
+      clockIn: new Date().toISOString(),
+      clockOut: null,
+    };
+    setAttendanceEntries((prev) => [...prev, entry]);
+    void message.success(`${member.name} clocked in.`);
+  };
+
+  const handleClockOut = (member: StaffMember): void => {
+    setAttendanceEntries((prev) => {
+      const reversed = [...prev].reverse();
+      const index = reversed.findIndex(e => e.staffKey === member.key && e.clockOut === null);
+      if (index !== -1) {
+        const actualIndex = prev.length - 1 - index;
+        const newEntries = [...prev];
+        newEntries[actualIndex] = { ...newEntries[actualIndex], clockOut: new Date().toISOString() };
+        return newEntries;
+      }
+      return prev;
+    });
+    void message.success(`${member.name} clocked out.`);
+  };
 
   const auditRows = useMemo(
     (): AuditEntry[] => seedAudit().filter((a: AuditEntry): boolean => auditKind === "all" || a.kind === auditKind),
@@ -357,8 +408,64 @@ export const StaffPage: React.FC = () => {
             ),
           },
           {
+            key: "attendance",
+            label: "Attendance",
+            children: (
+              <Space direction="vertical" style={{ width: "100%" }} size="middle">
+                <Card title="Clock In / Clock Out">
+                  <Table<StaffMember>
+                    dataSource={staff}
+                    rowKey="key"
+                    pagination={false}
+                    size="small"
+                    columns={[
+                      { title: "Name", dataIndex: "name", key: "name", render: (n: string): React.ReactNode => <Typography.Text strong>{n}</Typography.Text> },
+                      { title: "Role", dataIndex: "role", key: "role", render: (r: Role): React.ReactNode => <Tag color={roleColor(r)}>{r}</Tag> },
+                      {
+                        title: "Action",
+                        key: "action",
+                        render: (_: unknown, row: StaffMember): React.ReactNode => {
+                          const isClockedIn = attendanceEntries.some(e => e.staffKey === row.key && e.clockOut === null);
+                          return (
+                            <Space>
+                              <Button size="small" type="primary" onClick={() => handleClockIn(row)} disabled={isClockedIn}>
+                                Clock In
+                              </Button>
+                              <Button size="small" danger onClick={() => handleClockOut(row)} disabled={!isClockedIn}>
+                                Clock Out
+                              </Button>
+                            </Space>
+                          );
+                        }
+                      }
+                    ]}
+                  />
+                </Card>
+                <Card title="Daily Attendance Log">
+                  <Table<AttendanceEntry>
+                    dataSource={attendanceEntries}
+                    rowKey="key"
+                    pagination={false}
+                    size="small"
+                    columns={[
+                      { title: "Staff", dataIndex: "name", key: "name", render: (n: string): React.ReactNode => <Typography.Text strong>{n}</Typography.Text> },
+                      { title: "Clock In", dataIndex: "clockIn", key: "clockIn", render: (v: string): string => new Date(v).toLocaleTimeString() },
+                      { title: "Clock Out", dataIndex: "clockOut", key: "clockOut", render: (v: string | null): string => v ? new Date(v).toLocaleTimeString() : "Active" },
+                      {
+                        title: "Hours",
+                        key: "hours",
+                        render: (_: unknown, row: AttendanceEntry): string => shiftHours([row]).toFixed(2)
+                      }
+                    ]}
+                  />
+                </Card>
+              </Space>
+            )
+          },
+          {
             key: "audit",
-            label: "Audit Log",            children: (
+            label: "Audit Log",
+            children: (
               <Card
                 title="Audit Log"
                 extra={
