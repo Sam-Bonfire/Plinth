@@ -36,6 +36,18 @@ interface StaffFormValues {
   status: StaffStatus;
 }
 
+type EscalationStatus = "Pending" | "Approved" | "Rejected";
+
+interface EscalationRequest {
+  key: string;
+  staffKey: string;
+  name: string;
+  fromRole: Role;
+  toRole: Role;
+  reason: string;
+  status: EscalationStatus;
+}
+
 const ROLES: Role[] = ["Owner", "Manager", "Cashier", "Kitchen"];
 const OUTLETS: string[] = ["Koramangala", "Indiranagar", "HSR Layout"];
 const CAPABILITIES: string[] = [
@@ -83,6 +95,10 @@ export const StaffPage: React.FC = () => {
   const [auditKind, setAuditKind] = useState<string>("all");
   const [editing, setEditing] = useState<StaffMember | "new" | null>(null);
   const [form] = Form.useForm<StaffFormValues>();
+  const [escalations, setEscalations] = useState<EscalationRequest[]>([]);
+  const [escStaffKey, setEscStaffKey] = useState<string | null>(null);
+  const [escRole, setEscRole] = useState<Role>("Manager");
+  const [escReason, setEscReason] = useState<string>("");
 
   const auditRows = useMemo(
     (): AuditEntry[] => seedAudit().filter((a: AuditEntry): boolean => auditKind === "all" || a.kind === auditKind),
@@ -117,6 +133,39 @@ export const StaffPage: React.FC = () => {
 
   const savePerms = (): void => {
     void message.success("Role permissions saved.");
+  };
+
+  const submitEscalation = (): void => {
+    const member = staff.find((m: StaffMember): boolean => m.key === escStaffKey);
+    if (!member || escReason.trim() === "" || member.role === escRole) {
+      return;
+    }
+    const req: EscalationRequest = {
+      key: `ESC-${escalations.length + 1}`,
+      staffKey: member.key,
+      name: member.name,
+      fromRole: member.role,
+      toRole: escRole,
+      reason: escReason.trim(),
+      status: "Pending",
+    };
+    setEscalations((prev: EscalationRequest[]): EscalationRequest[] => [...prev, req]);
+    setEscReason("");
+    void message.success(`Escalation requested for ${member.name}.`);
+  };
+
+  const resolveEscalation = (key: string, status: EscalationStatus): void => {
+    setEscalations((prev: EscalationRequest[]): EscalationRequest[] =>
+      prev.map((r: EscalationRequest): EscalationRequest => (r.key === key ? { ...r, status } : r)),
+    );
+    if (status === "Approved") {
+      const req = escalations.find((r: EscalationRequest): boolean => r.key === key);
+      if (req) {
+        setStaff((prev: StaffMember[]): StaffMember[] =>
+          prev.map((m: StaffMember): StaffMember => (m.key === req.staffKey ? { ...m, role: req.toRole } : m)),
+        );
+      }
+    }
   };
 
   const exportAudit = (): void => {
@@ -216,9 +265,90 @@ export const StaffPage: React.FC = () => {
             ),
           },
           {
-            key: "audit",
-            label: "Audit Log",
+            key: "escalations",
+            label: `Escalations${escalations.filter((r: EscalationRequest): boolean => r.status === "Pending").length > 0 ? ` (${escalations.filter((r: EscalationRequest): boolean => r.status === "Pending").length})` : ""}`,
             children: (
+              <Space direction="vertical" style={{ width: "100%" }} size="middle">
+                <Card title="Request Role Escalation">
+                  <Space wrap>
+                    <Select
+                      value={escStaffKey}
+                      onChange={(v): void => setEscStaffKey(v as string)}
+                      options={staff.map((m: StaffMember) => ({ label: `${m.name} · ${m.role}`, value: m.key }))}
+                      style={{ width: 220 }}
+                      placeholder="Select staff member"
+                    />
+                    <Select
+                      value={escRole}
+                      onChange={(v): void => setEscRole(v as Role)}
+                      options={ROLES.map((r: Role) => ({ label: r, value: r }))}
+                      style={{ width: 140 }}
+                      placeholder="Target role"
+                    />
+                    <Input
+                      value={escReason}
+                      onChange={(e): void => setEscReason(e.target.value)}
+                      placeholder="Reason for escalation…"
+                      style={{ width: 240 }}
+                    />
+                    <Button type="primary" size="small" onClick={submitEscalation}>
+                      Submit Request
+                    </Button>
+                  </Space>
+                </Card>
+                <Card title="Escalation Requests">
+                  <Table<EscalationRequest>
+                    dataSource={escalations}
+                    rowKey="key"
+                    pagination={false}
+                    size="small"
+                    locale={{ emptyText: "No escalation requests." }}
+                    columns={[
+                      { title: "Staff", dataIndex: "name", key: "name" },
+                      {
+                        title: "Change",
+                        key: "change",
+                        render: (_: unknown, row: EscalationRequest): React.ReactNode => (
+                          <Typography.Text>
+                            {row.fromRole} → {row.toRole}
+                          </Typography.Text>
+                        ),
+                      },
+                      { title: "Reason", dataIndex: "reason", key: "reason" },
+                      {
+                        title: "Status",
+                        dataIndex: "status",
+                        key: "status",
+                        width: 110,
+                        render: (s: EscalationStatus): React.ReactNode => (
+                          <Tag color={s === "Pending" ? "processing" : s === "Approved" ? "success" : "default"}>{s}</Tag>
+                        ),
+                      },
+                      {
+                        title: "Action",
+                        key: "action",
+                        width: 170,
+                        render: (_: unknown, row: EscalationRequest): React.ReactNode =>
+                          row.status === "Pending" ? (
+                            <Space>
+                              <Button size="small" type="primary" onClick={(): void => resolveEscalation(row.key, "Approved")}>
+                                Approve
+                              </Button>
+                              <Button size="small" danger onClick={(): void => resolveEscalation(row.key, "Rejected")}>
+                                Reject
+                              </Button>
+                            </Space>
+                          ) : null,
+                      },
+                    ]}
+                  />
+                </Card>
+              </Space>
+            ),
+          },
+          {
+            key: "audit",
+            label: "Audit Log",            children: (
               <Card
                 title="Audit Log"
                 extra={
