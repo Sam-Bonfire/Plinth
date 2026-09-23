@@ -111,6 +111,8 @@ mod tests {
         assert!(table_names.contains(&"refunds".to_string()));
         assert!(table_names.contains(&"webhook_endpoints".to_string()));
         assert!(table_names.contains(&"login_events".to_string()));
+        assert!(table_names.contains(&"mess_accounts".to_string()));
+        assert!(table_names.contains(&"mess_ledger_entries".to_string()));
 
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='index'")
@@ -125,6 +127,8 @@ mod tests {
         assert!(index_names.contains(&"idx_refunds_order_status".to_string()));
         assert!(index_names.contains(&"idx_login_events_tenant_time".to_string()));
         assert!(index_names.contains(&"idx_customers_tenant_phone".to_string()));
+        assert!(index_names.contains(&"idx_mess_accounts_tenant".to_string()));
+        assert!(index_names.contains(&"idx_mess_ledger_entries_account".to_string()));
     }
 
     #[test]
@@ -139,6 +143,20 @@ mod tests {
             .1;
         conn.execute_batch(fifth_sql)
             .expect("Failed idempotent rerun of 0005");
+    }
+
+    #[test]
+    fn test_mess_ledger_migration_idempotent() {
+        let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
+        run_all(&conn);
+        let all = all_migration_contents_sorted();
+        let sixth_sql = all
+            .iter()
+            .find(|(p, _)| p.contains("0006"))
+            .expect("Missing 0006")
+            .1;
+        conn.execute_batch(sixth_sql)
+            .expect("Failed idempotent rerun of 0006");
     }
 
     #[test]
