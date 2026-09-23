@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import type { OrderStatus } from "@plinth/ui-kit";
+import { useEffect } from "react";
 
 export function tickOrders<T extends { status: OrderStatus }>(
   orders: T[],

@@ -1,6 +1,6 @@
 import { mockActiveDineInOrder, mockAggregatorOrders, mockTakeawayOrder, type OrderStatus } from "@plinth/ui-kit";
 import { Button, Card, Empty, Input, Space, Steps, Typography } from "antd";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 export function statusToStep(status: OrderStatus): number {
   switch (status) {
