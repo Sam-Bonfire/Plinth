@@ -1,7 +1,8 @@
 #![deny(unsafe_code)]
 
 use edge_api::context::TenantContext;
-use edge_api::router::{build_router, ApiErrorResponse, HealthResponse};
+use edge_api::router::{build_router, ApiErrorResponse};
+use edge_api::routes::health::HealthResponseDto;
 
 #[test]
 fn test_api_error_response_structure() {
@@ -49,15 +50,18 @@ fn test_api_error_response_serialization() {
 
 #[test]
 fn test_health_response_serialization() {
-    let health = HealthResponse {
+    let health = HealthResponseDto {
         status: "ok".to_string(),
-        timestamp: 1_724_850_000,
         version: "0.1.0".to_string(),
+        uptime_secs: 100,
+        d1_reachable: true,
     };
 
     let serialized = serde_json::to_string(&health).unwrap();
     assert!(serialized.contains("\"status\":\"ok\""));
     assert!(serialized.contains("\"version\":\"0.1.0\""));
+    assert!(serialized.contains("\"uptime_secs\":100"));
+    assert!(serialized.contains("\"d1_reachable\":true"));
 }
 
 

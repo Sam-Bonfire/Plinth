@@ -11,14 +11,6 @@ pub struct ApiErrorResponse {
     pub request_id: String,
 }
 
-#[derive(Serialize, specta::Type)]
-pub struct HealthResponse {
-    pub status: String,
-    #[specta(type = f64)]
-    pub timestamp: i64,
-    pub version: String,
-}
-
 #[must_use]
 pub fn get_request_id(req: &Request) -> String {
     req.headers()
@@ -64,17 +56,8 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = crate::routes::eod::register(router);
     let router = crate::routes::reports::register(router);
     let router = crate::routes::ws::register(router);
-    router.get_async("/health", |req, _ctx| async move {
-            let request_id = get_request_id(&req);
-            let health = HealthResponse {
-                status: "ok".to_string(),
-                timestamp: worker::Date::now().as_millis() as i64,
-                version: env!("CARGO_PKG_VERSION").to_string(),
-            };
-            let mut resp = Response::from_json(&health)?;
-            resp.headers_mut().set("x-request-id", &request_id)?;
-            Ok(resp)
-        })
+    let router = crate::routes::health::register(router);
+    router
 }
 
 /// Apply CORS configuration to a response

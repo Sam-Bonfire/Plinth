@@ -43,7 +43,8 @@ use edge_api::dto::menu::{
 use edge_api::dto::order::{
     CreateLineItemDto, CreateOrderRequest, OrderResponseDto, OrderSummaryDto, PaginatedResponse,
 };
-use edge_api::router::{ApiErrorResponse, HealthResponse};
+use edge_api::router::{ApiErrorResponse};
+use edge_api::routes::health::HealthResponseDto;
 use edge_api::routes::audit::{AuditResponseDto, IngestAuditRequest};
 use edge_api::routes::auth::{LoginRequest, LoginResponse};
 use edge_api::routes::eod::{CloseShiftRequest, ZReportDto};
@@ -167,7 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     types.register::<SalesReportDto>();
     types.register::<ApiErrorResponse>();
-    types.register::<HealthResponse>();
+    types.register::<HealthResponseDto>();
 
     let mut output_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     output_path.pop(); // to apps
