@@ -78,8 +78,8 @@ mod tests {
 
     #[test]
     fn test_backup_filename() {
-        // 1609459200 is 2021-01-01 00:00:00 UTC
-        let filename = backup_filename(1609459200);
+        // 1_609_459_200 is 2021-01-01 00:00:00 UTC
+        let filename = backup_filename(1_609_459_200);
         assert_eq!(filename, "plinth-backup-20210101-000000.db");
     }
 
@@ -108,6 +108,7 @@ mod tests {
         assert!(pruned_keep_5.is_empty());
     }
 }
+#[allow(clippy::cast_sign_loss)]
 
 #[cfg(test)]
 mod command_tests {
@@ -127,7 +128,7 @@ mod command_tests {
 
         // Create 10 dummy old backups
         for i in 1..=10 {
-            let filename = format!("plinth-backup-20230101-0000{:02}.db", i);
+            let filename = format!("plinth-backup-20230101-0000{i:02}.db");
             File::create(temp_dir.join(&filename)).expect("create dummy backup");
         }
 
