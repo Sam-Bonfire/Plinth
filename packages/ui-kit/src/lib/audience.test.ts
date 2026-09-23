@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { segmentAudience, segmentCustomer, customersToCsv, streamCustomerCsv } from "./audience.js";
 import type { Customer } from "../stores/customerStore.js";
+import { segmentAudience, segmentCustomer, customersToCsv, streamCustomerCsv } from "./audience.js";
 
 function customer(overrides: Partial<Customer> = {}): Customer {
   return {
