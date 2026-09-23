@@ -108,6 +108,14 @@ define_id!(
     /// Identifier for a Customer
     CustomerId
 );
+define_id!(
+    /// Identifier for an Account in the Mess Ledger
+    AccountId
+);
+define_id!(
+    /// Identifier for an Entry in the Mess Ledger
+    MessEntryId
+);
 
 #[cfg(test)]
 mod tests {
