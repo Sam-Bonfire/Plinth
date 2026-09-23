@@ -106,6 +106,14 @@ run = "hurl --test tests/api/endpoints"
 description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787)"
 run = "hurl --test tests/api/e2e"
 
+[tasks."smoke:e2e"]
+description = "End-to-end system health check without live services (contracts format, domain tests, UI typecheck)"
+run = [
+    "node scripts/check-hurl.mjs",
+    "cargo test -p core-domain --lib",
+    "pnpm --filter @plinth/ui-kit build",
+]
+
 [tasks."api:endpoint"]
 description = "Inspect one endpoint spec file (usage: mise run api:endpoint -- <file.hurl>)"
 run = "hurl --verbose"
