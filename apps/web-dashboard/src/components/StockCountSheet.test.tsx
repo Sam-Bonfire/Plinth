@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { App } from "antd";
-import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { StockCountSheet, type StockCountIngredient } from "./StockCountSheet.js";
 

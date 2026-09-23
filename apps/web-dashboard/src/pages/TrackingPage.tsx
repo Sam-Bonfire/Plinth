@@ -50,7 +50,7 @@ export const TrackingPage: React.FC = () => {
   // Derived state to avoid useEffect synchronization anti-pattern
   const trackedOrder = orders.find((o) => o.id === searchedId) ?? null;
 
-  useTrackingTick((updater) => {
+  useTrackingTick<TrackedOrder>((updater) => {
     setOrders((prevOrders) => updater(prevOrders, NEXT_STATUS));
   });
 

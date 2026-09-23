@@ -1,6 +1,5 @@
 import { mockActiveDineInOrder } from "@plinth/ui-kit";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TrackingPage, statusToStep } from "./TrackingPage.js";
 

@@ -1,4 +1,4 @@
-import { BarChart, PlinthAvatar } from "@plinth/ui-kit";
+import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
 import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 
@@ -13,11 +13,6 @@ interface Customer {
   lastVisit: string;
   tier: Tier;
 }
-
-type FreqPoint = {
-  day: string;
-  visits: number;
-};
 
 interface CustomerFormValues {
   name: string;
@@ -64,15 +59,6 @@ const seedCustomers = (): Customer[] => [
   { key: "C-06", name: "Ananya Das", phone: "+91 97170 66778", orders: 1, spend: 340, lastVisit: "2 days ago", tier: "New" },
 ];
 
-const frequency: FreqPoint[] = [
-  { day: "Mon", visits: 96 },
-  { day: "Tue", visits: 104 },
-  { day: "Wed", visits: 118 },
-  { day: "Thu", visits: 122 },
-  { day: "Fri", visits: 164 },
-  { day: "Sat", visits: 201 },
-  { day: "Sun", visits: 187 },
-];
 
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -100,6 +86,8 @@ export const CustomersPage: React.FC = () => {
   const [messQuery, setMessQuery] = useState<string>("");
   const [topUpAccount, setTopUpAccount] = useState<MessAccount | null>(null);
   const [topUpForm] = Form.useForm<{ amount: number; memo: string }>();
+
+  const frequencyEntries = useMemo(() => customers.map(c => ({ visits: c.orders })), [customers]);
 
   const rows = useMemo((): Customer[] => {
     const q = query.trim().toLowerCase();
@@ -274,7 +262,7 @@ export const CustomersPage: React.FC = () => {
                       />
                     </Card>
                     <Card title="Visit Frequency">
-                      <BarChart data={frequency} xField="day" yField="visits" height={200} />
+                      <FrequencyChart entries={frequencyEntries} height={200} />
                     </Card>
                   </Col>
                 </Row>
