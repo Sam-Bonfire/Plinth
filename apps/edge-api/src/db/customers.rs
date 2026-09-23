@@ -33,7 +33,7 @@ pub fn parse_customer(value: &serde_json::Value) -> Result<CustomerRow, String> 
     let get = |key: &str| {
         value
             .get(key)
-            .and_then(|v| v.as_str())
+            .and_then(serde_json::Value::as_str)
             .map(String::from)
             .ok_or_else(|| format!("customers.{key} missing or not a string"))
     };
@@ -43,10 +43,10 @@ pub fn parse_customer(value: &serde_json::Value) -> Result<CustomerRow, String> 
         location_id: get("location_id")?,
         name: get("name")?,
         phone: get("phone")?,
-        email: value.get("email").and_then(|v| v.as_str()).map(String::from),
+        email: value.get("email").and_then(serde_json::Value::as_str).map(String::from),
         loyalty_points: value.get("loyalty_points").and_then(|v| v.as_i64()).unwrap_or(0),
         created_at: get("created_at")?,
-        deleted_at: value.get("deleted_at").and_then(|v| v.as_str()).map(String::from),
+        deleted_at: value.get("deleted_at").and_then(serde_json::Value::as_str).map(String::from),
     })
 }
 
@@ -58,14 +58,14 @@ pub fn parse_login_event(value: &serde_json::Value) -> Result<LoginEventRow, Str
     let get = |key: &str| {
         value
             .get(key)
-            .and_then(|v| v.as_str())
+            .and_then(serde_json::Value::as_str)
             .map(String::from)
             .ok_or_else(|| format!("login_events.{key} missing or not a string"))
     };
     Ok(LoginEventRow {
         id: get("id")?,
         tenant_id: get("tenant_id")?,
-        customer_id: value.get("customer_id").and_then(|v| v.as_str()).map(String::from),
+        customer_id: value.get("customer_id").and_then(serde_json::Value::as_str).map(String::from),
         channel: get("channel")?,
         success: value.get("success").and_then(|v| v.as_i64()).unwrap_or(1) != 0,
         occurred_at: get("occurred_at")?,
