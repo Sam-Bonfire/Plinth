@@ -1,5 +1,6 @@
 import { Card, Col, Row, Space, Statistic, Tag, Typography } from "antd";
 import React, { useMemo, useState } from "react";
+import { TableSession, TurnoverReport } from "../components/TurnoverReport";
 
 export type TableStatus = "Available" | "Occupied" | "Billing" | "Reserved";
 
@@ -22,6 +23,16 @@ const DEFAULT_TABLES: FloorTable[] = [
   { id: "T-4", label: "T-4", capacity: 4, status: "Billing", partySize: 4 },
   { id: "T-5", label: "T-5", capacity: 6, status: "Available", partySize: 0 },
   { id: "T-6", label: "T-6", capacity: 6, status: "Reserved", partySize: 0 },
+];
+
+const SEED_SESSIONS: TableSession[] = [
+  { table: "T-1", seatedAt_min: 0, clearedAt_min: 45, covers: 2 },
+  { table: "T-1", seatedAt_min: 60, clearedAt_min: 90, covers: 2 },
+  { table: "T-2", seatedAt_min: 15, clearedAt_min: null, covers: 2 },
+  { table: "T-3", seatedAt_min: 30, clearedAt_min: null, covers: 3 },
+  { table: "T-4", seatedAt_min: 10, clearedAt_min: null, covers: 4 },
+  { table: "T-5", seatedAt_min: 0, clearedAt_min: 60, covers: 5 },
+  { table: "T-6", seatedAt_min: 20, clearedAt_min: 80, covers: 6 },
 ];
 
 const NEXT_STATUS: Record<TableStatus, TableStatus> = {
@@ -89,6 +100,7 @@ export const TablesPage: React.FC<TablesPageProps> = ({ initialTables }: TablesP
           </Col>
         ))}
       </Row>
+      <TurnoverReport sessions={SEED_SESSIONS} totalTablesCount={tables.length} />
     </div>
   );
 };

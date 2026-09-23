@@ -1,19 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 import { describe, expect, it } from "vitest";
 import { TablesPage, advanceTableStatus } from "./TablesPage.js";
 
 describe("TablesPage", () => {
   it("renders tables with occupancy stats", async () => {
     render(<TablesPage />);
-    expect(await screen.findByText("T-1")).toBeDefined();
-    expect(await screen.findByText("T-6")).toBeDefined();
+    const headings = await screen.findAllByRole("heading", { level: 4 });
+    expect(headings.map((h) => h.textContent)).toContain("T-1");
+    expect(headings.map((h) => h.textContent)).toContain("T-6");
     expect(screen.getAllByText("Occupied").length).toBeGreaterThan(0);
   });
 
   it("advances status on click", async () => {
     render(<TablesPage />);
-    await screen.findByText("T-1");
-    const card = screen.getByText("T-1").closest(".ant-card") as HTMLElement;
+    const t1Heading = (await screen.findAllByRole("heading", { level: 4 })).find((el) => el.textContent === "T-1");
+    const card = t1Heading?.closest(".ant-card") as HTMLElement;
     fireEvent.click(card);
     expect(await screen.findAllByText("Occupied")).not.toHaveLength(0);
   });
