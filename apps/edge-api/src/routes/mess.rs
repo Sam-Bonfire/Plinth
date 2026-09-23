@@ -229,8 +229,8 @@ mod tests {
 
     #[test]
     fn test_balance_math() {
-        let credits = vec![1000, 500, 250];
-        let debits = vec![200, 150];
+        let credits = [1000_i64, 500, 250];
+        let debits = [200_i64, 150];
         let total_credits: i64 = credits.iter().sum();
         let total_debits: i64 = debits.iter().sum();
         let balance = total_credits - total_debits;
