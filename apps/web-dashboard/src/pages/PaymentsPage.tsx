@@ -43,6 +43,31 @@ const inr = (n: number): string =>
 
 const statusColor = (s: TxnStatus): string => (s === "Settled" ? "success" : s === "Pending" ? "processing" : "default");
 
+const escapeCsvField = (field: string | number): string => {
+  const str = String(field);
+  if (/[,"\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+export const buildPaymentsCsv = (rows: Txn[]): string => {
+  const header = ["date", "method", "amount", "status", "reference"];
+  const lines = [header.join(",")];
+  for (const r of rows) {
+    lines.push(
+      [
+        escapeCsvField(r.time),
+        escapeCsvField(r.method),
+        escapeCsvField(r.amount),
+        escapeCsvField(r.status),
+        escapeCsvField(r.id),
+      ].join(",")
+    );
+  }
+  return lines.join("\n");
+};
+
 export const PaymentsPage: React.FC = () => {
   const [txns, setTxns] = useState<Txn[]>(seedTxns);
   const [recon] = useState<ReconRow[]>(seedRecon);
@@ -99,7 +124,7 @@ export const PaymentsPage: React.FC = () => {
   };
 
   const exportCsv = (): void => {
-    const csv = ["txn,order,method,channel,amount,time,status", ...rows.map((t: Txn): string => [t.id, t.order, t.method, t.channel, t.amount, t.time, t.status].join(","))].join("\n");
+    const csv = buildPaymentsCsv(rows);
     if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
       const a = document.createElement("a");
