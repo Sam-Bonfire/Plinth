@@ -8,6 +8,7 @@ pub mod printing;
 pub mod repos;
 pub mod state;
 pub mod sync_daemon;
+pub mod window;
 
 use crate::state::AppContext;
 use tokio_util::sync::CancellationToken;
@@ -21,6 +22,7 @@ use tokio_util::sync::CancellationToken;
 pub fn run() {
     tauri::Builder::default()
         .manage(AppContext::default())
+        .manage(std::sync::Mutex::new(window::WindowMachine::new()))
         .invoke_handler(tauri::generate_handler![
             commands::orders::submit_order,
             commands::orders::get_active_orders,
@@ -32,6 +34,9 @@ pub fn run() {
             commands::service::authenticate_pin,
             commands::service::record_audit_event,
             commands::service::get_sync_status,
+            window::enter_kiosk,
+            window::exit_kiosk,
+            window::toggle_fullscreen,
         ])
         .setup(|_app| {
             // Setup cancellation token for graceful shutdown of background services
