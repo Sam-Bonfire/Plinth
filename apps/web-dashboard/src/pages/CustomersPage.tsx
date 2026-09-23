@@ -1,5 +1,5 @@
 import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
-import { Button, Card, Col, Descriptions, Form, Input, InputNumber, List, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
@@ -65,9 +65,18 @@ const inr = (n: number): string =>
 
 const tierColor = (t: Tier): string => (t === "Gold" ? "gold" : t === "Silver" ? "geekblue" : t === "Bronze" ? "orange" : "green");
 
+const activityFor = (c: Customer): { label: string; text: string }[] => [
+  { label: c.lastVisit, text: `Most recent visit • lifetime ${c.orders} visits` },
+  { label: "Lifetime", text: `Total spend ${inr(c.spend)} across ${c.orders} visits` },
+  { label: "Tier", text: `${c.tier} tier customer` },
+];
+
 export const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(seedCustomers);
   const [query, setQuery] = useState<string>("");
+  const [tierFilter, setTierFilter] = useState<string>("All");
+  const [minOrders, setMinOrders] = useState<number | null>(null);
+  const [minSpend, setMinSpend] = useState<number | null>(null);
   const [viewed, setViewed] = useState<Customer | null>(null);
   const [adding, setAdding] = useState<boolean>(false);
   const [form] = Form.useForm<CustomerFormValues>();
@@ -82,9 +91,14 @@ export const CustomersPage: React.FC = () => {
 
   const rows = useMemo((): Customer[] => {
     const q = query.trim().toLowerCase();
-    if (q === "") return customers;
-    return customers.filter((c: Customer): boolean => c.name.toLowerCase().includes(q) || c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")));
-  }, [customers, query]);
+    return customers.filter((c: Customer): boolean => {
+      if (q !== "" && !c.name.toLowerCase().includes(q) && !c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, ""))) return false;
+      if (tierFilter !== "All" && c.tier !== tierFilter) return false;
+      if (minOrders !== null && c.orders < minOrders) return false;
+      if (minSpend !== null && c.spend < minSpend) return false;
+      return true;
+    });
+  }, [customers, query, tierFilter, minOrders, minSpend]);
 
   const top = useMemo((): Customer[] => [...customers].sort((a: Customer, b: Customer): number => b.spend - a.spend).slice(0, 3), [customers]);
 
@@ -221,8 +235,11 @@ export const CustomersPage: React.FC = () => {
                     <Card
                       title="Customer Directory"
                       extra={
-                        <Space>
-                          <Input allowClear placeholder="Search by name/phone…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 220 }} />
+                        <Space wrap>
+                          <Input allowClear placeholder="Search by name/phone…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 180 }} />
+                          <Segmented options={["All", "Gold", "Silver", "Bronze", "New"]} value={tierFilter} onChange={(v: string | number): void => setTierFilter(v.toString())} size="small" />
+                          <InputNumber placeholder="Min orders" value={minOrders} onChange={(v: number | null): void => setMinOrders(v)} style={{ width: 110 }} size="small" min={0} />
+                          <InputNumber placeholder="Min spend ₹" value={minSpend} onChange={(v: number | null): void => setMinSpend(v)} style={{ width: 120 }} size="small" min={0} />
                           <Button size="small" type="primary" onClick={openAdd}>
                             + Add
                           </Button>
@@ -278,17 +295,21 @@ export const CustomersPage: React.FC = () => {
         ]}
       />
 
-      <Modal title={viewed?.name ?? "Customer"} open={viewed !== null} onCancel={(): void => setViewed(null)} footer={null}>
+      <Drawer title={viewed?.name ?? "Customer"} open={viewed !== null} onClose={(): void => setViewed(null)} width={380}>
         {viewed !== null && (
-          <Descriptions size="small" column={2}>
-            <Descriptions.Item label="Phone">{viewed.phone}</Descriptions.Item>
-            <Descriptions.Item label="Tier">{viewed.tier}</Descriptions.Item>
-            <Descriptions.Item label="Orders">{viewed.orders}</Descriptions.Item>
-            <Descriptions.Item label="Total Spend">{inr(viewed.spend)}</Descriptions.Item>
-            <Descriptions.Item label="Last Visit">{viewed.lastVisit}</Descriptions.Item>
-          </Descriptions>
+          <>
+            <Descriptions size="small" column={2} style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Phone">{viewed.phone}</Descriptions.Item>
+              <Descriptions.Item label="Tier">{viewed.tier}</Descriptions.Item>
+              <Descriptions.Item label="Orders">{viewed.orders}</Descriptions.Item>
+              <Descriptions.Item label="Total Spend">{inr(viewed.spend)}</Descriptions.Item>
+              <Descriptions.Item label="Last Visit">{viewed.lastVisit}</Descriptions.Item>
+            </Descriptions>
+            <Typography.Title level={5}>Activity Timeline</Typography.Title>
+            <Timeline items={activityFor(viewed).map((a: { label: string; text: string }): { label: string; children: string } => ({ label: a.label, children: a.text }))} />
+          </>
         )}
-      </Modal>
+      </Drawer>
 
       <Modal title="Add Customer" open={adding} onOk={(): void => { void form.submit(); }} onCancel={(): void => setAdding(false)} okText="Add">
         <Form form={form} layout="vertical" onFinish={saveAdded} preserve={false}>

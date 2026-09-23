@@ -17,3 +17,5 @@ pub mod ws;
 
 
 pub mod customer_auth;
+
+pub mod mess;

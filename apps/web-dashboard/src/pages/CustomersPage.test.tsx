@@ -112,11 +112,25 @@ describe("CustomersPage", () => {
     expect(await screen.findByText("Kiran Bose")).toBeDefined();
   });
 
-  it("opens the customer detail modal", async () => {
+  it("opens the customer profile drawer with activity timeline", async () => {
     renderPage();
     await screen.findByText("Vikram Rao");
     const views = screen.getAllByRole("button", { name: "View" });
     fireEvent.click(views[0] as HTMLElement);
     expect((await screen.findAllByText("+91 98200 11223")).length).toBe(2);
+    expect(await screen.findByText("Activity Timeline")).toBeDefined();
+    expect(await screen.findByText(/Most recent visit/)).toBeDefined();
+  });
+
+  it("filters the directory by tier and minimums", async () => {
+    renderPage();
+    await screen.findByText("Vikram Rao");
+    fireEvent.click(screen.getByRole("radio", { name: "Gold" }));
+    expect((await screen.findAllByText("Aarav Sharma")).length).toBe(2);
+    expect(screen.queryByText("Vikram Rao")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("Min orders"), { target: { value: 40 } });
+    // Priya (36 orders) drops out of the table but stays in the unfiltered Top list
+    expect((await screen.findAllByText("Priya Nair")).length).toBe(1);
+    expect((await screen.findAllByText("Aarav Sharma")).length).toBe(2);
   });
 });

@@ -1,6 +1,8 @@
 import { mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
-import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Typography, message } from "antd";
+import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Tooltip, Typography, message } from "antd";
 import React, { useMemo, useState } from "react";
+import { type ParsedItem } from "../components/MenuCsvUtils.js";
+import { MenuCsvWizard } from "../components/MenuCsvWizard.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 interface ItemFormValues {
@@ -13,21 +15,48 @@ interface ItemFormValues {
 
 let itemSeq = 100;
 
+export type MenuItemWithDeps = MenuItem & { blockedBy?: string[] };
+
+
+
+
+export const DeleteConfirm: React.FC<{ itemName: string; onConfirm: () => void; blockedBy?: string[] }> = ({ itemName, onConfirm, blockedBy }) => {
+  if (blockedBy && blockedBy.length > 0) {
+    return (
+      <Tooltip title={`Cannot delete: active references (${blockedBy.join(", ")})`}>
+        <span>
+          <Button size="small" danger disabled>
+            Delete
+          </Button>
+        </span>
+      </Tooltip>
+    );
+  }
+  return (
+    <Popconfirm title={`Delete ${itemName}?`} okText="Yes" cancelText="No" onConfirm={onConfirm}>
+      <Button size="small" danger>
+        Delete
+      </Button>
+    </Popconfirm>
+  );
+};
+
 export const MenuPage: React.FC = () => {
-  const [items, setItems] = useState<MenuItem[]>(mockMenuItems);
+  const [items, setItems] = useState<MenuItemWithDeps[]>(mockMenuItems as MenuItemWithDeps[]);
   const [cats, setCats] = useState<MenuCategory[]>(mockCategories);
   const [selCat, setSelCat] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [catOpen, setCatOpen] = useState<boolean>(false);
   const [catName, setCatName] = useState<string>("");
+  const [wizardOpen, setWizardOpen] = useState<boolean>(false);
   const [form] = Form.useForm<ItemFormValues>();
   const { client } = useAuth();
   const [syncing, setSyncing] = useState<boolean>(false);
 
-  const visible = useMemo((): MenuItem[] => {
+  const visible = useMemo((): MenuItemWithDeps[] => {
     const q = query.trim().toLowerCase();
-    return items.filter((i: MenuItem): boolean => {
+    return items.filter((i: MenuItemWithDeps): boolean => {
       if (selCat !== "all" && i.categoryId !== selCat) return false;
       if (q !== "" && !i.name.toLowerCase().includes(q)) return false;
       return true;
@@ -38,7 +67,7 @@ export const MenuPage: React.FC = () => {
   const selCatName = selCat === "all" ? "All Items" : catNameOf(selCat);
 
   const toggleAvail = (id: string, avail: boolean): void => {
-    setItems((prev: MenuItem[]): MenuItem[] => prev.map((i: MenuItem): MenuItem => (i.id === id ? { ...i, isAvailable: avail } : i)));
+    setItems((prev: MenuItemWithDeps[]): MenuItemWithDeps[] => prev.map((i: MenuItemWithDeps): MenuItemWithDeps => (i.id === id ? { ...i, isAvailable: avail } : i)));
   };
 
   const openAdd = (): void => {
@@ -46,7 +75,7 @@ export const MenuPage: React.FC = () => {
     setEditingId("new");
   };
 
-  const openEdit = (item: MenuItem): void => {
+  const openEdit = (item: MenuItemWithDeps): void => {
     form.setFieldsValue({ name: item.name, price: item.price, categoryId: item.categoryId, isVeg: item.isVeg, isAvailable: item.isAvailable });
     setEditingId(item.id);
   };
@@ -54,20 +83,20 @@ export const MenuPage: React.FC = () => {
   const saveItem = (values: ItemFormValues): void => {
     if (editingId === "new") {
       itemSeq += 1;
-      setItems((prev: MenuItem[]): MenuItem[] => [
+      setItems((prev: MenuItemWithDeps[]): MenuItemWithDeps[] => [
         ...prev,
         { id: `MI-${itemSeq}`, gstRate: 5, modifierGroups: [], ...values },
       ]);
       void message.success(`Menu item ${values.name} added.`);
     } else {
-      setItems((prev: MenuItem[]): MenuItem[] => prev.map((i: MenuItem): MenuItem => (i.id === editingId ? { ...i, ...values } : i)));
+      setItems((prev: MenuItemWithDeps[]): MenuItemWithDeps[] => prev.map((i: MenuItemWithDeps): MenuItemWithDeps => (i.id === editingId ? { ...i, ...values } : i)));
       void message.success(`Menu item ${values.name} updated.`);
     }
     setEditingId(null);
   };
 
-  const deleteItem = (item: MenuItem): void => {
-    setItems((prev: MenuItem[]): MenuItem[] => prev.filter((i: MenuItem): boolean => i.id !== item.id));
+  const deleteItem = (item: MenuItemWithDeps): void => {
+    setItems((prev: MenuItemWithDeps[]): MenuItemWithDeps[] => prev.filter((i: MenuItemWithDeps): boolean => i.id !== item.id));
     void message.success(`Menu item ${item.name} deleted.`);
   };
 
@@ -79,6 +108,38 @@ export const MenuPage: React.FC = () => {
     setCatName("");
     setCatOpen(false);
     void message.success(`Category ${name} added.`);
+  };
+
+  const handleImport = (parsedItems: ParsedItem[]): void => {
+    setItems((prev: MenuItem[]) => {
+      const next = [...prev];
+      let updated = 0;
+      let added = 0;
+
+      for (const pi of parsedItems) {
+        const idx = next.findIndex((i) => i.id === pi.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], name: pi.name, price: pi.price, categoryId: pi.categoryId, isAvailable: pi.isAvailable } as MenuItem;
+          updated++;
+        } else {
+          // Add new item with defaults
+          next.push({
+            id: pi.id,
+            name: pi.name,
+            price: pi.price,
+            categoryId: pi.categoryId,
+            isAvailable: pi.isAvailable,
+            gstRate: 5,
+            isVeg: true,
+            modifierGroups: [],
+          });
+          added++;
+        }
+      }
+
+      void message.success(`Import complete. Updated: ${updated}, Added: ${added}`);
+      return next;
+    });
   };
 
   const sync = (): void => {
@@ -110,7 +171,7 @@ export const MenuPage: React.FC = () => {
                 All Items · {items.length}
               </Button>
               {cats.map((c: MenuCategory): React.ReactNode => {
-                const count = items.filter((i: MenuItem): boolean => i.categoryId === c.id).length;
+                const count = items.filter((i: MenuItemWithDeps): boolean => i.categoryId === c.id).length;
                 return (
                   <Button key={c.id} block type={selCat === c.id ? "primary" : "text"} onClick={(): void => setSelCat(c.id)}>
                     {c.name} · {count}
@@ -133,6 +194,9 @@ export const MenuPage: React.FC = () => {
                 <Button size="small" onClick={sync} loading={syncing}>
                   Sync
                 </Button>
+                <Button size="small" onClick={() => setWizardOpen(true)}>
+                  Import / Export CSV
+                </Button>
                 <Button size="small" type="primary" onClick={openAdd}>
                   + Add Item
                 </Button>
@@ -142,7 +206,7 @@ export const MenuPage: React.FC = () => {
             <List
               dataSource={visible}
               locale={{ emptyText: "No items in this category." }}
-              renderItem={(item: MenuItem): React.ReactNode => (
+              renderItem={(item: MenuItemWithDeps): React.ReactNode => (
                 <List.Item
                   actions={[
                     <Switch
@@ -155,11 +219,7 @@ export const MenuPage: React.FC = () => {
                     <Button key="edit" size="small" onClick={(): void => openEdit(item)}>
                       Edit
                     </Button>,
-                    <Popconfirm key="del" title={`Delete ${item.name}?`} okText="Yes" cancelText="No" onConfirm={(): void => deleteItem(item)}>
-                      <Button size="small" danger>
-                        Delete
-                      </Button>
-                    </Popconfirm>,
+                    <DeleteConfirm key="del" itemName={item.name} onConfirm={(): void => deleteItem(item)} blockedBy={item.blockedBy} />,
                   ]}
                 >
                   <List.Item.Meta
@@ -204,6 +264,13 @@ export const MenuPage: React.FC = () => {
       <Modal title="Add Category" open={catOpen} onOk={addCategory} onCancel={(): void => setCatOpen(false)} okText="Add">
         <Input placeholder="Category name" value={catName} onChange={(e): void => setCatName(e.target.value)} />
       </Modal>
+
+      <MenuCsvWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        items={items}
+        onImport={handleImport}
+      />
     </div>
   );
 };
