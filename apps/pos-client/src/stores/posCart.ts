@@ -1,4 +1,4 @@
-import type { MenuItem } from '@plinth/ui-kit/src/fixtures/menu';
+import type { MenuItem } from '@plinth/ui-kit';
 import { create } from 'zustand';
 
 export interface CartLine {
@@ -39,7 +39,7 @@ export const usePosCartStore = create<PosCartState>((set) => ({
         return { ok: false, reason: `Missing required modifier: ${group.name}` };
       }
 
-      const option = group.options.find(o => o.name === selectedOptionName);
+      const option = group.options.find((o: { name: string; price?: number }) => o.name === selectedOptionName);
       if (option) {
         modifiers.push(option.name);
         if (option.price !== undefined) {

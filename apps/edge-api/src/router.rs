@@ -60,6 +60,7 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = crate::routes::public_menu::register(router);
     let router = crate::routes::public_orders::register(router);
     let router = crate::routes::audit::register(router);
+    let router = crate::routes::mess::register(router);
     let router = crate::routes::eod::register(router);
     let router = crate::routes::reports::register(router);
     let router = crate::routes::ws::register(router);

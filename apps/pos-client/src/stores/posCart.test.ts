@@ -1,4 +1,4 @@
-import type { MenuItem } from '@plinth/ui-kit/src/fixtures/menu';
+import type { MenuItem } from '@plinth/ui-kit';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { usePosCartStore, selectSubtotal, selectItemCount } from './posCart';
 
