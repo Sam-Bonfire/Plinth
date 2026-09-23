@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+pub mod middleware;
 
 pub mod routes;
 pub mod db;
@@ -13,6 +14,9 @@ pub use durable_objects::sync_room::LocationSyncRoom;
 use worker::{event, Request, Env, Result, Response, Method};
 use router::{build_router, apply_cors, json_error, get_request_id};
 use core_domain::enums::staff::Permissions;
+use std::sync::OnceLock;
+
+static RATE_LIMITER: OnceLock<middleware::rate_limit::RateLimiter> = OnceLock::new();
 
 /// Cloudflare Worker entry point
 ///
@@ -32,6 +36,19 @@ pub async fn fetch(
     let request_id = get_request_id(&req);
 
     let path = req.path();
+
+    if path.starts_with("/api/v1/auth") || path.starts_with("/api/v1/public") {
+        let limiter = RATE_LIMITER.get_or_init(|| middleware::rate_limit::RateLimiter::new(100, 60));
+
+        let ip = req.headers().get("cf-connecting-ip").ok().flatten().unwrap_or_else(|| "unknown".to_string());
+
+        let now_secs = worker::Date::now().as_millis() / 1000;
+
+        if !limiter.allow(&ip, now_secs) {
+            let err_resp = json_error("Too Many Requests", "RATE_LIMITED", &request_id, 429)?;
+            return apply_cors(err_resp);
+        }
+    }
 
     let mut auth_context = None;
 
