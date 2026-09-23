@@ -12,3 +12,6 @@ export type { LineChartProps } from "./LineChart.js";
 
 export { VarianceChart, toVarianceRows, varianceTotal } from "./VarianceChart.js";
 export type { VarianceChartProps, VarianceEntry, VarianceRow } from "./VarianceChart.js";
+
+export { FrequencyChart, toFrequencyRows } from "./FrequencyChart.js";
+export type { FrequencyChartProps, FrequencyEntry, FrequencyRow } from "./FrequencyChart.js";
