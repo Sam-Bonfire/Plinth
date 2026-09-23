@@ -1,6 +1,7 @@
 import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { buildAuditCsv } from "../lib/auditExport.js";
+import { loadRoleMatrix, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
 type StaffStatus = "Active" | "Off duty";
@@ -115,7 +116,7 @@ const roleColor = (r: Role): string => (r === "Owner" ? "purple" : r === "Manage
 
 export const StaffPage: React.FC = () => {
   const [staff, setStaff] = useState<StaffMember[]>(seedStaff);
-  const [perms, setPerms] = useState<Record<string, Record<Role, boolean>>>(seedPerms);
+  const [perms, setPerms] = useState<Record<string, Record<Role, boolean>>>(() => loadRoleMatrix(seedPerms()) as Record<string, Record<Role, boolean>>);
   const [auditKind, setAuditKind] = useState<string>("all");
   const [editing, setEditing] = useState<StaffMember | "new" | null>(null);
   const [form] = Form.useForm<StaffFormValues>();
@@ -184,7 +185,13 @@ export const StaffPage: React.FC = () => {
   };
 
   const savePerms = (): void => {
+    saveRoleMatrix(perms);
     void message.success("Role permissions saved.");
+  };
+
+  const syncTerminals = (): void => {
+    const depth = queueTerminalSync(perms);
+    void message.success(`Matrix queued for terminal sync (${depth} pending).`);
   };
 
   const submitEscalation = (): void => {
@@ -314,7 +321,19 @@ export const StaffPage: React.FC = () => {
             key: "perms",
             label: "Permissions",
             children: (
-              <Card title="Role Permissions Matrix" extra={<Button size="small" onClick={savePerms}>Save Changes</Button>}>
+              <Card
+                title="Role Permissions Matrix"
+                extra={
+                  <Space>
+                    <Button size="small" onClick={syncTerminals}>
+                      Sync to Terminals
+                    </Button>
+                    <Button size="small" onClick={savePerms}>
+                      Save Changes
+                    </Button>
+                  </Space>
+                }
+              >
                 <Table<{ key: string; capability: string }>
                   dataSource={CAPABILITIES.map((c: string) => ({ key: c, capability: c }))}
                   columns={permColumns}
