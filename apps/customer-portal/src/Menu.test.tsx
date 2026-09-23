@@ -34,8 +34,8 @@ describe('Menu', () => {
   });
 
   it('renders loading state initially', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    global.fetch = vi.fn(() => new Promise(() => {})) as any;
+    // @ts-expect-error Mocking fetch globally
+    global.fetch = vi.fn(() => new Promise(() => {}));
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
         <Menu />
@@ -59,8 +59,8 @@ describe('Menu', () => {
   });
 
   it('renders error on fetch failure', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    global.fetch = vi.fn(() => Promise.reject(new Error('Network error'))) as any;
+    // @ts-expect-error Mocking fetch globally
+    global.fetch = vi.fn(() => Promise.reject(new Error('Network error')));
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
         <Menu />
@@ -73,13 +73,13 @@ describe('Menu', () => {
   });
 
   it('renders items from mocked fetch', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // @ts-expect-error Mocking fetch globally
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockCatalog),
       })
-    ) as any;
+    );
 
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
