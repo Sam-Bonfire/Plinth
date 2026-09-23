@@ -54,6 +54,8 @@ pub struct Customer {
     pub visits: u32,
     /// Lifetime spend
     pub total_spend: Money,
+    /// Loyalty points: 1 per whole currency unit of 10 spent.
+    pub loyalty_points: u32,
     /// Whether the profile is active
     pub is_active: bool,
 }
@@ -113,6 +115,7 @@ impl Customer {
             tier: CustomerTier::Regular,
             visits: 0,
             total_spend: Money::zero(currency),
+            loyalty_points: 0,
             is_active: true,
         })
     }
@@ -134,6 +137,19 @@ impl Customer {
             currency: self.total_spend.currency,
         };
         Ok(())
+    }
+
+    /// Records a completed order: accumulates the visit and awards loyalty
+    /// points (1 per whole 10 units of spend, fractions truncated).
+    /// Returns the points earned by this order.
+    ///
+    /// # Errors
+    /// Returns [`CustomerError`] if the spend is negative or currency differs.
+    pub fn record_order(&mut self, spend: &Money) -> Result<u32, CustomerError> {
+        self.record_visit(spend)?;
+        let earned = u32::try_from((spend.amount / Decimal::new(10, 0)).trunc()).unwrap_or(u32::MAX);
+        self.loyalty_points = self.loyalty_points.saturating_add(earned);
+        Ok(earned)
     }
 
     /// Deactivates the profile. Identity data is retained for audit.
@@ -241,5 +257,30 @@ mod tests {
         c.deactivate();
         assert!(!c.is_active);
         assert_eq!(c.name, "Asha Rao");
+    }
+
+    #[test]
+    fn record_order_accrues_visits_spend_and_points() {
+        let mut c = customer();
+        let spend = Money {
+            amount: Decimal::new(525, 0),
+            currency: Currency::Inr,
+        };
+        assert_eq!(c.record_order(&spend), Ok(52));
+        assert_eq!(c.visits, 1);
+        assert_eq!(c.total_spend.amount, Decimal::new(525, 0));
+        assert_eq!(c.loyalty_points, 52);
+    }
+
+    #[test]
+    fn record_order_rejects_bad_spend_without_side_effects() {
+        let mut c = customer();
+        let bad = Money {
+            amount: Decimal::new(-10, 0),
+            currency: Currency::Inr,
+        };
+        assert_eq!(c.record_order(&bad), Err(CustomerError::NegativeSpend));
+        assert_eq!(c.visits, 0);
+        assert_eq!(c.loyalty_points, 0);
     }
 }
