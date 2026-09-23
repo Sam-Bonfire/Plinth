@@ -14,6 +14,7 @@ interface RouteMeta {
 const ROUTE_META: Record<string, RouteMeta> = {
   "/pos": { title: "POS — Order Entry", sub: "Dine-in and takeaway order entry" },
   "/orders": { title: "Orders", sub: "Live order pipeline" },
+  "/tracking": { title: "Live Tracking", sub: "Order status tracking" },
   "/kitchen": { title: "Kitchen", sub: "KDS tickets by station" },
   "/payments": { title: "Payments", sub: "Tenders, recon and payouts" },
   "/menu": { title: "Menu Management", sub: "Catalog, categories and 86 status" },
@@ -41,6 +42,7 @@ const navItems: MenuProps["items"] = [
     children: [
       { key: "/pos", label: "POS" },
       { key: "/orders", label: "Orders" },
+      { key: "/tracking", label: "Tracking" },
       { key: "/kitchen", label: "Kitchen" },
       { key: "/payments", label: "Payments" },
     ],
