@@ -1,6 +1,6 @@
-import { PlinthEmptyState, useUiStore } from "@plinth/ui-kit";
+import { PlinthEmptyState, usePlinthTheme, useUiStore } from "@plinth/ui-kit";
 import { Badge, Button, Layout, Menu, Modal, Space, Tag, Typography, type MenuProps } from "antd";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../providers/AuthProvider.js";
 
@@ -76,9 +76,14 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
   const { sidebarCollapsed, setSidebarCollapsed } = useUiStore();
+  const { isDark, toggleTheme } = usePlinthTheme();
   const [outletIndex, setOutletIndex] = useState<number>(0);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [eodOpen, setEodOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem("plinth-theme", isDark ? "dark" : "light");
+  }, [isDark]);
 
   const meta: RouteMeta = ROUTE_META[location.pathname] ?? DEFAULT_META;
 
@@ -120,9 +125,25 @@ export const AppLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
+      {isDark && (
+        <style>
+          {`
+            :root {
+              --bg: #0d110e;
+              --acc: #ffffff;
+              --s1: #1f2923;
+              --s2: #2a362e;
+              --s3: #37473b;
+              --s4: #435849;
+              --s5: #506857;
+              --b1: rgba(255, 255, 255, 0.12);
+            }
+          `}
+        </style>
+      )}
       <Sider
         width={210}
-        theme="light"
+        theme={isDark ? "dark" : "light"}
         collapsible
         collapsed={sidebarCollapsed}
         onCollapse={handleCollapse}
@@ -130,7 +151,7 @@ export const AppLayout: React.FC = () => {
         style={{ borderRight: "1px solid var(--b1)" }}
       >
         <div style={{ height: 32, margin: 16, fontWeight: 600 }}>PlinthOS</div>
-        <Menu theme="light" mode="inline" selectedKeys={[location.pathname]} items={navItems} onClick={handleNavigate} />
+        <Menu theme={isDark ? "dark" : "light"} mode="inline" selectedKeys={[location.pathname]} items={navItems} onClick={handleNavigate} />
         <div style={{ padding: 12, borderTop: "1px solid var(--b1)", marginTop: "auto" }}>
           <Button block onClick={cycleOutlet} icon={<Badge status={isOnline ? "success" : "warning"} />}>
             {OUTLETS[outletIndex]}
@@ -159,6 +180,9 @@ export const AppLayout: React.FC = () => {
           </div>
           <Space>
             {isOnline ? <Tag color="success">All systems live</Tag> : <Tag color="warning">Offline mode</Tag>}
+            <Button size="small" onClick={toggleTheme}>
+              {isDark ? "Light Mode" : "Dark Mode"}
+            </Button>
             <Button size="small" onClick={toggleOnline}>
               {isOnline ? "Simulate Offline" : "Go Online"}
             </Button>

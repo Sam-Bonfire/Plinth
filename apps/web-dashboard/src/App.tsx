@@ -5,8 +5,10 @@ import { AuthProvider } from "./providers/AuthProvider.js";
 import { router } from "./router.js";
 
 const App: React.FC = () => {
+  const defaultIsDark = localStorage.getItem("plinth-theme") === "dark";
+
   return (
-    <PlinthThemeProvider>
+    <PlinthThemeProvider defaultIsDark={defaultIsDark}>
       <LinguiProvider>
         <AuthProvider>
           <RouterProvider router={router} />
