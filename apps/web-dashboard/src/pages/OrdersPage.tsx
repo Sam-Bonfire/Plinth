@@ -10,6 +10,7 @@ import {
 } from "@plinth/ui-kit";
 import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
 import { RiderPickupModal } from "../components/RiderPickupModal.js";
 
 interface OrderRow {
@@ -87,6 +88,7 @@ export const OrdersPage: React.FC = () => {
   const [query, setQuery] = useState<string>("");
   const [viewed, setViewed] = useState<OrderRow | null>(null);
   const [pickupOrder, setPickupOrder] = useState<OrderRow | null>(null);
+  const [previewOrder, setPreviewOrder] = useState<OrderProp | null>(null);
 
   const rows = useMemo((): OrderRow[] => {
     const q = query.trim().toLowerCase();
@@ -172,6 +174,25 @@ export const OrdersPage: React.FC = () => {
           <Button size="small" onClick={(): void => setViewed(row)}>
             View
           </Button>
+          <Button
+            size="small"
+            onClick={(): void => {
+              setPreviewOrder({
+                store_name: "Plinth Store",
+                lines: row.items.map((item) => ({
+                  name: item.name,
+                  qty: item.quantity,
+                  price_minor: Math.round(item.price * 100),
+                })),
+                tax_minor: Math.round(row.total * 0.05 * 100), // mock 5% tax or calculate as needed
+                total_minor: Math.round(row.total * 100),
+                txn_id: row.id,
+                timestamp: row.placedAt,
+              });
+            }}
+          >
+            Preview
+          </Button>
           {(row.channel === "Swiggy" || row.channel === "Zomato") && (
             <Button size="small" onClick={(): void => setPickupOrder(row)}>
               Pickup
@@ -235,6 +256,7 @@ export const OrdersPage: React.FC = () => {
           platform={pickupOrder.channel as "Swiggy" | "Zomato"}
         />
       )}
+      <ReceiptPreview order={previewOrder} onClose={(): void => setPreviewOrder(null)} />
     </div>
   );
 };
