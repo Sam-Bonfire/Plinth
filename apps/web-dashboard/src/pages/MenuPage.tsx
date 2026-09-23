@@ -1,6 +1,8 @@
 import { mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Typography, message } from "antd";
 import React, { useMemo, useState } from "react";
+import { type ParsedItem } from "../components/MenuCsvUtils.js";
+import { MenuCsvWizard } from "../components/MenuCsvWizard.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 interface ItemFormValues {
@@ -21,6 +23,7 @@ export const MenuPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [catOpen, setCatOpen] = useState<boolean>(false);
   const [catName, setCatName] = useState<string>("");
+  const [wizardOpen, setWizardOpen] = useState<boolean>(false);
   const [form] = Form.useForm<ItemFormValues>();
   const { client } = useAuth();
   const [syncing, setSyncing] = useState<boolean>(false);
@@ -81,6 +84,38 @@ export const MenuPage: React.FC = () => {
     void message.success(`Category ${name} added.`);
   };
 
+  const handleImport = (parsedItems: ParsedItem[]): void => {
+    setItems((prev: MenuItem[]) => {
+      const next = [...prev];
+      let updated = 0;
+      let added = 0;
+
+      for (const pi of parsedItems) {
+        const idx = next.findIndex((i) => i.id === pi.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], name: pi.name, price: pi.price, categoryId: pi.categoryId, isAvailable: pi.isAvailable } as MenuItem;
+          updated++;
+        } else {
+          // Add new item with defaults
+          next.push({
+            id: pi.id,
+            name: pi.name,
+            price: pi.price,
+            categoryId: pi.categoryId,
+            isAvailable: pi.isAvailable,
+            gstRate: 5,
+            isVeg: true,
+            modifierGroups: [],
+          });
+          added++;
+        }
+      }
+
+      void message.success(`Import complete. Updated: ${updated}, Added: ${added}`);
+      return next;
+    });
+  };
+
   const sync = (): void => {
     setSyncing(true);
     client
@@ -132,6 +167,9 @@ export const MenuPage: React.FC = () => {
                 <Typography.Text type="secondary">{visible.length} items</Typography.Text>
                 <Button size="small" onClick={sync} loading={syncing}>
                   Sync
+                </Button>
+                <Button size="small" onClick={() => setWizardOpen(true)}>
+                  Import / Export CSV
                 </Button>
                 <Button size="small" type="primary" onClick={openAdd}>
                   + Add Item
@@ -204,6 +242,13 @@ export const MenuPage: React.FC = () => {
       <Modal title="Add Category" open={catOpen} onOk={addCategory} onCancel={(): void => setCatOpen(false)} okText="Add">
         <Input placeholder="Category name" value={catName} onChange={(e): void => setCatName(e.target.value)} />
       </Modal>
+
+      <MenuCsvWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        items={items}
+        onImport={handleImport}
+      />
     </div>
   );
 };
