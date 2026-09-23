@@ -19,3 +19,5 @@ pub use pricing::*;
 pub use table::*;
 pub use tax::*;
 pub use tip::*;
+pub mod tenant;
+pub use tenant::*;
