@@ -1,6 +1,6 @@
-import type { MenuItem } from '@plinth/ui-kit/src/fixtures/menu';
+import type { MenuItem } from '@plinth/ui-kit';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { usePosCartStore, selectSubtotal, selectItemCount } from './posCart';
+import { usePosCartStore, selectSubtotal, selectItemCount } from './posCart.js';
 
 describe('usePosCartStore', () => {
   const mockItemWithModifiers: MenuItem = {
@@ -47,6 +47,7 @@ describe('usePosCartStore', () => {
 
   beforeEach(() => {
     usePosCartStore.getState().clear();
+    usePosCartStore.setState({ parkedOrders: [] });
   });
 
   it('valid add - adds an item with valid modifiers', () => {
@@ -199,5 +200,75 @@ describe('usePosCartStore', () => {
     usePosCartStore.getState().removeLine(key);
 
     expect(usePosCartStore.getState().lines).toHaveLength(0);
+  });
+
+  describe('Parked Orders', () => {
+    it('parkOrder - creates a parked order and clears cart', () => {
+      const store = usePosCartStore.getState();
+      store.addToCart(mockItemNoModifiers, {});
+      store.addToCart(mockItemWithModifiers, { Size: 'Large', Addons: 'Cheese' });
+
+      const { lines: originalLines } = usePosCartStore.getState();
+      expect(originalLines).toHaveLength(2);
+
+      usePosCartStore.getState().parkOrder('John Doe');
+
+      const state = usePosCartStore.getState();
+      expect(state.lines).toHaveLength(0);
+      expect(state.parkedOrders).toHaveLength(1);
+
+      const parked = state.parkedOrders[0];
+      expect(parked?.customerLabel).toBe('John Doe');
+      expect(parked?.lines).toEqual(originalLines);
+      expect(parked?.id).toBeDefined();
+      expect(parked?.timestamp).toBeDefined();
+    });
+
+    it('parkOrder - does nothing if cart is empty', () => {
+      usePosCartStore.getState().parkOrder('Empty');
+      const state = usePosCartStore.getState();
+      expect(state.parkedOrders).toHaveLength(0);
+    });
+
+    it('resumeOrder - restores cart exactly and removes from parked', () => {
+      const store = usePosCartStore.getState();
+      store.addToCart(mockItemNoModifiers, {});
+
+      const { lines: originalLines } = usePosCartStore.getState();
+
+      usePosCartStore.getState().parkOrder('Jane Doe');
+
+      const parkedId = usePosCartStore.getState().parkedOrders[0]?.id as string;
+
+      // Ensure cart is empty before resuming
+      expect(usePosCartStore.getState().lines).toHaveLength(0);
+
+      usePosCartStore.getState().resumeOrder(parkedId);
+
+      const state = usePosCartStore.getState();
+      expect(state.lines).toEqual(originalLines);
+      expect(state.parkedOrders).toHaveLength(0);
+    });
+
+    it('resumeOrder - does nothing for invalid id', () => {
+      usePosCartStore.getState().resumeOrder('invalid-id');
+      const state = usePosCartStore.getState();
+      expect(state.lines).toHaveLength(0);
+    });
+
+    it('voidOrder - removes order from parked without restoring', () => {
+      const store = usePosCartStore.getState();
+      store.addToCart(mockItemNoModifiers, {});
+
+      usePosCartStore.getState().parkOrder('Void Me');
+
+      const parkedId = usePosCartStore.getState().parkedOrders[0]?.id as string;
+
+      usePosCartStore.getState().voidOrder(parkedId);
+
+      const state = usePosCartStore.getState();
+      expect(state.lines).toHaveLength(0);
+      expect(state.parkedOrders).toHaveLength(0);
+    });
   });
 });

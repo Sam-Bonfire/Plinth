@@ -1,4 +1,4 @@
-import type { MenuItem } from '@plinth/ui-kit/src/fixtures/menu';
+import type { MenuItem } from '@plinth/ui-kit';
 import { create } from 'zustand';
 
 export interface CartLine {
@@ -14,16 +14,28 @@ export type AddToCartResult =
   | { ok: true; key?: string }
   | { ok: false; reason: string };
 
+export interface ParkedOrder {
+  id: string;
+  customerLabel: string;
+  timestamp: string;
+  lines: CartLine[];
+}
+
 interface PosCartState {
   lines: CartLine[];
+  parkedOrders: ParkedOrder[];
   addToCart: (item: MenuItem, selections: Record<string, string>) => AddToCartResult;
   changeQty: (key: string, qty: number) => void;
   removeLine: (key: string) => void;
   clear: () => void;
+  parkOrder: (customerLabel: string) => void;
+  resumeOrder: (id: string) => void;
+  voidOrder: (id: string) => void;
 }
 
 export const usePosCartStore = create<PosCartState>((set) => ({
   lines: [],
+  parkedOrders: [],
 
   addToCart: (item, selections) => {
     if (!item.isAvailable) {
@@ -39,7 +51,7 @@ export const usePosCartStore = create<PosCartState>((set) => ({
         return { ok: false, reason: `Missing required modifier: ${group.name}` };
       }
 
-      const option = group.options.find(o => o.name === selectedOptionName);
+      const option = group.options.find((o: { name: string; price?: number }) => o.name === selectedOptionName);
       if (option) {
         modifiers.push(option.name);
         if (option.price !== undefined) {
@@ -104,6 +116,42 @@ export const usePosCartStore = create<PosCartState>((set) => ({
 
   clear: () => {
     set({ lines: [] });
+  },
+
+  parkOrder: (customerLabel) => {
+    set((state) => {
+      if (state.lines.length === 0) return state;
+
+      const newParkedOrder: ParkedOrder = {
+        id: crypto.randomUUID(),
+        customerLabel,
+        timestamp: new Date().toISOString(),
+        lines: [...state.lines]
+      };
+
+      return {
+        lines: [],
+        parkedOrders: [...state.parkedOrders, newParkedOrder]
+      };
+    });
+  },
+
+  resumeOrder: (id) => {
+    set((state) => {
+      const order = state.parkedOrders.find((o) => o.id === id);
+      if (!order) return state;
+
+      return {
+        lines: [...order.lines],
+        parkedOrders: state.parkedOrders.filter((o) => o.id !== id)
+      };
+    });
+  },
+
+  voidOrder: (id) => {
+    set((state) => ({
+      parkedOrders: state.parkedOrders.filter((o) => o.id !== id)
+    }));
   }
 }));
 
