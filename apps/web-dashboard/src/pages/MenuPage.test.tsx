@@ -2,7 +2,7 @@ import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../providers/AuthProvider.js";
-import { MenuPage } from "./MenuPage.js";
+import { MenuPage, DeleteConfirm } from "./MenuPage.js";
 
 function renderPage(): void {
   render(
@@ -77,4 +77,27 @@ describe("MenuPage", () => {
     );
     vi.unstubAllGlobals();
   }, 15000);
+});
+
+
+describe("DeleteConfirm", () => {
+  it("allows delete when blockedBy is undefined", () => {
+    const onConfirm = vi.fn();
+    render(<DeleteConfirm itemName="TestItem" onConfirm={onConfirm} />);
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button.hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("blocks delete when blockedBy has items", async () => {
+    const onConfirm = vi.fn();
+    render(<DeleteConfirm itemName="TestItem" onConfirm={onConfirm} blockedBy={["Order #1", "Ticket #5"]} />);
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button.hasAttribute("disabled")).toBe(true);
+
+    // Simulate hover to trigger tooltip
+    fireEvent.mouseEnter(button.parentElement!);
+    const tooltipContent = await screen.findByText(/Cannot delete: active references/i);
+    expect(tooltipContent).toBeDefined();
+  });
 });
