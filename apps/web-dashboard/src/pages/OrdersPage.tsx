@@ -8,8 +8,9 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "@plinth/ui-kit";
-import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Typography, type TableColumnsType } from "antd";
+import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { RiderPickupModal } from "../components/RiderPickupModal.js";
 
 interface OrderRow {
   key: string;
@@ -85,6 +86,7 @@ export const OrdersPage: React.FC = () => {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
   const [viewed, setViewed] = useState<OrderRow | null>(null);
+  const [pickupOrder, setPickupOrder] = useState<OrderRow | null>(null);
 
   const rows = useMemo((): OrderRow[] => {
     const q = query.trim().toLowerCase();
@@ -170,6 +172,11 @@ export const OrdersPage: React.FC = () => {
           <Button size="small" onClick={(): void => setViewed(row)}>
             View
           </Button>
+          {(row.channel === "Swiggy" || row.channel === "Zomato") && (
+            <Button size="small" onClick={(): void => setPickupOrder(row)}>
+              Pickup
+            </Button>
+          )}
           {row.status !== "Voided" && row.status !== "Settled" && (
             <Popconfirm title="Void this order?" okText="Yes" cancelText="No" onConfirm={(): void => voidOrder(row.key)}>
               <Button size="small" danger>
@@ -216,6 +223,18 @@ export const OrdersPage: React.FC = () => {
           </div>
         )}
       </Modal>
+      {pickupOrder && (
+        <RiderPickupModal
+          open={true}
+          onClose={(): void => setPickupOrder(null)}
+          onConfirm={(otp: string): void => {
+            message.success(`Pickup verified with OTP: ${otp}`);
+            setPickupOrder(null);
+          }}
+          orderId={pickupOrder.id}
+          platform={pickupOrder.channel as "Swiggy" | "Zomato"}
+        />
+      )}
     </div>
   );
 };
