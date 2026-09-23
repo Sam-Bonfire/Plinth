@@ -34,8 +34,7 @@ describe('Menu', () => {
   });
 
   it('renders loading state initially', () => {
-    // @ts-expect-error Mocking fetch globally
-    global.fetch = vi.fn(() => new Promise(() => {}));
+    global.fetch = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch;
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
         <Menu />
@@ -59,8 +58,7 @@ describe('Menu', () => {
   });
 
   it('renders error on fetch failure', async () => {
-    // @ts-expect-error Mocking fetch globally
-    global.fetch = vi.fn(() => Promise.reject(new Error('Network error')));
+    global.fetch = vi.fn(() => Promise.reject(new Error('Network error'))) as unknown as typeof fetch;
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
         <Menu />
@@ -73,13 +71,12 @@ describe('Menu', () => {
   });
 
   it('renders items from mocked fetch', async () => {
-    // @ts-expect-error Mocking fetch globally
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockCatalog),
       })
-    );
+    ) as unknown as typeof fetch;
 
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
