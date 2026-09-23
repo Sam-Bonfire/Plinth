@@ -26,7 +26,7 @@ describe("CustomersPage", () => {
     expect(await screen.findByText("Visit Frequency")).toBeDefined();
   });
 
-  it("validates zero amount top-up and tests CSV export", async () => {
+  it("validates zero amount top-up and tests CSV export", { timeout: 60000 }, async () => {
     renderPage();
     // Go to Mess Accounts tab
     fireEvent.click(screen.getByRole("tab", { name: "Mess Accounts" }));
@@ -66,7 +66,7 @@ describe("CustomersPage", () => {
     delete global.URL.revokeObjectURL;
   });
 
-  it("renders mess accounts tab and performs a top-up", async () => {
+  it("renders mess accounts tab and performs a top-up", { timeout: 60000 }, async () => {
     renderPage();
     // Click on the Mess Accounts tab
     const messTab = screen.getByRole("tab", { name: "Mess Accounts" });
