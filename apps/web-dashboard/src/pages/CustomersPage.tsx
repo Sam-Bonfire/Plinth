@@ -1,5 +1,5 @@
 import { BarChart, PlinthAvatar } from "@plinth/ui-kit";
-import { Button, Card, Col, Descriptions, Form, Input, List, Modal, Row, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Col, Descriptions, Form, Input, InputNumber, List, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
@@ -23,6 +23,37 @@ interface CustomerFormValues {
   name: string;
   phone: string;
 }
+
+type MessStatus = "Active" | "Suspended" | "Closed";
+
+interface MessAccount {
+  key: string;
+  name: string;
+  balance: number;
+  status: MessStatus;
+}
+
+interface LedgerRow {
+  date: string;
+  account: string;
+  type: string;
+  amount: number;
+  memo: string;
+}
+
+const seedMessAccounts = (): MessAccount[] => [
+  { key: "M-01", name: "Corporate Staff", balance: 5000, status: "Active" },
+  { key: "M-02", name: "Student Hostel A", balance: 1200, status: "Active" },
+  { key: "M-03", name: "Guest Faculty", balance: -500, status: "Suspended" },
+];
+
+const seedLedgerRows = (): LedgerRow[] => [
+  { date: "2023-10-01", account: "Corporate Staff", type: "Top-up", amount: 10000, memo: "Monthly allowance" },
+  { date: "2023-10-05", account: "Corporate Staff", type: "Debit", amount: -5000, memo: "Lunch meals" },
+  { date: "2023-10-02", account: "Student Hostel A", type: "Top-up", amount: 5000, memo: "Advance" },
+  { date: "2023-10-06", account: "Student Hostel A", type: "Debit", amount: -3800, memo: "Breakfast + Dinner" },
+  { date: "2023-10-03", account: "Guest Faculty", type: "Debit", amount: -500, memo: "Overdraft" },
+];
 
 const seedCustomers = (): Customer[] => [
   { key: "C-01", name: "Aarav Sharma", phone: "+91 98200 11223", orders: 48, spend: 18420, lastVisit: "Today 12:40", tier: "Gold" },
@@ -55,6 +86,12 @@ export const CustomersPage: React.FC = () => {
   const [adding, setAdding] = useState<boolean>(false);
   const [form] = Form.useForm<CustomerFormValues>();
 
+  const [messAccounts, setMessAccounts] = useState<MessAccount[]>(seedMessAccounts);
+  const [ledgerRows, setLedgerRows] = useState<LedgerRow[]>(seedLedgerRows);
+  const [messQuery, setMessQuery] = useState<string>("");
+  const [topUpAccount, setTopUpAccount] = useState<MessAccount | null>(null);
+  const [topUpForm] = Form.useForm<{ amount: number; memo: string }>();
+
   const rows = useMemo((): Customer[] => {
     const q = query.trim().toLowerCase();
     if (q === "") return customers;
@@ -74,6 +111,61 @@ export const CustomersPage: React.FC = () => {
     void message.success(`Customer ${values.name} added.`);
     setAdding(false);
   };
+
+  const messRows = useMemo((): MessAccount[] => {
+    const q = messQuery.trim().toLowerCase();
+    if (q === "") return messAccounts;
+    return messAccounts.filter((m: MessAccount): boolean => m.name.toLowerCase().includes(q));
+  }, [messAccounts, messQuery]);
+
+  const exportCsv = (): void => {
+    const csv = ["date,account,type,amount,memo", ...ledgerRows.map((r: LedgerRow): string => [r.date, r.account, r.type, r.amount.toString(), r.memo].join(","))].join("\n");
+    if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mess_invoices.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    void message.success(`Exported ${ledgerRows.length} ledger rows.`);
+  };
+
+  const submitTopUp = (values: { amount: number; memo: string }): void => {
+    if (!topUpAccount) return;
+    setMessAccounts((prev: MessAccount[]): MessAccount[] =>
+      prev.map((m: MessAccount): MessAccount => (m.key === topUpAccount.key ? { ...m, balance: m.balance + values.amount } : m)),
+    );
+    setLedgerRows((prev: LedgerRow[]): LedgerRow[] => [
+      ...prev,
+      {
+        date: new Date().toISOString().split("T")[0] ?? "2023-10-10",
+        account: topUpAccount.name,
+        type: "Top-up",
+        amount: values.amount,
+        memo: values.memo ?? "Top-up",
+      },
+    ]);
+    void message.success(`Added ${inr(values.amount)} to ${topUpAccount.name}`);
+    setTopUpAccount(null);
+    topUpForm.resetFields();
+  };
+
+  const messColumns: TableColumnsType<MessAccount> = [
+    { title: "Account Name", dataIndex: "name", key: "name" },
+    { title: "Balance", dataIndex: "balance", key: "balance", align: "right", render: (b: number): React.ReactNode => <Typography.Text type={b < 0 ? "danger" : undefined}>{inr(b)}</Typography.Text> },
+    { title: "Status", dataIndex: "status", key: "status", width: 120, render: (s: MessStatus): React.ReactNode => <Tag color={s === "Active" ? "success" : s === "Suspended" ? "error" : "default"}>{s}</Tag> },
+    {
+      title: "Action",
+      key: "action",
+      width: 100,
+      render: (_: unknown, row: MessAccount): React.ReactNode => (
+        <Button size="small" onClick={(): void => setTopUpAccount(row)}>
+          Top-up
+        </Button>
+      ),
+    },
+  ];
 
   const columns: TableColumnsType<Customer> = [
     {
@@ -106,61 +198,97 @@ export const CustomersPage: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Total Customers" value={1842} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Returning Rate" value={61} suffix="%" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Avg Order Value" value={inr(336)} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Orders Today" value={847} />
-          </Card>
-        </Col>
-      </Row>
-      <Row gutter={16}>
-        <Col span={16}>
-          <Card
-            title="Customer Directory"
-            extra={
-              <Space>
-                <Input allowClear placeholder="Search by name/phone…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 220 }} />
-                <Button size="small" type="primary" onClick={openAdd}>
-                  + Add
-                </Button>
-              </Space>
-            }
-          >
-            <Table<Customer> dataSource={rows} columns={columns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No customers match." }} />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card title="Top Customers" style={{ marginBottom: 16 }}>
-            <List
-              dataSource={top}
-              renderItem={(c: Customer): React.ReactNode => (
-                <List.Item>
-                  <List.Item.Meta avatar={<PlinthAvatar name={c.name} size="sm" />} title={c.name} description={`${c.orders} orders`} />
-                  <Typography.Text strong>{inr(c.spend)}</Typography.Text>
-                </List.Item>
-              )}
-            />
-          </Card>
-          <Card title="Visit Frequency">
-            <BarChart data={frequency} xField="day" yField="visits" height={200} />
-          </Card>
-        </Col>
-      </Row>
+      <Tabs
+        defaultActiveKey="1"
+        items={[
+          {
+            key: "1",
+            label: "Directory",
+            children: (
+              <>
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic title="Total Customers" value={1842} />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic title="Returning Rate" value={61} suffix="%" />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic title="Avg Order Value" value={inr(336)} />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic title="Orders Today" value={847} />
+                    </Card>
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={16}>
+                    <Card
+                      title="Customer Directory"
+                      extra={
+                        <Space>
+                          <Input allowClear placeholder="Search by name/phone…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 220 }} />
+                          <Button size="small" type="primary" onClick={openAdd}>
+                            + Add
+                          </Button>
+                        </Space>
+                      }
+                    >
+                      <Table<Customer> dataSource={rows} columns={columns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No customers match." }} />
+                    </Card>
+                  </Col>
+                  <Col span={8}>
+                    <Card title="Top Customers" style={{ marginBottom: 16 }}>
+                      <List
+                        dataSource={top}
+                        renderItem={(c: Customer): React.ReactNode => (
+                          <List.Item>
+                            <List.Item.Meta avatar={<PlinthAvatar name={c.name} size="sm" />} title={c.name} description={`${c.orders} orders`} />
+                            <Typography.Text strong>{inr(c.spend)}</Typography.Text>
+                          </List.Item>
+                        )}
+                      />
+                    </Card>
+                    <Card title="Visit Frequency">
+                      <BarChart data={frequency} xField="day" yField="visits" height={200} />
+                    </Card>
+                  </Col>
+                </Row>
+              </>
+            ),
+          },
+          {
+            key: "2",
+            label: "Mess Accounts",
+            children: (
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Card
+                    title="Mess Accounts"
+                    extra={
+                      <Space>
+                        <Input allowClear placeholder="Search by name…" value={messQuery} onChange={(e): void => setMessQuery(e.target.value)} style={{ width: 220 }} />
+                        <Button size="small" type="primary" onClick={exportCsv}>
+                          Export Monthly Invoice
+                        </Button>
+                      </Space>
+                    }
+                  >
+                    <Table<MessAccount> dataSource={messRows} columns={messColumns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No mess accounts match." }} />
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+        ]}
+      />
 
       <Modal title={viewed?.name ?? "Customer"} open={viewed !== null} onCancel={(): void => setViewed(null)} footer={null}>
         {viewed !== null && (
@@ -181,6 +309,25 @@ export const CustomersPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="phone" label="Phone" rules={[{ required: true, message: "Phone is required" }]}>
             <Input placeholder="+91 …" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`Top-up ${topUpAccount?.name ?? "Account"}`}
+        open={topUpAccount !== null}
+        onOk={(): void => {
+          void topUpForm.submit();
+        }}
+        onCancel={(): void => setTopUpAccount(null)}
+        okText="Top-up"
+      >
+        <Form form={topUpForm} layout="vertical" onFinish={submitTopUp} preserve={false}>
+          <Form.Item name="amount" label="Amount" rules={[{ required: true, message: "Amount is required" }, { type: "number", min: 1, message: "Amount must be > 0" }]}>
+            <InputNumber prefix="₹" style={{ width: "100%" }} />
+          </Form.Item>
+          <Form.Item name="memo" label="Memo" rules={[{ required: true, message: "Memo is required" }]}>
+            <Input placeholder="e.g. Monthly allowance" />
           </Form.Item>
         </Form>
       </Modal>
