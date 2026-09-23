@@ -7,11 +7,11 @@ export interface VarianceEntry {
   actual: number;
 }
 
-export interface VarianceRow {
+export type VarianceRow = {
   label: string;
   series: "Theoretical" | "Actual";
   value: number;
-}
+};
 
 export interface VarianceChartProps {
   title?: React.ReactNode;
