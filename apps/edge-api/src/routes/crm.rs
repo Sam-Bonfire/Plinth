@@ -18,7 +18,7 @@ pub struct CrmCustomerDto {
 /// Masks a phone number, keeping the last 4 digits visible.
 #[must_use]
 pub fn mask_phone(phone: &str) -> String {
-    let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
+    let digits: String = phone.chars().filter(char::is_ascii_digit).collect();
     if digits.len() <= 4 {
         return "••••".to_string();
     }
