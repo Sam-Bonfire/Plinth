@@ -6,6 +6,7 @@ pub mod kds;
 pub mod menu;
 pub mod menu_sync;
 pub mod orders;
+pub mod public_menu;
 pub mod reports;
 pub mod staff;
 pub mod webhooks;
