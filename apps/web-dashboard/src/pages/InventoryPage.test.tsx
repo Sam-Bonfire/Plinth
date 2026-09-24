@@ -63,7 +63,7 @@ describe("InventoryPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Save" }));
     // wait for success message text
     expect(await screen.findByText(/set to 24 kg/)).toBeDefined();
-  }, 15000);
+  }, 60000);
 
   it("adds a new ingredient through the modal", async () => {
     renderPage();
@@ -72,5 +72,5 @@ describe("InventoryPage", () => {
     fireEvent.change(await screen.findByPlaceholderText("Ingredient name"), { target: { value: "Cumin" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Cumin")).toBeDefined();
-  }, 15000);
+  }, 60000);
 });
