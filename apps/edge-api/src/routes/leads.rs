@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn rejects_blank_name_and_city() {
         assert_eq!(validate_lead(&LeadRequest { name: "  ".to_string(), ..lead() }), Err("Name cannot be empty"));
-        assert_eq!(validate_lead(&LeadRequest { city: "".to_string(), ..lead() }), Err("City cannot be empty"));
+        assert_eq!(validate_lead(&LeadRequest { city: String::new(), ..lead() }), Err("City cannot be empty"));
     }
 
     #[test]
