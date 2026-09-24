@@ -9,6 +9,7 @@ pub mod printing;
 pub mod repos;
 pub mod state;
 pub mod sync_daemon;
+pub mod backup;
 
 use crate::state::AppContext;
 use std::sync::Mutex;
@@ -37,6 +38,7 @@ pub fn run() {
             commands::service::authenticate_pin,
             commands::service::record_audit_event,
             commands::service::get_sync_status,
+            backup::backup_now,
         ])
         .setup(|_app| {
             // Setup cancellation token for graceful shutdown of background services
