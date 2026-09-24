@@ -57,6 +57,7 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = crate::routes::reports::register(router);
     let router = crate::routes::ws::register(router);
     let router = crate::routes::health::register(router);
+    let router = crate::routes::leads::register(router);
     router
 }
 
