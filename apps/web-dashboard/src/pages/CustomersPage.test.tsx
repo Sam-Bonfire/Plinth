@@ -1,7 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CustomersPage, upcomingOccasions } from "./CustomersPage.js";
+import { CustomersPage, avgRating, upcomingOccasions, type Feedback } from "./CustomersPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
 vi.mock("@ant-design/charts", () => ({
@@ -173,5 +173,36 @@ describe("CustomersPage", () => {
     // Priya (36 orders) drops out of the table but stays in the unfiltered Top list
     expect((await screen.findAllByText("Priya Nair")).length).toBe(1);
     expect((await screen.findAllByText("Aarav Sharma")).length).toBe(2);
+  });
+
+  describe("avgRating helper", () => {
+    it("should return 0 when feedbacks array is empty", () => {
+      expect(avgRating([])).toBe(0);
+    });
+
+    it("should correctly calculate average rating", () => {
+      const mockFeedbacks: Feedback[] = [
+        { id: "1", customerName: "A", rating: 5, comment: "x", date: "y" },
+        { id: "2", customerName: "B", rating: 4, comment: "x", date: "y" },
+        { id: "3", customerName: "C", rating: 3, comment: "x", date: "y" },
+      ];
+      expect(avgRating(mockFeedbacks)).toBe(4);
+    });
+  });
+
+  it("renders Feedback tab and verifies data", async () => {
+    renderPage();
+
+    // Go to Feedback tab
+    const feedbackTab = screen.getByRole("tab", { name: "Feedback" });
+    fireEvent.click(feedbackTab);
+
+    expect(await screen.findByText("Customer Reviews")).toBeDefined();
+    expect(await screen.findByText("Average Rating")).toBeDefined();
+
+    expect((await screen.findByText("Average Rating")).parentElement?.textContent ?? "").toContain("4.2 / 5");
+
+    expect(await screen.findByText("Excellent service and food quality!")).toBeDefined();
+    expect(await screen.findByText("Average experience.")).toBeDefined();
   });
 });
