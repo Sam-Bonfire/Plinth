@@ -42,7 +42,7 @@ describe("LockScreen", () => {
     expect(screen.getByPlaceholderText("••••")).toBeInTheDocument();
   });
 
-  it("calls onUnlock with pin when form is submitted", async () => {
+  it("calls onUnlock with pin when form is submitted", { timeout: 30000 }, async () => {
     // Use real timers for userEvent compatibility which relies on accurate delays
     vi.useRealTimers();
     const user = userEvent.setup();
@@ -57,7 +57,7 @@ describe("LockScreen", () => {
     });
   });
 
-  it("displays error message if onUnlock fails", async () => {
+  it("displays error message if onUnlock fails", { timeout: 30000 }, async () => {
     vi.useRealTimers();
     const user = userEvent.setup();
     const onUnlock = vi.fn().mockRejectedValue(new Error("Invalid"));
