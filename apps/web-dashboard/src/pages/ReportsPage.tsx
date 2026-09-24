@@ -1,6 +1,7 @@
 import { BarChart, LineChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Row, Segmented, Space, Statistic, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
+import { buildAnalyticsCsv, type CsvSection } from "../lib/analyticsExport.js";
 import { type GstInputRow, summarizeGst, type GstSlabSummary } from "../lib/gst.js";
 
 type RevenuePoint = {
@@ -95,7 +96,73 @@ export const ReportsPage: React.FC = () => {
   const [period, setPeriod] = useState<string>("week");
   const data = PERIODS[period] ?? PERIODS.week;
 
+  const exportCsv = (): void => {
+    const gstSummary = summarizeGst(MOCK_GST_ROWS);
+
+    const sections: CsvSection[] = [
+      {
+        title: `Period Overview (${period})`,
+        headers: ["Metric", "Value", "Delta/Note"],
+        rows: [
+          ["Gross Revenue", data.gross, data.grossDelta],
+          ["Total Orders", data.orders, data.ordersDelta],
+          ["Avg Order Value", data.aov, data.aovDelta],
+          ["Voids / Refunds", data.voids, data.voidsNote],
+        ],
+      },
+      {
+        title: "Revenue Trend",
+        headers: ["Time", "Revenue"],
+        rows: data.revenue.map((r) => [r.day, r.revenue]),
+      },
+      {
+        title: "Orders by Hour",
+        headers: ["Hour", "Orders"],
+        rows: HOURLY.map((h) => [h.hour, h.orders]),
+      },
+      {
+        title: "Top Selling Items",
+        headers: ["Rank", "Item", "Qty", "Revenue", "Share"],
+        rows: TOP_ITEMS.map((t) => [t.rank, t.item, t.qty, t.revenue, t.share]),
+      },
+      {
+        title: "Performance by Location",
+        headers: ["Location", "Revenue"],
+        rows: LOCATIONS.map((l) => [l.outlet, l.revenue]),
+      },
+      {
+        title: "Tax Liability (GST) Summary",
+        headers: ["Slab", "Taxable Value", "Tax Amount"],
+        rows: [
+          ...gstSummary.slabs.map((s) => [`${s.ratePercent}% (${s.rate})`, s.taxableAmount, s.taxAmount]),
+          ["Total", "", gstSummary.totalTax],
+        ],
+      },
+    ];
+
+    const csvContent = buildAnalyticsCsv(sections);
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics_report_${period}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    void message.success(`CSV report exported for ${period === "week" ? "this week" : period === "today" ? "today" : "this month"}.`);
+  };
+
+  const handlePrint = (): void => {
+    window.print();
+  };
+
   const exportReport = (kind: string): void => {
+    if (kind === "CSV") {
+      exportCsv();
+      return;
+    }
     void message.success(`${kind} report exported for ${period === "week" ? "this week" : period === "today" ? "today" : "this month"}.`);
   };
 
@@ -117,11 +184,96 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <div>
+      {/* CSS for printing */}
+      <style>
+        {`
+          @media print {
+            .no-print {
+              display: none !important;
+            }
+            .print-only {
+              display: block !important;
+            }
+            body {
+              background: white;
+              color: black;
+            }
+          }
+          @media screen {
+            .print-only {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
+
+      {/* Print-friendly view */}
+      <div className="print-only">
+        <h1>Analytics Report ({period})</h1>
+        <h2>Period Overview</h2>
+        <Table
+          dataSource={[
+            { key: "1", metric: "Gross Revenue", value: data.gross },
+            { key: "2", metric: "Total Orders", value: data.orders },
+            { key: "3", metric: "Avg Order Value", value: data.aov },
+            { key: "4", metric: "Voids / Refunds", value: data.voids },
+          ]}
+          columns={[
+            { title: "Metric", dataIndex: "metric", key: "metric" },
+            { title: "Value", dataIndex: "value", key: "value", align: "right" },
+          ]}
+          pagination={false}
+          size="small"
+          bordered
+          style={{ marginBottom: 24 }}
+        />
+
+        <h2>Top Selling Items</h2>
+        <Table<TopItem>
+          dataSource={TOP_ITEMS}
+          columns={topColumns}
+          rowKey="key"
+          pagination={false}
+          size="small"
+          bordered
+          style={{ marginBottom: 24 }}
+        />
+
+        <h2>Performance by Location</h2>
+        <Table<LocationPoint>
+          dataSource={LOCATIONS}
+          columns={[
+            { title: "Location", dataIndex: "outlet", key: "outlet" },
+            { title: "Revenue", dataIndex: "revenue", key: "revenue", align: "right", render: (r: number): React.ReactNode => inr(r) },
+          ]}
+          rowKey="outlet"
+          pagination={false}
+          size="small"
+          bordered
+          style={{ marginBottom: 24 }}
+        />
+
+        <h2>Tax Liability (GST) Summary</h2>
+        <Table<{ key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }>
+          dataSource={[...gstSummary.slabs.map(slab => ({ ...slab, key: slab.rate })), { key: "Total", rate: "Total", ratePercent: 0, taxableAmount: 0, taxAmount: gstSummary.totalTax }]}
+          columns={[
+            { title: "Slab", dataIndex: "rate", key: "rate", render: (rate: string, record: { key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }): React.ReactNode => rate === "Total" ? <Typography.Text strong>Total</Typography.Text> : <Typography.Text strong>{record.ratePercent}% ({record.rate})</Typography.Text> },
+            { title: "Taxable Value", dataIndex: "taxableAmount", key: "taxableAmount", align: "right", render: (r: number, record: { key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }): React.ReactNode => record.rate === "Total" ? "" : inr(r) },
+            { title: "Tax Amount", dataIndex: "taxAmount", key: "taxAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
+          ]}
+          rowKey="key"
+          pagination={false}
+          size="small"
+          bordered
+        />
+      </div>
+
+      <div className="no-print">
       <Space style={{ marginBottom: 16, display: "flex", justifyContent: "space-between" }}>
         <Segmented value={period} onChange={(v): void => setPeriod(v as string)} options={[{ label: "Today", value: "today" }, { label: "This Week", value: "week" }, { label: "This Month", value: "month" }]} />
         <Space>
-          <Button size="small" onClick={(): void => exportReport("PDF")}>
-            PDF
+          <Button size="small" onClick={handlePrint}>
+            Print
           </Button>
           <Button size="small" onClick={(): void => exportReport("CSV")}>
             CSV
@@ -175,6 +327,7 @@ export const ReportsPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+      </div>
     </div>
   );
 };
