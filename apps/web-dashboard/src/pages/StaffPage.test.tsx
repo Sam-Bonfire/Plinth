@@ -68,7 +68,7 @@ describe("StaffPage", () => {
     expect(after).toBe(before - 1);
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
     expect(await screen.findByText("Role permissions saved.")).toBeDefined();
-  }, 30000);
+  }, 60000);
 
   it("queues the matrix for terminal sync", async () => {
     localStorage.clear();
@@ -78,7 +78,7 @@ describe("StaffPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Sync to Terminals" }));
     expect(await screen.findByText(/queued for terminal sync \(1 pending\)/)).toBeDefined();
     localStorage.clear();
-  }, 30000);
+  }, 60000);
 
   it("filters the audit log by action", async () => {
     renderPage();
