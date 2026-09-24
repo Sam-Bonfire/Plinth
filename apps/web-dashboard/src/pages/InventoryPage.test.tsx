@@ -36,6 +36,19 @@ function renderPage(): void {
 }
 
 describe("InventoryPage", () => {
+  it("receives a purchase order into stock levels", async () => {
+    renderPage();
+    await screen.findByText("Chicken Breast");
+    fireEvent.click(screen.getByRole("button", { name: "New PO" }));
+    fireEvent.change(await screen.findByPlaceholderText("Supplier name"), { target: { value: "Fresh Farms" } });
+    fireEvent.click(screen.getByRole("button", { name: "+ Add Line" }));
+    const qtys = screen.getAllByRole("spinbutton");
+    fireEvent.change(qtys[qtys.length - 2] as HTMLElement, { target: { value: 10 } });
+    fireEvent.change(qtys[qtys.length - 1] as HTMLElement, { target: { value: 40 } });
+    const submits = screen.getAllByRole("button", { name: "Submit PO" });
+    fireEvent.click(submits[submits.length - 1] as HTMLElement);
+    expect(await screen.findByText(/received: 1 lines into stock/)).toBeDefined();
+  }, 60000);
   it("renders stock stats, levels and alerts", async () => {
     renderPage();
     expect(await screen.findByText("Total SKUs")).toBeDefined();
