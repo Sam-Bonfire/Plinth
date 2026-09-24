@@ -4,6 +4,7 @@ pub mod commands;
 pub mod db;
 pub mod lan_kds;
 pub mod migrations;
+pub mod lock_daemon;
 pub mod printing;
 pub mod repos;
 pub mod state;
@@ -11,6 +12,7 @@ pub mod sync_daemon;
 pub mod window;
 
 use crate::state::AppContext;
+use std::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 /// Launches the Tauri POS application.
@@ -22,8 +24,11 @@ use tokio_util::sync::CancellationToken;
 pub fn run() {
     tauri::Builder::default()
         .manage(AppContext::default())
+        .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
         .manage(std::sync::Mutex::new(window::WindowMachine::new()))
         .invoke_handler(tauri::generate_handler![
+            lock_daemon::lock_report_activity,
+            lock_daemon::lock_status,
             commands::orders::submit_order,
             commands::orders::get_active_orders,
             commands::orders::advance_order_status,
