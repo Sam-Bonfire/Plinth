@@ -10,6 +10,7 @@ pub mod repos;
 pub mod state;
 pub mod sync_daemon;
 pub mod window;
+pub mod backup;
 
 use crate::state::AppContext;
 use std::sync::Mutex;
@@ -42,6 +43,7 @@ pub fn run() {
             window::enter_kiosk,
             window::exit_kiosk,
             window::toggle_fullscreen,
+            backup::backup_now,
         ])
         .setup(|_app| {
             // Setup cancellation token for graceful shutdown of background services
