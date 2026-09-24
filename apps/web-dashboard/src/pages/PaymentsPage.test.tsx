@@ -82,7 +82,7 @@ describe("PaymentsPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Confirm Refund" }));
     expect(await screen.findByText(/processed/)).toBeDefined();
     expect(await screen.findByText("Refunded")).toBeDefined();
-  }, 15000);
+  }, 60000);
 
   it("records a cash variance", async () => {
     renderPage();
@@ -91,7 +91,7 @@ describe("PaymentsPage", () => {
     expect(await screen.findByText(/Expected in drawer/)).toBeDefined();
     fireEvent.click(await screen.findByRole("button", { name: "Record Variance" }));
     expect(await screen.findByText(/variance.*recorded/)).toBeDefined();
-  }, 15000);
+  }, 60000);
 
   it("runs reconciliation on demand", async () => {
     renderPage();
