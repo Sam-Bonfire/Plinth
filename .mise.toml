@@ -38,7 +38,13 @@ run = "pnpm --filter marketing-site dev"
 [tasks."dev:api"]
 description = "Launch Cloudflare Wrangler local edge simulator"
 dir = "apps/edge-api"
+depends = ["build:edge"]
 run = "pnpm wrangler dev --port 8787"
+
+[tasks."build:edge"]
+description = "Compile edge-api Rust crate to the WASM worker bundle (needs worker-build: cargo install worker-build --locked)"
+dir = "apps/edge-api"
+run = "worker-build --dev"
 
 [tasks."build:rust"]
 description = "Compile Rust crates across workspace"

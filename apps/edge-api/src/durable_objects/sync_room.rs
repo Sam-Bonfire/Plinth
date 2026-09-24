@@ -23,6 +23,25 @@ pub struct TerminalPresenceInfo {
     pub staff_id: StaffMemberId,
 }
 
+/// Parses and validates WebSocket handshake query parameters.
+///
+/// # Errors
+/// Returns a message if either parameter is missing or the staff ID is not a UUID.
+pub fn parse_handshake_params<S: std::hash::BuildHasher>(
+    query_pairs: &HashMap<String, String, S>,
+) -> std::result::Result<(ClientNodeId, StaffMemberId), &'static str> {
+    let Some(client_node_id_str) = query_pairs.get("client_node_id").cloned() else {
+        return Err("Missing client_node_id query parameter");
+    };
+    let Some(staff_id_str) = query_pairs.get("staff_id").cloned() else {
+        return Err("Missing staff_id query parameter");
+    };
+    let Ok(staff_uuid) = Uuid::parse_str(&staff_id_str) else {
+        return Err("Invalid staff_id UUID");
+    };
+    Ok((ClientNodeId(client_node_id_str), StaffMemberId::from(staff_uuid)))
+}
+
 /// Durable Object managing real-time WebSocket pub-sub and mutation synchronization for a restaurant location
 #[durable_object]
 pub struct HearthRoom {
@@ -50,20 +69,10 @@ impl DurableObject for HearthRoom {
         let url = req.url()?;
         let query_pairs: HashMap<String, String> = url.query_pairs().into_owned().collect();
 
-        let Some(client_node_id_str) = query_pairs.get("client_node_id").cloned() else {
-            return Response::error("Missing client_node_id query parameter", 400);
+        let (client_node_id, staff_id) = match parse_handshake_params(&query_pairs) {
+            Ok(v) => v,
+            Err(msg) => return Response::error(msg, 400),
         };
-
-        let Some(staff_id_str) = query_pairs.get("staff_id").cloned() else {
-            return Response::error("Missing staff_id query parameter", 400);
-        };
-
-        let Ok(staff_uuid) = Uuid::parse_str(&staff_id_str) else {
-            return Response::error("Invalid staff_id UUID", 400);
-        };
-
-        let staff_id = StaffMemberId::from(staff_uuid);
-        let client_node_id = ClientNodeId(client_node_id_str);
 
         let pair = WebSocketPair::new()?;
         let server = pair.server;
@@ -262,8 +271,39 @@ mod tests {
     use sync_protocol::mutation::OperationType;
 
     #[test]
-    fn test_terminal_presence_tracker() {
-        let staff_id = StaffMemberId::new();
+    fn test_handshake_params_accept_valid_pair() {
+        let staff_uuid = Uuid::now_v7().to_string();
+        let pairs: HashMap<String, String> = HashMap::from([
+            ("client_node_id".to_string(), "terminal-pos-01".to_string()),
+            ("staff_id".to_string(), staff_uuid.clone()),
+        ]);
+        let (node, staff) = parse_handshake_params(&pairs).expect("valid handshake");
+        assert_eq!(node, ClientNodeId("terminal-pos-01".to_string()));
+        assert_eq!(staff, StaffMemberId::from(Uuid::parse_str(&staff_uuid).unwrap()));
+    }
+
+    #[test]
+    fn test_handshake_params_reject_missing_or_bad_values() {
+        let empty: HashMap<String, String> = HashMap::new();
+        assert_eq!(
+            parse_handshake_params(&empty),
+            Err("Missing client_node_id query parameter")
+        );
+        let missing_staff: HashMap<String, String> =
+            HashMap::from([("client_node_id".to_string(), "t-1".to_string())]);
+        assert_eq!(
+            parse_handshake_params(&missing_staff),
+            Err("Missing staff_id query parameter")
+        );
+        let bad_uuid: HashMap<String, String> = HashMap::from([
+            ("client_node_id".to_string(), "t-1".to_string()),
+            ("staff_id".to_string(), "not-a-uuid".to_string()),
+        ]);
+        assert_eq!(parse_handshake_params(&bad_uuid), Err("Invalid staff_id UUID"));
+    }
+
+    #[test]
+    fn test_terminal_presence_tracker() {        let staff_id = StaffMemberId::new();
         let client_node_id = ClientNodeId("terminal-pos-01".to_string());
 
         let mut presence: HashMap<ClientNodeId, TerminalPresenceInfo> = HashMap::new();
