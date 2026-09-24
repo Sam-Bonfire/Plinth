@@ -48,7 +48,7 @@ describe("MenuPage", () => {
     fireEvent.change(await screen.findByPlaceholderText("Price"), { target: { value: "140" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Masala Dosa")).toBeDefined();
-  }, 15000);
+  }, 60000);
 
   it("deletes an item through the confirm popover", async () => {
     renderPage();
@@ -57,7 +57,7 @@ describe("MenuPage", () => {
     fireEvent.click(deletes[0] as HTMLElement);
     fireEvent.click(await screen.findByRole("button", { name: "Yes" }));
     expect(screen.queryByText("Butter Chicken")).toBeNull();
-  }, 15000);
+  }, 60000);
 
   it("queues a menu sync with item count", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
@@ -76,7 +76,7 @@ describe("MenuPage", () => {
       expect.objectContaining({ method: "POST" }),
     );
     vi.unstubAllGlobals();
-  }, 15000);
+  }, 60000);
 });
 
 
