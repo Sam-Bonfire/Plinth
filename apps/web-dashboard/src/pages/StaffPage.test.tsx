@@ -1,6 +1,6 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
-import { App } from "antd";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
 
