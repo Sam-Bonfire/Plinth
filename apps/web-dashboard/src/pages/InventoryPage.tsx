@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { PurchaseOrderCreator, type PurchaseOrder } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
 import { seedRecipes, type Recipe } from "../data/recipes.js";
+import { receivePurchaseOrder } from "../lib/inventoryReceiving.js";
 
 interface Ingredient {
   key: string;
@@ -362,7 +363,13 @@ export const InventoryPage: React.FC = () => {
         open={poOpen}
         onClose={(): void => setPoOpen(false)}
         onSubmit={(po: PurchaseOrder): void => {
-          void message.success(`PO for ${po.supplier} submitted: ₹${po.total}.`);
+          const res = receivePurchaseOrder(ingredients, po.lines);
+          setIngredients(res.updated);
+          if (res.unmatched.length > 0) {
+            void message.warning(`Received ${res.received} lines; unmatched: ${res.unmatched.join(", ")}.`);
+          } else {
+            void message.success(`PO for ${po.supplier} received: ${res.received} lines into stock.`);
+          }
           setPoOpen(false);
         }}
       />
