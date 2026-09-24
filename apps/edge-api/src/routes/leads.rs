@@ -19,6 +19,10 @@ pub struct LeadResponse {
 }
 
 /// Validates a lead payload, returning the normalized phone on success.
+///
+/// # Errors
+/// Returns a message if the name/city is blank, outlets < 1, or the phone
+/// has no 7-15 digits after stripping formatting.
 pub fn validate_lead(payload: &LeadRequest) -> std::result::Result<String, &'static str> {
     if payload.name.trim().is_empty() {
         return Err("Name cannot be empty");
