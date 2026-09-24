@@ -1,8 +1,10 @@
+import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
 import { mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Tooltip, Typography, message } from "antd";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { type ParsedItem } from "../components/MenuCsvUtils.js";
 import { MenuCsvWizard } from "../components/MenuCsvWizard.js";
+import { PRESET_COLORS, colorFor, moveCategory, type CategoryColorPrefs } from "../helpers/menu-ordering.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 interface ItemFormValues {
@@ -53,6 +55,16 @@ export const MenuPage: React.FC = () => {
   const [form] = Form.useForm<ItemFormValues>();
   const { client } = useAuth();
   const [syncing, setSyncing] = useState<boolean>(false);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  const [categoryColors, setCategoryColors] = useState<CategoryColorPrefs>({});
+
+  useEffect(() => {
+    const savedOrder = localStorage.getItem("plinth-category-order");
+    const savedColors = localStorage.getItem("plinth-category-colors");
+    if (savedOrder) setCategoryOrder(JSON.parse(savedOrder) as string[]);
+    else setCategoryOrder(mockCategories.map((c: MenuCategory) => c.id));
+    if (savedColors) setCategoryColors(JSON.parse(savedColors) as CategoryColorPrefs);
+  }, []);
 
   const visible = useMemo((): MenuItemWithDeps[] => {
     const q = query.trim().toLowerCase();
@@ -105,6 +117,11 @@ export const MenuPage: React.FC = () => {
     if (name === "") return;
     const id = `CAT-${cats.length + 1}-${name.length}`;
     setCats((prev: MenuCategory[]): MenuCategory[] => [...prev, { id, name }]);
+    setCategoryOrder((prev: string[]): string[] => {
+      const newOrder = [...prev, id];
+      localStorage.setItem("plinth-category-order", JSON.stringify(newOrder));
+      return newOrder;
+    });
     setCatName("");
     setCatOpen(false);
     void message.success(`Category ${name} added.`);
@@ -161,6 +178,31 @@ export const MenuPage: React.FC = () => {
       });
   };
 
+  const handleMoveCategory = (id: string, dir: "up" | "down"): void => {
+    setCategoryOrder((prev: string[]): string[] => {
+      const newOrder = moveCategory(prev, id, dir);
+      localStorage.setItem("plinth-category-order", JSON.stringify(newOrder));
+      return newOrder;
+    });
+  };
+
+  const handleColorChange = (id: string, color: string): void => {
+    setCategoryColors((prev: CategoryColorPrefs): CategoryColorPrefs => {
+      const newColors = { ...prev, [id]: color };
+      localStorage.setItem("plinth-category-colors", JSON.stringify(newColors));
+      return newColors;
+    });
+  };
+
+  const sortedCats = [...cats].sort((a: MenuCategory, b: MenuCategory) => {
+    const idxA = categoryOrder.indexOf(a.id);
+    const idxB = categoryOrder.indexOf(b.id);
+    if (idxA === -1 && idxB === -1) return 0;
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
+
   return (
     <div>
       <Row gutter={16}>
@@ -170,12 +212,24 @@ export const MenuPage: React.FC = () => {
               <Button block type={selCat === "all" ? "primary" : "text"} onClick={(): void => setSelCat("all")}>
                 All Items · {items.length}
               </Button>
-              {cats.map((c: MenuCategory): React.ReactNode => {
+              {sortedCats.map((c: MenuCategory): React.ReactNode => {
                 const count = items.filter((i: MenuItemWithDeps): boolean => i.categoryId === c.id).length;
                 return (
-                  <Button key={c.id} block type={selCat === c.id ? "primary" : "text"} onClick={(): void => setSelCat(c.id)}>
-                    {c.name} · {count}
-                  </Button>
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Button style={{ flex: 1, textAlign: "left" }} type={selCat === c.id ? "primary" : "text"} onClick={(): void => setSelCat(c.id)}>
+                      {c.name} · {count}
+                    </Button>
+                    <Select
+                      size="small"
+                      style={{ width: 80 }}
+                      placeholder="Color"
+                      value={categoryColors[c.id]}
+                      onChange={(color: string): void => handleColorChange(c.id, color)}
+                      options={PRESET_COLORS.map((color) => ({ label: color, value: color }))}
+                    />
+                    <Button size="small" icon={<ArrowUpOutlined />} onClick={(): void => handleMoveCategory(c.id, "up")} />
+                    <Button size="small" icon={<ArrowDownOutlined />} onClick={(): void => handleMoveCategory(c.id, "down")} />
+                  </div>
                 );
               })}
               <Button block onClick={(): void => setCatOpen(true)}>
@@ -232,7 +286,16 @@ export const MenuPage: React.FC = () => {
                         {!item.isAvailable && <Tag color="red">86&apos;d</Tag>}
                       </Space>
                     }
-                    description={`${catNameOf(item.categoryId)} · ₹${item.price} · ${item.gstRate}% GST`}
+                    description={
+                      <Space>
+                        {categoryColors[item.categoryId] ? (
+                          <Tag color={colorFor(item.categoryId, categoryColors)}>{catNameOf(item.categoryId)}</Tag>
+                        ) : (
+                          <span>{catNameOf(item.categoryId)}</span>
+                        )}
+                        <span>· ₹{item.price} · {item.gstRate}% GST</span>
+                      </Space>
+                    }
                   />
                 </List.Item>
               )}
