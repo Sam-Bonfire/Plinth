@@ -2,6 +2,7 @@ use chrono::Utc;
 use core_domain::ids::StaffMemberId;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
 use sync_protocol::{
@@ -11,7 +12,7 @@ use sync_protocol::{
 };
 use uuid::Uuid;
 use worker::{
-    async_trait, durable_object, wasm_bindgen::JsValue, Env, Request, Response, Result, State,
+    durable_object, wasm_bindgen::JsValue, DurableObject, Env, Request, Response, Result, State,
     WebSocket, WebSocketPair, WebsocketEvent,
 };
 
@@ -27,26 +28,25 @@ pub struct TerminalPresenceInfo {
 pub struct HearthRoom {
     state: State,
     env: Env,
-    sessions: HashMap<Uuid, (WebSocket, ClientNodeId, StaffMemberId)>,
-    presence: HashMap<ClientNodeId, TerminalPresenceInfo>,
-    unflushed: Vec<MutationRecord>,
+    sessions: RefCell<HashMap<Uuid, (WebSocket, ClientNodeId, StaffMemberId)>>,
+    presence: RefCell<HashMap<ClientNodeId, TerminalPresenceInfo>>,
+    unflushed: RefCell<Vec<MutationRecord>>,
 }
 
 pub type LocationSyncRoom = HearthRoom;
 
-#[durable_object]
 impl DurableObject for HearthRoom {
     fn new(state: State, env: Env) -> Self {
         Self {
             state,
             env,
-            sessions: HashMap::new(),
-            presence: HashMap::new(),
-            unflushed: Vec::new(),
+            sessions: RefCell::new(HashMap::new()),
+            presence: RefCell::new(HashMap::new()),
+            unflushed: RefCell::new(Vec::new()),
         }
     }
 
-    async fn fetch(&mut self, req: Request) -> Result<Response> {
+    async fn fetch(&self, req: Request) -> Result<Response> {
         let url = req.url()?;
         let query_pairs: HashMap<String, String> = url.query_pairs().into_owned().collect();
 
@@ -70,11 +70,11 @@ impl DurableObject for HearthRoom {
         server.accept()?;
 
         let session_id = Uuid::now_v7();
-        self.sessions.insert(
+        self.sessions.borrow_mut().insert(
             session_id,
             (server.clone(), client_node_id.clone(), staff_id),
         );
-        self.presence.insert(
+        self.presence.borrow_mut().insert(
             client_node_id.clone(),
             TerminalPresenceInfo {
                 client_node_id: client_node_id.clone(),
@@ -110,8 +110,8 @@ impl DurableObject for HearthRoom {
         Response::from_websocket(pair.client)
     }
 
-    async fn alarm(&mut self) -> Result<Response> {
-        if self.unflushed.is_empty() {
+    async fn alarm(&self) -> Result<Response> {
+        if self.unflushed.borrow().is_empty() {
             return Response::empty();
         }
 
@@ -120,7 +120,7 @@ impl DurableObject for HearthRoom {
             Err(e) => return Response::error(format!("Database error in alarm: {e}"), 500),
         };
 
-        let mutations = std::mem::take(&mut self.unflushed);
+        let mutations = std::mem::take(&mut *self.unflushed.borrow_mut());
         let mut statements = Vec::new();
 
         for mutation in mutations {
@@ -182,7 +182,7 @@ impl DurableObject for HearthRoom {
 
 impl HearthRoom {
     #[allow(clippy::too_many_lines)]
-    async fn handle_frame(&mut self, session_id: Uuid, frame: SyncFrame) -> Result<()> {
+    async fn handle_frame(&self, session_id: Uuid, frame: SyncFrame) -> Result<()> {
         match frame {
             SyncFrame::PushMutations {
                 batch_id,
@@ -194,7 +194,7 @@ impl HearthRoom {
                 for mutation in mutations {
                     if mutation.verify_checksum() {
                         valid_mutations.push(mutation.clone());
-                        self.unflushed.push(mutation);
+                        self.unflushed.borrow_mut().push(mutation);
                     }
                 }
 
@@ -207,7 +207,7 @@ impl HearthRoom {
                     };
                     let broadcast_bytes = bincode::serialize(&broadcast_frame).unwrap_or_default();
 
-                    for (id, (ws, _, _)) in &self.sessions {
+                    for (id, (ws, _, _)) in self.sessions.borrow().iter() {
                         if *id != session_id {
                             let _ = ws.send_with_bytes(&broadcast_bytes);
                         }
@@ -223,7 +223,7 @@ impl HearthRoom {
                 }
             }
             SyncFrame::HeartbeatPing { client_time_ms } => {
-                if let Some((ws, _, _)) = self.sessions.get(&session_id) {
+                if let Some((ws, _, _)) = self.sessions.borrow().get(&session_id) {
                     let pong = SyncFrame::HeartbeatPong {
                         client_time_ms,
                         server_time_ms: Utc::now().timestamp_millis(),
@@ -243,14 +243,14 @@ impl HearthRoom {
         };
         let bytes = bincode::serialize(&ping).unwrap_or_default();
 
-        for (ws, _, _) in self.sessions.values() {
+        for (ws, _, _) in self.sessions.borrow().values() {
             let _ = ws.send_with_bytes(&bytes);
         }
     }
 
-    fn remove_session(&mut self, session_id: &Uuid) {
-        if let Some((_, client_node_id, _)) = self.sessions.remove(session_id) {
-            self.presence.remove(&client_node_id);
+    fn remove_session(&self, session_id: &Uuid) {
+        if let Some((_, client_node_id, _)) = self.sessions.borrow_mut().remove(session_id) {
+            self.presence.borrow_mut().remove(&client_node_id);
             self.broadcast_presence();
         }
     }
