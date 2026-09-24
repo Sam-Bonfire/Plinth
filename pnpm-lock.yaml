@@ -227,6 +227,9 @@ importers:
       vite:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@26.2.0)
+      wrangler:
+        specifier: ^3.114.17
+        version: 3.114.17(@cloudflare/workers-types@5.20260823.1)
 
   apps/pos-client:
     dependencies:
