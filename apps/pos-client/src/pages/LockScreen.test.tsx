@@ -43,6 +43,8 @@ describe("LockScreen", () => {
   });
 
   it("calls onUnlock with pin when form is submitted", async () => {
+    // Use real timers for userEvent compatibility which relies on accurate delays
+    vi.useRealTimers();
     const user = userEvent.setup();
     const onUnlock = vi.fn().mockResolvedValue(undefined);
     renderComponent({ onUnlock });
@@ -56,6 +58,7 @@ describe("LockScreen", () => {
   });
 
   it("displays error message if onUnlock fails", async () => {
+    vi.useRealTimers();
     const user = userEvent.setup();
     const onUnlock = vi.fn().mockRejectedValue(new Error("Invalid"));
     renderComponent({ onUnlock });
