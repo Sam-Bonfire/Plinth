@@ -1,12 +1,15 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
 
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <StaffPage />
+      <App>
+        <StaffPage />
+      </App>
     </PlinthThemeProvider>,
   );
 }
