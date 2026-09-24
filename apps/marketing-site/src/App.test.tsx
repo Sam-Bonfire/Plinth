@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Marketing Site App', () => {
-  it('renders marketing heading', () => {
+  it('assembles header, sections, and footer', async () => {
     render(<App />);
-    expect(screen.getByText(/PlinthOS Marketing Site/i)).toBeDefined();
+    expect(await screen.findByRole('banner')).toBeDefined();
+    expect(await screen.findByText('Power Your Restaurant')).toBeDefined();
+    expect(await screen.findByRole('contentinfo')).toBeDefined();
   });
 });
