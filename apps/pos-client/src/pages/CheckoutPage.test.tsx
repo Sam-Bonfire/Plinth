@@ -11,6 +11,10 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+vi.mock("../lib/sounds.js", () => ({
+  playTone: vi.fn(),
+}));
+
 function SignInHelper(): React.JSX.Element {
   const { signIn } = usePosSession();
   return (

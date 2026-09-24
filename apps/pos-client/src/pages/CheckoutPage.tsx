@@ -2,6 +2,7 @@ import { Button, Card, Form, Input, Space, Table, Typography, message, type Tabl
 import React, { useState } from "react";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.js";
 import { useTauriIpc, type OrderLineItem } from "../hooks/useTauriIpc.js";
+import { playTone } from "../lib/sounds.js";
 import { usePosSession } from "../providers/PosProviders.js";
 import { selectItemCount, selectSubtotal, usePosCartStore, type CartLine } from "../stores/posCart.js";
 
@@ -59,8 +60,10 @@ export const CheckoutPage: React.FC = () => {
       });
       setOrderId(id);
       clear();
+      playTone("success");
       void message.success(`Order placed · ${itemCount} items`);
     } catch (e) {
+      playTone("error");
       void message.error(e instanceof Error ? e.message : "Order failed");
     } finally {
       setPlacing(false);
