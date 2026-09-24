@@ -1,8 +1,9 @@
-import { mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
-import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Select, Space, Switch, Tag, Tooltip, Typography, message } from "antd";
+import { activateLocale, mockCategories, mockMenuItems, type MenuCategory, type MenuItem } from "@plinth/ui-kit";
+import { Button, Card, Col, Form, Input, InputNumber, List, Modal, Popconfirm, Row, Segmented, Select, Space, Switch, Tag, Tooltip, Typography, message } from "antd";
 import React, { useMemo, useState } from "react";
 import { type ParsedItem } from "../components/MenuCsvUtils.js";
 import { MenuCsvWizard } from "../components/MenuCsvWizard.js";
+import { localizeCategory, type MenuLang } from "../lib/menuL10n.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 interface ItemFormValues {
@@ -46,6 +47,12 @@ export const MenuPage: React.FC = () => {
   const [cats, setCats] = useState<MenuCategory[]>(mockCategories);
   const [selCat, setSelCat] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
+  const [lang, setLang] = useState<MenuLang>("en");
+
+  const switchLang = (l: MenuLang): void => {
+    setLang(l);
+    void activateLocale(l);
+  };
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [catOpen, setCatOpen] = useState<boolean>(false);
   const [catName, setCatName] = useState<string>("");
@@ -63,7 +70,10 @@ export const MenuPage: React.FC = () => {
     });
   }, [items, selCat, query]);
 
-  const catNameOf = (id: string): string => cats.find((c: MenuCategory): boolean => c.id === id)?.name ?? id;
+  const catNameOf = (id: string): string => {
+    const name = cats.find((c: MenuCategory): boolean => c.id === id)?.name ?? id;
+    return localizeCategory(name, lang);
+  };
   const selCatName = selCat === "all" ? "All Items" : catNameOf(selCat);
 
   const toggleAvail = (id: string, avail: boolean): void => {
@@ -174,7 +184,7 @@ export const MenuPage: React.FC = () => {
                 const count = items.filter((i: MenuItemWithDeps): boolean => i.categoryId === c.id).length;
                 return (
                   <Button key={c.id} block type={selCat === c.id ? "primary" : "text"} onClick={(): void => setSelCat(c.id)}>
-                    {c.name} · {count}
+                    {localizeCategory(c.name, lang)} · {count}
                   </Button>
                 );
               })}
@@ -190,6 +200,7 @@ export const MenuPage: React.FC = () => {
             extra={
               <Space>
                 <Input allowClear placeholder="Search items…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 200 }} />
+                <Segmented options={[{ label: "EN", value: "en" }, { label: "हिं", value: "hi" }]} value={lang} onChange={(v: string | number): void => switchLang(v.toString() === "hi" ? "hi" : "en")} size="small" />
                 <Typography.Text type="secondary">{visible.length} items</Typography.Text>
                 <Button size="small" onClick={sync} loading={syncing}>
                   Sync

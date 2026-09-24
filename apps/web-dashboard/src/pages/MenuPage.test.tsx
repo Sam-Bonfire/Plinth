@@ -22,6 +22,14 @@ describe("MenuPage", () => {
     expect(await screen.findByText("6 items")).toBeDefined();
   });
 
+  it("switches category labels to Hindi", async () => {
+    renderPage();
+    await screen.findByText("Butter Chicken");
+    fireEvent.click(screen.getByRole("radio", { name: "हिं" }));
+    expect(await screen.findByText("मिठाइयाँ · 1")).toBeDefined();
+    expect(screen.queryByText("Desserts · 1")).toBeNull();
+  }, 60000);
+
   it("filters items by category", async () => {
     renderPage();
     await screen.findByText("Butter Chicken");
