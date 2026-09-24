@@ -12,6 +12,7 @@ export interface FloorTable {
   status: TableStatus;
   partySize: number;
   waiter: string;
+  orderId: string | null;
 }
 
 interface TablesPageProps {
@@ -19,12 +20,12 @@ interface TablesPageProps {
 }
 
 const DEFAULT_TABLES: FloorTable[] = [
-  { id: "T-1", label: "T-1", capacity: 2, status: "Available", partySize: 0, waiter: "" },
-  { id: "T-2", label: "T-2", capacity: 2, status: "Occupied", partySize: 2, waiter: "Ravi" },
-  { id: "T-3", label: "T-3", capacity: 4, status: "Occupied", partySize: 3, waiter: "Sana" },
-  { id: "T-4", label: "T-4", capacity: 4, status: "Billing", partySize: 4, waiter: "Ravi" },
-  { id: "T-5", label: "T-5", capacity: 6, status: "Available", partySize: 0, waiter: "" },
-  { id: "T-6", label: "T-6", capacity: 6, status: "Reserved", partySize: 0, waiter: "" },
+  { id: "T-1", label: "T-1", capacity: 2, status: "Available", partySize: 0, waiter: "", orderId: null },
+  { id: "T-2", label: "T-2", capacity: 2, status: "Occupied", partySize: 2, waiter: "Ravi", orderId: "ORD-1098" },
+  { id: "T-3", label: "T-3", capacity: 4, status: "Occupied", partySize: 3, waiter: "Sana", orderId: "ORD-1099" },
+  { id: "T-4", label: "T-4", capacity: 4, status: "Billing", partySize: 4, waiter: "Ravi", orderId: "ORD-1095" },
+  { id: "T-5", label: "T-5", capacity: 6, status: "Available", partySize: 0, waiter: "", orderId: null },
+  { id: "T-6", label: "T-6", capacity: 6, status: "Reserved", partySize: 0, waiter: "", orderId: null },
 ];
 
 const WAITERS: string[] = ["Ravi", "Sana", "Vikram"];
@@ -57,9 +58,20 @@ export function advanceTableStatus(status: TableStatus): TableStatus {
   return NEXT_STATUS[status];
 }
 
+/// Opens a table for a new order: seats the party and attaches an order id.
+export function openTableOrder(table: FloorTable, partySize: number, waiter: string, orderSeq: number): FloorTable {
+  return { ...table, partySize, waiter, status: "Occupied", orderId: `ORD-${orderSeq}` };
+}
+
+/// Closes a table's order: clears party, waiter, and order link.
+export function closeTableOrder(table: FloorTable): FloorTable {
+  return { ...table, partySize: 0, waiter: "", status: "Available", orderId: null };
+}
+
 export const TablesPage: React.FC<TablesPageProps> = ({ initialTables }: TablesPageProps) => {
   const [tables, setTables] = useState<FloorTable[]>(initialTables ?? DEFAULT_TABLES);
   const [seating, setSeating] = useState<FloorTable | null>(null);
+  const [orderSeq, setOrderSeq] = useState<number>(1100);
 
   const occupied = useMemo((): number => tables.filter((t) => t.status === "Occupied" || t.status === "Billing").length, [tables]);
   const covers = useMemo(
@@ -69,7 +81,12 @@ export const TablesPage: React.FC<TablesPageProps> = ({ initialTables }: TablesP
 
   const advance = (id: string): void => {
     setTables((prev: FloorTable[]): FloorTable[] =>
-      prev.map((t: FloorTable): FloorTable => (t.id === id ? { ...t, status: advanceTableStatus(t.status) } : t)),
+      prev.map((t: FloorTable): FloorTable => {
+        if (t.id !== id) return t;
+        const next = advanceTableStatus(t.status);
+        const moved: FloorTable = { ...t, status: next };
+        return next === "Available" ? closeTableOrder(moved) : moved;
+      }),
     );
   };
 
@@ -84,8 +101,10 @@ export const TablesPage: React.FC<TablesPageProps> = ({ initialTables }: TablesP
   const saveSeating = (partySize: number, waiter: string): void => {
     if (seating === null) return;
     const id = seating.id;
+    const seq = orderSeq;
+    setOrderSeq((n: number): number => n + 1);
     setTables((prev: FloorTable[]): FloorTable[] =>
-      prev.map((t: FloorTable): FloorTable => (t.id === id ? { ...t, partySize, waiter, status: "Occupied" } : t)),
+      prev.map((t: FloorTable): FloorTable => (t.id === id ? openTableOrder(t, partySize, waiter, seq) : t)),
     );
     setSeating(null);
   };
@@ -116,6 +135,7 @@ export const TablesPage: React.FC<TablesPageProps> = ({ initialTables }: TablesP
                   Seats {t.capacity}
                   {t.status === "Occupied" ? ` · Party of ${t.partySize}` : ""}
                   {t.status === "Occupied" && t.waiter !== "" ? ` · ${t.waiter}` : ""}
+                  {t.orderId !== null ? ` · ${t.orderId}` : ""}
                 </Typography.Text>
                 <Tag color={STATUS_COLOR[t.status]}>{t.status}</Tag>
               </Space>
