@@ -1,9 +1,10 @@
-import { LockOutlined } from "@ant-design/icons";
-import { App, Button } from "antd";
+import { LockOutlined, SoundOutlined, AudioMutedOutlined } from "@ant-design/icons";
+import { App, Button, Space } from "antd";
 import React from "react";
 import { useState } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useTauriIpc } from "./hooks/useTauriIpc.js";
+import { useSoundEnabled } from "./lib/sounds.js";
 import { CheckoutPage } from "./pages/CheckoutPage.js";
 import { LockScreen } from "./pages/LockScreen.js";
 import { LoginPage } from "./pages/LoginPage.js";
@@ -22,6 +23,7 @@ export const PosRouter: React.FC = () => {
   const { session } = usePosSession();
   const { authenticatePin } = useTauriIpc();
   const [locked, setLocked] = useState<boolean>(false);
+  const { enabled: soundEnabled, toggle: toggleSound } = useSoundEnabled();
 
   const handleUnlock = async (pin: string): Promise<void> => {
     if (!session) return;
@@ -36,14 +38,20 @@ export const PosRouter: React.FC = () => {
     <App>
     <HashRouter>
       {session && (
-        <Button
-          type="default"
-          icon={<LockOutlined />}
-          onClick={(): void => setLocked(true)}
-          style={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}
-        >
-          Lock
-        </Button>
+        <Space style={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}>
+          <Button
+            type="default"
+            icon={soundEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
+            onClick={toggleSound}
+          />
+          <Button
+            type="default"
+            icon={<LockOutlined />}
+            onClick={(): void => setLocked(true)}
+          >
+            Lock
+          </Button>
+        </Space>
       )}
       <LockScreen
         open={locked}
