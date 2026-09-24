@@ -12,11 +12,15 @@ interface Customer {
   spend: number;
   lastVisit: string;
   tier: Tier;
+  birthday?: string;
+  anniversary?: string;
 }
 
 interface CustomerFormValues {
   name: string;
   phone: string;
+  birthday?: string;
+  anniversary?: string;
 }
 
 type MessStatus = "Active" | "Suspended" | "Closed";
@@ -51,8 +55,8 @@ const seedLedgerRows = (): LedgerRow[] => [
 ];
 
 const seedCustomers = (): Customer[] => [
-  { key: "C-01", name: "Aarav Sharma", phone: "+91 98200 11223", orders: 48, spend: 18420, lastVisit: "Today 12:40", tier: "Gold" },
-  { key: "C-02", name: "Priya Nair", phone: "+91 97401 22334", orders: 36, spend: 12980, lastVisit: "Today 11:05", tier: "Gold" },
+  { key: "C-01", name: "Aarav Sharma", phone: "+91 98200 11223", orders: 48, spend: 18420, lastVisit: "Today 12:40", tier: "Gold", birthday: "10-10" },
+  { key: "C-02", name: "Priya Nair", phone: "+91 97401 22334", orders: 36, spend: 12980, lastVisit: "Today 11:05", tier: "Gold", anniversary: "12-25" },
   { key: "C-03", name: "Rohan Mehta", phone: "+91 98111 33445", orders: 21, spend: 7640, lastVisit: "Yesterday 20:15", tier: "Silver" },
   { key: "C-04", name: "Sneha Iyer", phone: "+91 96320 44556", orders: 12, spend: 3910, lastVisit: "Yesterday 13:50", tier: "Silver" },
   { key: "C-05", name: "Vikram Rao", phone: "+91 98860 55667", orders: 5, spend: 1620, lastVisit: "2 days ago", tier: "Bronze" },
@@ -71,6 +75,62 @@ const activityFor = (c: Customer): { label: string; text: string }[] => [
   { label: "Tier", text: `${c.tier} tier customer` },
 ];
 
+export interface Occasion {
+  customer: Customer;
+  kind: "birthday" | "anniversary";
+  date: string;
+}
+
+const isLeapYear = (year: number): boolean => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+export const upcomingOccasions = (customers: Customer[], todayIso: string, withinDays: number = 7): Occasion[] => {
+  const [yStr, mStr, dStr] = todayIso.split("T")[0]?.split("-") ?? ["2023", "01", "01"];
+  const ty = parseInt(yStr, 10);
+  const tm = parseInt(mStr, 10);
+  const td = parseInt(dStr, 10);
+
+  const today = new Date(ty, tm - 1, td);
+  const cutoff = new Date(ty, tm - 1, td);
+  cutoff.setDate(cutoff.getDate() + withinDays);
+
+  const results: Occasion[] = [];
+
+  for (const c of customers) {
+    const occasions: Array<{ kind: "birthday" | "anniversary"; dateStr?: string }> = [
+      { kind: "birthday", dateStr: c.birthday },
+      { kind: "anniversary", dateStr: c.anniversary },
+    ];
+
+    for (const { kind, dateStr } of occasions) {
+      if (!dateStr) continue;
+
+      const [omStr, odStr] = dateStr.split("-");
+      if (!omStr || !odStr) continue;
+      const om = parseInt(omStr, 10);
+      const od = parseInt(odStr, 10);
+
+      for (const y of [ty, ty + 1]) {
+        let actualM = om;
+        let actualD = od;
+
+        if (om === 2 && od === 29 && !isLeapYear(y)) {
+          actualM = 3;
+          actualD = 1;
+        }
+
+        const occDate = new Date(y, actualM - 1, actualD);
+
+        if (occDate >= today && occDate <= cutoff) {
+          results.push({ customer: c, kind, date: dateStr });
+          break;
+        }
+      }
+    }
+  }
+
+  return results;
+};
+
 export const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(seedCustomers);
   const [query, setQuery] = useState<string>("");
@@ -78,7 +138,7 @@ export const CustomersPage: React.FC = () => {
   const [minOrders, setMinOrders] = useState<number | null>(null);
   const [minSpend, setMinSpend] = useState<number | null>(null);
   const [viewed, setViewed] = useState<Customer | null>(null);
-  const [adding, setAdding] = useState<boolean>(false);
+  const [editingMode, setEditingMode] = useState<"new" | "edit" | null>(null);
   const [form] = Form.useForm<CustomerFormValues>();
 
   const [messAccounts, setMessAccounts] = useState<MessAccount[]>(seedMessAccounts);
@@ -88,6 +148,8 @@ export const CustomersPage: React.FC = () => {
   const [topUpForm] = Form.useForm<{ amount: number; memo: string }>();
 
   const frequencyEntries = useMemo(() => customers.map(c => ({ visits: c.orders })), [customers]);
+
+  const occasions = useMemo(() => upcomingOccasions(customers, new Date().toISOString(), 7), [customers]);
 
   const rows = useMemo((): Customer[] => {
     const q = query.trim().toLowerCase();
@@ -103,15 +165,32 @@ export const CustomersPage: React.FC = () => {
   const top = useMemo((): Customer[] => [...customers].sort((a: Customer, b: Customer): number => b.spend - a.spend).slice(0, 3), [customers]);
 
   const openAdd = (): void => {
-    form.setFieldsValue({ name: "", phone: "" });
-    setAdding(true);
+    form.setFieldsValue({ name: "", phone: "", birthday: "", anniversary: "" });
+    setEditingMode("new");
+  };
+
+  const openEdit = (customer: Customer): void => {
+    form.setFieldsValue({
+      name: customer.name,
+      phone: customer.phone,
+      birthday: customer.birthday ?? "",
+      anniversary: customer.anniversary ?? "",
+    });
+    setEditingMode("edit");
   };
 
   const saveAdded = (values: CustomerFormValues): void => {
-    const key = `C-${customers.length + 1}-${values.name.length}`;
-    setCustomers((prev: Customer[]): Customer[] => [...prev, { key, orders: 0, spend: 0, lastVisit: "Just now", tier: "New", ...values }]);
-    void message.success(`Customer ${values.name} added.`);
-    setAdding(false);
+    if (editingMode === "edit" && viewed !== null) {
+      setCustomers((prev: Customer[]): Customer[] =>
+        prev.map((c: Customer): Customer => (c.key === viewed.key ? { ...c, ...values } : c)),
+      );
+      void message.success(`Customer ${values.name} updated.`);
+    } else {
+      const key = `C-${customers.length + 1}-${values.name.length}`;
+      setCustomers((prev: Customer[]): Customer[] => [...prev, { key, orders: 0, spend: 0, lastVisit: "Just now", tier: "New", ...values }]);
+      void message.success(`Customer ${values.name} added.`);
+    }
+    setEditingMode(null);
   };
 
   const messRows = useMemo((): MessAccount[] => {
@@ -230,6 +309,18 @@ export const CustomersPage: React.FC = () => {
                     </Card>
                   </Col>
                 </Row>
+                {occasions.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <Typography.Text type="secondary" strong style={{ marginRight: 8 }}>
+                      Upcoming Reminders:
+                    </Typography.Text>
+                    {occasions.map((o: Occasion, i: number) => (
+                      <Tag key={i} color={o.kind === "birthday" ? "magenta" : "cyan"}>
+                        {o.kind === "birthday" ? "🎂" : "🎉"} {o.customer.name} ({o.date})
+                      </Tag>
+                    ))}
+                  </div>
+                )}
                 <Row gutter={16}>
                   <Col span={16}>
                     <Card
@@ -295,7 +386,17 @@ export const CustomersPage: React.FC = () => {
         ]}
       />
 
-      <Drawer title={viewed?.name ?? "Customer"} open={viewed !== null} onClose={(): void => setViewed(null)} width={380}>
+      <Drawer
+        title={viewed?.name ?? "Customer"}
+        open={viewed !== null && editingMode !== "edit"}
+        onClose={(): void => setViewed(null)}
+        width={380}
+        extra={
+          <Button size="small" type="primary" onClick={(): void => { if (viewed) openEdit(viewed); }}>
+            Edit
+          </Button>
+        }
+      >
         {viewed !== null && (
           <>
             <Descriptions size="small" column={2} style={{ marginBottom: 16 }}>
@@ -311,13 +412,25 @@ export const CustomersPage: React.FC = () => {
         )}
       </Drawer>
 
-      <Modal title="Add Customer" open={adding} onOk={(): void => { void form.submit(); }} onCancel={(): void => setAdding(false)} okText="Add">
+      <Modal
+        title={editingMode === "edit" ? "Edit Customer" : "Add Customer"}
+        open={editingMode !== null}
+        onOk={(): void => { void form.submit(); }}
+        onCancel={(): void => setEditingMode(null)}
+        okText={editingMode === "edit" ? "Save" : "Add"}
+      >
         <Form form={form} layout="vertical" onFinish={saveAdded} preserve={false}>
           <Form.Item name="name" label="Name" rules={[{ required: true, message: "Name is required" }]}>
             <Input placeholder="Customer name" />
           </Form.Item>
           <Form.Item name="phone" label="Phone" rules={[{ required: true, message: "Phone is required" }]}>
             <Input placeholder="+91 …" />
+          </Form.Item>
+          <Form.Item name="birthday" label="Birthday (MM-DD)">
+            <Input placeholder="MM-DD" />
+          </Form.Item>
+          <Form.Item name="anniversary" label="Anniversary (MM-DD)">
+            <Input placeholder="MM-DD" />
           </Form.Item>
         </Form>
       </Modal>

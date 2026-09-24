@@ -1,7 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CustomersPage } from "./CustomersPage.js";
+import { CustomersPage, upcomingOccasions } from "./CustomersPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
 vi.mock("@ant-design/charts", () => ({
@@ -15,6 +15,47 @@ function renderPage(): void {
     </PlinthThemeProvider>,
   );
 }
+
+describe("upcomingOccasions", () => {
+  it("finds dates within standard range and outside", () => {
+    // @ts-expect-error partial mock
+    const c1: Customer = { name: "Bob", birthday: "05-10" };
+    // @ts-expect-error partial mock
+    const c2: Customer = { name: "Alice", anniversary: "05-15" };
+
+    // @ts-expect-error test
+    const res = upcomingOccasions([c1, c2], "2023-05-08T10:00:00Z", 5);
+    expect(res).toHaveLength(1);
+    expect(res[0]?.customer.name).toBe("Bob");
+  });
+
+  it("handles year wrap around", () => {
+    // @ts-expect-error partial mock
+    const c1: Customer = { name: "Charlie", birthday: "01-02" };
+    // @ts-expect-error test
+    const res = upcomingOccasions([c1], "2023-12-30T00:00:00Z", 7);
+    expect(res).toHaveLength(1);
+    expect(res[0]?.customer.name).toBe("Charlie");
+  });
+
+  it("handles leap year tolerance", () => {
+    // @ts-expect-error partial mock
+    const c1: Customer = { name: "Leap", birthday: "02-29" };
+
+    // In a non-leap year (2023), check if it appears on March 1st equivalent or Feb 28th
+    // We implemented it as March 1st. If today is Feb 27, Mar 1 is 2 days away.
+    // @ts-expect-error test
+    const res = upcomingOccasions([c1], "2023-02-27T00:00:00Z", 7);
+    expect(res).toHaveLength(1);
+    expect(res[0]?.customer.name).toBe("Leap");
+
+    // In a leap year (2024), check if it appears on Feb 29
+    // @ts-expect-error test
+    const res2 = upcomingOccasions([c1], "2024-02-27T00:00:00Z", 7);
+    expect(res2).toHaveLength(1);
+    expect(res2[0]?.customer.name).toBe("Leap");
+  });
+});
 
 describe("CustomersPage", () => {
   it("renders stats, directory and top customers", async () => {
