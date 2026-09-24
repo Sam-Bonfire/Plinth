@@ -15,11 +15,21 @@
 
 The edge API is the backend serverless component. It must be running before any other component that makes API calls.
 
+### Prerequisites (one-time)
+
+```bash
+cargo install worker-build --locked
+```
+
+`worker-build` 0.8.x pairs with the `worker` 0.8 SDK used by `apps/edge-api`. Always install with `--locked`; unpinned installs can resolve incompatible dependency versions on newer toolchains.
+
 ### Start Command
 
 ```bash
 mise run dev:api
 ```
+
+This builds the WASM bundle first (`build:edge` → `worker-build --dev`), then serves it with Miniflare on :8787.
 
 ### Equivalent Manual Commands
 
@@ -48,10 +58,15 @@ curl http://localhost:8787/health
 ```json
 {
   "status": "ok",
-  "timestamp": 1724967890123,
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "uptime_secs": 0,
+  "d1_reachable": true
 }
 ```
+
+### Windows Note: sccache vs Web-Sys
+
+On Windows, the global sccache wrapper fails to spawn `rustc` for the `web-sys` crate (OS error 206, command line too long) when building the `wasm32-unknown-unknown` target. Workaround for local WASM builds only: temporarily move both cargo configs aside (or set a short `CARGO_BUILD_TARGET_DIR` such as `C:\t`) and restore them immediately afterwards. CI (Linux) is unaffected.
 
 ### API Base URL for Local Development
 
