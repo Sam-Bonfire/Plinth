@@ -113,6 +113,7 @@ mod tests {
         assert!(table_names.contains(&"login_events".to_string()));
         assert!(table_names.contains(&"mess_accounts".to_string()));
         assert!(table_names.contains(&"mess_ledger_entries".to_string()));
+        assert!(table_names.contains(&"marketing_leads".to_string()));
 
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='index'")
@@ -129,6 +130,7 @@ mod tests {
         assert!(index_names.contains(&"idx_customers_tenant_phone".to_string()));
         assert!(index_names.contains(&"idx_mess_accounts_tenant".to_string()));
         assert!(index_names.contains(&"idx_mess_ledger_entries_account".to_string()));
+        assert!(index_names.contains(&"idx_marketing_leads_created".to_string()));
     }
 
     #[test]
@@ -157,6 +159,20 @@ mod tests {
             .1;
         conn.execute_batch(sixth_sql)
             .expect("Failed idempotent rerun of 0006");
+    }
+
+    #[test]
+    fn test_marketing_leads_migration_idempotent() {
+        let conn = Connection::open_in_memory().expect("Failed to open in-memory database");
+        run_all(&conn);
+        let all = all_migration_contents_sorted();
+        let eighth_sql = all
+            .iter()
+            .find(|(p, _)| p.contains("0008"))
+            .expect("Missing 0008")
+            .1;
+        conn.execute_batch(eighth_sql)
+            .expect("Failed idempotent rerun of 0008");
     }
 
     #[test]
