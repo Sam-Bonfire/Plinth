@@ -28,6 +28,7 @@ const ROUTE_META: Record<string, RouteMeta> = {
   "/floor": { title: "Floor Plan", sub: "Tabular table editor" },
   "/onboarding": { title: "Onboarding Wizard", sub: "7-step setup flow" },
   "/dashboard": { title: "Dashboard", sub: "At-a-glance operations" },
+  "/vendors": { title: "Vendors & Suppliers", sub: "Manage supply chain directory" },
 };
 
 const DEFAULT_META: RouteMeta = { title: "PlinthOS", sub: "" };
@@ -55,6 +56,7 @@ const navItems: MenuProps["items"] = [
       { key: "/menu", label: "Menu" },
       { key: "/recipes", label: "Recipes" },
       { key: "/inventory", label: "Inventory" },
+      { key: "/vendors", label: "Vendors" },
       { key: "/customers", label: "Customers" },
       { key: "/staff", label: "Staff" },
     ],
