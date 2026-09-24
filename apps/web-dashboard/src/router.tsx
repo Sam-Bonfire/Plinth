@@ -17,6 +17,7 @@ import { SettingsPage } from "./pages/SettingsPage.js";
 import { StaffPage } from "./pages/StaffPage.js";
 import { TablesPage } from "./pages/TablesPage.js";
 import { TrackingPage } from "./pages/TrackingPage.js";
+import { VendorsPage } from "./pages/VendorsPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
 const ProtectedRoute: React.FC = () => {
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
           { path: "/inventory", element: <InventoryPage /> },
           { path: "/recipes", element: <RecipesPage /> },
           { path: "/customers", element: <CustomersPage /> },
+          { path: "/vendors", element: <VendorsPage /> },
           { path: "/staff", element: <StaffPage /> },
           { path: "/reports", element: <ReportsPage /> },
           { path: "/settings", element: <SettingsPage /> },

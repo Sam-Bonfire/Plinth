@@ -22,6 +22,7 @@ export interface KDSTicketCardProps {
   items: KDSTicketItem[];
   onToggleItem?: (itemId: string) => void;
   onBump: () => void;
+  onReprint?: () => void;
 }
 
 export const KDSTicketCard: React.FC<KDSTicketCardProps> = ({
@@ -33,6 +34,7 @@ export const KDSTicketCard: React.FC<KDSTicketCardProps> = ({
   items,
   onToggleItem,
   onBump,
+  onReprint,
 }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -120,15 +122,36 @@ export const KDSTicketCard: React.FC<KDSTicketCardProps> = ({
         ))}
       </div>
       <Divider style={{ margin: "12px 0" }} />
-      <Button
-        type="primary"
-        block
-        size="large"
-        style={{ height: "48px", fontSize: "1.2rem", fontWeight: "bold" }}
-        onClick={onBump}
-      >
-        BUMP
-      </Button>
+      {onReprint ? (
+        <Space direction="horizontal" style={{ width: "100%" }} size={8}>
+          <Button
+            type="default"
+            size="large"
+            style={{ height: "48px", flex: 1, fontSize: "1.1rem" }}
+            onClick={onReprint}
+          >
+            Re-print
+          </Button>
+          <Button
+            type="primary"
+            size="large"
+            style={{ height: "48px", flex: 2, fontSize: "1.2rem", fontWeight: "bold" }}
+            onClick={onBump}
+          >
+            BUMP
+          </Button>
+        </Space>
+      ) : (
+        <Button
+          type="primary"
+          block
+          size="large"
+          style={{ height: "48px", fontSize: "1.2rem", fontWeight: "bold" }}
+          onClick={onBump}
+        >
+          BUMP
+        </Button>
+      )}
     </Card>
   );
 };
