@@ -10,6 +10,7 @@ pub mod printing;
 pub mod repos;
 pub mod state;
 pub mod sync_daemon;
+pub mod window;
 pub mod backup;
 
 use crate::state::AppContext;
@@ -27,6 +28,7 @@ pub fn run() {
         .manage(AppContext::default())
         .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
         .manage(Mutex::new(diag_log::DiagLog::new(1000)))
+        .manage(std::sync::Mutex::new(window::WindowMachine::new()))
         .invoke_handler(tauri::generate_handler![
             lock_daemon::lock_report_activity,
             lock_daemon::lock_status,
@@ -43,6 +45,9 @@ pub fn run() {
             diag_log::diag_push,
             diag_log::diag_drain,
             diag_log::diag_export,
+            window::enter_kiosk,
+            window::exit_kiosk,
+            window::toggle_fullscreen,
             backup::backup_now,
         ])
         .setup(|_app| {
