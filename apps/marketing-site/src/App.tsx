@@ -21,9 +21,9 @@ const App: React.FC = () => {
 
   return (
     <PlinthThemeProvider>
-      <div>
+      <main aria-label="PlinthOS overview">
         <h1>PlinthOS Marketing Site</h1>
-      </div>
+      </main>
     </PlinthThemeProvider>
   );
 };
