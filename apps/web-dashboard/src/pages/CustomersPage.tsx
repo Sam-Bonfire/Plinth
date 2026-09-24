@@ -1,5 +1,5 @@
 import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
-import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Rate, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
@@ -36,6 +36,14 @@ interface LedgerRow {
   memo: string;
 }
 
+export interface Feedback {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
 const seedMessAccounts = (): MessAccount[] => [
   { key: "M-01", name: "Corporate Staff", balance: 5000, status: "Active" },
   { key: "M-02", name: "Student Hostel A", balance: 1200, status: "Active" },
@@ -58,6 +66,19 @@ const seedCustomers = (): Customer[] => [
   { key: "C-05", name: "Vikram Rao", phone: "+91 98860 55667", orders: 5, spend: 1620, lastVisit: "2 days ago", tier: "Bronze" },
   { key: "C-06", name: "Ananya Das", phone: "+91 97170 66778", orders: 1, spend: 340, lastVisit: "2 days ago", tier: "New" },
 ];
+
+const seedFeedbacks = (): Feedback[] => [
+  { id: "F-01", customerName: "Aarav Sharma", rating: 5, comment: "Excellent service and food quality!", date: "2023-10-09" },
+  { id: "F-02", customerName: "Priya Nair", rating: 4, comment: "Good taste, but waiting time was a bit long.", date: "2023-10-08" },
+  { id: "F-03", customerName: "Vikram Rao", rating: 5, comment: "Loved the new dessert menu.", date: "2023-10-05" },
+  { id: "F-04", customerName: "Ananya Das", rating: 3, comment: "Average experience.", date: "2023-10-02" },
+];
+
+export const avgRating = (feedbacks: Feedback[]): number => {
+  if (feedbacks.length === 0) return 0;
+  const total = feedbacks.reduce((acc: number, f: Feedback): number => acc + f.rating, 0);
+  return total / feedbacks.length;
+};
 
 
 const inr = (n: number): string =>
@@ -83,6 +104,7 @@ export const CustomersPage: React.FC = () => {
 
   const [messAccounts, setMessAccounts] = useState<MessAccount[]>(seedMessAccounts);
   const [ledgerRows, setLedgerRows] = useState<LedgerRow[]>(seedLedgerRows);
+  const [feedbacks] = useState<Feedback[]>(seedFeedbacks());
   const [messQuery, setMessQuery] = useState<string>("");
   const [topUpAccount, setTopUpAccount] = useState<MessAccount | null>(null);
   const [topUpForm] = Form.useForm<{ amount: number; memo: string }>();
@@ -287,6 +309,32 @@ export const CustomersPage: React.FC = () => {
                     }
                   >
                     <Table<MessAccount> dataSource={messRows} columns={messColumns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No mess accounts match." }} />
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+          {
+            key: "3",
+            label: "Feedback",
+            children: (
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Card>
+                    <Statistic title="Average Rating" value={avgRating(feedbacks)} precision={1} suffix=" / 5" />
+                  </Card>
+                </Col>
+                <Col span={24} style={{ marginTop: 16 }}>
+                  <Card title="Customer Reviews">
+                    <List
+                      dataSource={feedbacks}
+                      renderItem={(f: Feedback): React.ReactNode => (
+                        <List.Item>
+                          <List.Item.Meta avatar={<PlinthAvatar name={f.customerName} size="sm" />} title={<Space><span>{f.customerName}</span><Rate disabled value={f.rating} style={{ fontSize: 14 }} /></Space>} description={f.comment} />
+                          <Typography.Text type="secondary">{f.date}</Typography.Text>
+                        </List.Item>
+                      )}
+                    />
                   </Card>
                 </Col>
               </Row>
