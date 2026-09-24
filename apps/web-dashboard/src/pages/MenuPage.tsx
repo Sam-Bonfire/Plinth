@@ -240,7 +240,6 @@ export const MenuPage: React.FC = () => {
                     <Button size="small" icon={<ArrowUpOutlined />} onClick={(): void => handleMoveCategory(c.id, "up")} />
                     <Button size="small" icon={<ArrowDownOutlined />} onClick={(): void => handleMoveCategory(c.id, "down")} />
                   </div>
->>>>>>> dev
                 );
               })}
               <Button block onClick={(): void => setCatOpen(true)}>
