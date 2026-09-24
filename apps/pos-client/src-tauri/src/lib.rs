@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod db;
+pub mod diag_log;
 pub mod lan_kds;
 pub mod migrations;
 pub mod lock_daemon;
@@ -26,6 +27,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppContext::default())
         .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
+        .manage(Mutex::new(diag_log::DiagLog::new(1000)))
         .manage(std::sync::Mutex::new(window::WindowMachine::new()))
         .invoke_handler(tauri::generate_handler![
             lock_daemon::lock_report_activity,
@@ -40,6 +42,9 @@ pub fn run() {
             commands::service::authenticate_pin,
             commands::service::record_audit_event,
             commands::service::get_sync_status,
+            diag_log::diag_push,
+            diag_log::diag_drain,
+            diag_log::diag_export,
             window::enter_kiosk,
             window::exit_kiosk,
             window::toggle_fullscreen,
