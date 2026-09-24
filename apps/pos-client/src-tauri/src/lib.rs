@@ -9,6 +9,7 @@ pub mod printing;
 pub mod repos;
 pub mod state;
 pub mod sync_daemon;
+pub mod window;
 pub mod backup;
 
 use crate::state::AppContext;
@@ -25,6 +26,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppContext::default())
         .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
+        .manage(std::sync::Mutex::new(window::WindowMachine::new()))
         .invoke_handler(tauri::generate_handler![
             lock_daemon::lock_report_activity,
             lock_daemon::lock_status,
@@ -38,6 +40,9 @@ pub fn run() {
             commands::service::authenticate_pin,
             commands::service::record_audit_event,
             commands::service::get_sync_status,
+            window::enter_kiosk,
+            window::exit_kiosk,
+            window::toggle_fullscreen,
             backup::backup_now,
         ])
         .setup(|_app| {
