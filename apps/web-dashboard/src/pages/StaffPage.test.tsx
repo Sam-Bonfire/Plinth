@@ -1,4 +1,5 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
+import { App } from "antd";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
@@ -6,7 +7,9 @@ import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <StaffPage />
+      <App>
+        <StaffPage />
+      </App>
     </PlinthThemeProvider>,
   );
 }
@@ -65,7 +68,7 @@ describe("StaffPage", () => {
     expect(after).toBe(before - 1);
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
     expect(await screen.findByText("Role permissions saved.")).toBeDefined();
-  }, 60000);
+  }, 30000);
 
   it("queues the matrix for terminal sync", async () => {
     localStorage.clear();
@@ -75,7 +78,7 @@ describe("StaffPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Sync to Terminals" }));
     expect(await screen.findByText(/queued for terminal sync \(1 pending\)/)).toBeDefined();
     localStorage.clear();
-  }, 60000);
+  }, 30000);
 
   it("filters the audit log by action", async () => {
     renderPage();
