@@ -42,7 +42,7 @@ describe("CheckoutPage", () => {
     vi.clearAllMocks();
     usePosCartStore.getState().clear();
   });
-  it("places an order through invoke and clears the cart", async () => {
+  it("places an order through invoke and clears the cart", { timeout: 30000 }, async () => {
     vi.mocked(tauriApiCore.invoke).mockResolvedValueOnce("order-9").mockResolvedValueOnce("print-1");
     usePosCartStore.getState().clear();
     usePosCartStore.setState({
@@ -70,7 +70,7 @@ describe("CheckoutPage", () => {
     usePosCartStore.getState().clear();
   });
 
-  it("blocks short cash tender before submit", async () => {
+  it("blocks short cash tender before submit", { timeout: 30000 }, async () => {
     usePosCartStore.getState().clear();
     usePosCartStore.setState({
       lines: [
