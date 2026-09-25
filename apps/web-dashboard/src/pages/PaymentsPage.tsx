@@ -1,8 +1,9 @@
-import { DoughnutChart } from "@plinth/ui-kit";import { Button, Card, Col, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
+import { DoughnutChart, type ZReportDto } from "@plinth/ui-kit";import { Button, Card, Col, Descriptions, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
 import { FraudAlerts } from "../components/FraudAlerts.js";
 import { UpiQrModal } from "../components/UpiQrModal.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
 type TxnStatus = "Settled" | "Pending" | "Refunded";
@@ -68,6 +69,28 @@ export const buildPaymentsCsv = (rows: Txn[]): string => {
   return lines.join("\n");
 };
 
+export interface LocalZ {
+  gross: number;
+  byMethod: Record<string, number>;
+  refunded: number;
+}
+
+/** Summarizes settled txns into a Z-report-shaped total (demo/offline fallback). */
+export const buildLocalZ = (rows: Txn[]): LocalZ => {
+  const settled = rows.filter((r: Txn): boolean => r.status === "Settled");
+  const byMethod: Record<string, number> = {};
+  let refunded = 0;
+  for (const r of rows) {
+    if (r.status === "Refunded") refunded += r.amount;
+  }
+  let gross = 0;
+  for (const r of settled) {
+    gross += r.amount;
+    byMethod[r.method] = (byMethod[r.method] ?? 0) + r.amount;
+  }
+  return { gross, byMethod, refunded };
+};
+
 export const PaymentsPage: React.FC = () => {
   const [txns, setTxns] = useState<Txn[]>(seedTxns);
   const [recon] = useState<ReconRow[]>(seedRecon);
@@ -80,6 +103,13 @@ export const PaymentsPage: React.FC = () => {
   const [drops, setDrops] = useState<CashDrop[]>([]);
   const [dropOpen, setDropOpen] = useState<boolean>(false);
   const [upiOpen, setUpiOpen] = useState<boolean>(false);
+  const [closeOpen, setCloseOpen] = useState<boolean>(false);
+  const [shiftId, setShiftId] = useState<string>("");
+  const [physicalCash, setPhysicalCash] = useState<number | null>(null);
+  const [closeNote, setCloseNote] = useState<string>("");
+  const [zReport, setZReport] = useState<ZReportDto | null>(null);
+  const [zLocal, setZLocal] = useState<LocalZ | null>(null);
+  const { client } = useAuth();
 
   const settled = useMemo((): Txn[] => txns.filter((t: Txn): boolean => t.status === "Settled"), [txns]);
   const sumBy = (m: PayMethod): number => settled.filter((t: Txn): boolean => t.method === m).reduce((s: number, t: Txn): number => s + t.amount, 0);
@@ -121,6 +151,28 @@ export const PaymentsPage: React.FC = () => {
     const matched = recon.filter((r: ReconRow): boolean => r.expected === r.received).length;
     setReconAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
     void message.success(`Reconciliation complete: ${matched} matched, ${recon.length - matched} need review.`);
+  };
+
+  const submitClose = (): void => {
+    if (shiftId.trim() === "" || physicalCash === null) {
+      void message.error("Enter the shift ID and counted cash.");
+      return;
+    }
+    client
+      .closeShift({ shift_id: shiftId.trim(), physical_cash_minor: Math.round(physicalCash * 100), notes: closeNote.trim() === "" ? null : closeNote.trim() })
+      .then((report: ZReportDto): void => {
+        setZReport(report);
+        setZLocal(null);
+        setCloseOpen(false);
+        void message.success(`Shift ${shiftId} closed.`);
+      })
+      .catch((): void => {
+        // Offline/demo fallback: summarize local settled txns.
+        setZLocal(buildLocalZ(txns));
+        setZReport(null);
+        setCloseOpen(false);
+        void message.success("Shift closed locally (offline) - see summary.");
+      });
   };
 
   const exportCsv = (): void => {
@@ -256,6 +308,9 @@ export const PaymentsPage: React.FC = () => {
               <Button block onClick={exportCsv}>
                 Export CSV
               </Button>
+              <Button block type="primary" onClick={(): void => setCloseOpen(true)}>
+                Close Shift
+              </Button>
             </Space>
           </Card>
           <FraudAlerts
@@ -316,6 +371,53 @@ export const PaymentsPage: React.FC = () => {
         pa="store@upi"
         pn="Plinth Store"
       />
+
+      <Modal title="Close Shift" open={closeOpen} onOk={submitClose} onCancel={(): void => setCloseOpen(false)} okText="Close Shift">
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Input placeholder="Shift ID (e.g. SHIFT-2026-09-25-M1)" value={shiftId} onChange={(e): void => setShiftId(e.target.value)} />
+          <InputNumber min={0} prefix="₹" placeholder="Counted cash" value={physicalCash} onChange={(v: number | null): void => setPhysicalCash(v)} style={{ width: "100%" }} />
+          <Input placeholder="Note (optional)" value={closeNote} onChange={(e): void => setCloseNote(e.target.value)} />
+        </Space>
+      </Modal>
+
+      {(zReport !== null || zLocal !== null) && (
+        <Card
+          title="Z-Report"
+          style={{ marginTop: 16 }}
+          extra={
+            <Button size="small" onClick={(): void => window.print()}>
+              Print
+            </Button>
+          }
+        >
+          {zReport !== null ? (
+            <Descriptions size="small" column={2}>
+              <Descriptions.Item label="Shift">{zReport.shift_id}</Descriptions.Item>
+              <Descriptions.Item label="Closed">{zReport.closed_at}</Descriptions.Item>
+              <Descriptions.Item label="Gross sales">{inr(zReport.gross_sales / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Net sales">{inr(zReport.net_sales / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Tax">{inr(zReport.total_tax / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Discounts">{inr(zReport.total_discounts / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Physical cash">{inr(zReport.physical_cash / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Expected cash">{inr(zReport.expected_cash / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Variance">{inr(zReport.variance / 100)}</Descriptions.Item>
+              <Descriptions.Item label="Tenders">
+                {zReport.tender_breakdown.map(([m, amt]): string => `${m}: ${inr(amt / 100)}`).join(" · ")}
+              </Descriptions.Item>
+            </Descriptions>
+          ) : (
+            <Descriptions size="small" column={2}>
+              <Descriptions.Item label="Gross (local)">{inr(zLocal?.gross ?? 0)}</Descriptions.Item>
+              <Descriptions.Item label="Refunded">{inr(zLocal?.refunded ?? 0)}</Descriptions.Item>
+              {Object.entries(zLocal?.byMethod ?? {}).map(([m, amt]): React.ReactNode => (
+                <Descriptions.Item key={m} label={m}>
+                  {inr(amt)}
+                </Descriptions.Item>
+              ))}
+            </Descriptions>
+          )}
+        </Card>
+      )}
     </div>
   );
 };
