@@ -12,6 +12,8 @@ import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space,
 import React, { useMemo, useState } from "react";
 import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
 import { RiderPickupModal } from "../components/RiderPickupModal.js";
+import { logAudit } from "../lib/auditTrail.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 interface OrderRow {
   key: string;
@@ -82,6 +84,7 @@ const seedOrders = (): OrderRow[] => [
 ];
 
 export const OrdersPage: React.FC = () => {
+  const { client } = useAuth();
   const [orders, setOrders] = useState<OrderRow[]>(seedOrders);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
@@ -111,6 +114,7 @@ export const OrdersPage: React.FC = () => {
 
   const voidOrder = (key: string): void => {
     setOrders((prev: OrderRow[]): OrderRow[] => prev.map((o: OrderRow): OrderRow => (o.key === key ? { ...o, status: "Voided" } : o)));
+    void logAudit(client, "VOID_ORDER", "order", key);
   };
 
   const columns: TableColumnsType<OrderRow> = [

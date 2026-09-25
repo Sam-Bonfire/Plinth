@@ -1,14 +1,27 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
+import type { PlinthApiClient } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, beforeEach } from "vitest";
+import { AuthContext } from "../providers/AuthProvider.js";
 import { useCartStore } from "../stores/cartStore.js";
 import { PosPage, tenderChange, validateTender } from "./PosPage.js";
 
+const mockAuthContext = {
+  isAuthenticated: true,
+  tenantId: "t1",
+  locationId: "l1",
+  login: async () => {},
+  logout: () => {},
+  client: { ingestAudit: async () => {} } as unknown as PlinthApiClient,
+};
+
 function renderPage(): HTMLElement {
   const { container } = render(
-    <PlinthThemeProvider>
-      <PosPage />
-    </PlinthThemeProvider>,
+    <AuthContext.Provider value={mockAuthContext}>
+      <PlinthThemeProvider>
+        <PosPage />
+      </PlinthThemeProvider>
+    </AuthContext.Provider>,
   );
   return container;
 }

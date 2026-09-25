@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
 import { FraudAlerts } from "../components/FraudAlerts.js";
 import { UpiQrModal } from "../components/UpiQrModal.js";
+import { logAudit } from "../lib/auditTrail.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
@@ -135,6 +136,7 @@ export const PaymentsPage: React.FC = () => {
       setTxns((prev: Txn[]): Txn[] => prev.map((t: Txn): Txn => (t.key === target.key ? { ...t, status: "Refunded" } : t)));
     };
     applyLocal();
+    void logAudit(client, "PROCESS_REFUND", "payment", target.id);
     // Sync to the backend; local state stays as offline fallback.
     try {
       client
