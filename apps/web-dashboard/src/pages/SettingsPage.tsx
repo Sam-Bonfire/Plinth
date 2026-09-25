@@ -83,16 +83,60 @@ const DEFAULTS: Record<string, Record<string, SettingValue>> = {
   notifications: { lowStock: true, payoutShortfall: true, summaryEmail: "owner@example.com" },
 };
 
-const seedLocations = (): Location[] => [
+export const seedLocations = (): Location[] => [
   { key: "L-01", name: "Koramangala", city: "Bengaluru", tables: 14, active: true },
   { key: "L-02", name: "Indiranagar", city: "Bengaluru", tables: 10, active: true },
   { key: "L-03", name: "HSR Layout", city: "Bengaluru", tables: 8, active: false },
 ];
 
+const isSettingValue = (v: unknown): v is SettingValue => {
+  return typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+};
+
+const isValuesRecord = (v: unknown): v is Record<string, Record<string, SettingValue>> => {
+  if (typeof v !== "object" || v === null) return false;
+  return Object.values(v).every((category) => {
+    if (typeof category !== "object" || category === null) return false;
+    return Object.values(category).every(isSettingValue);
+  });
+};
+
+const isLocation = (v: unknown): v is Location => {
+  if (typeof v !== "object" || v === null) return false;
+  const loc = v as Record<string, unknown>;
+  return typeof loc.key === "string" && typeof loc.name === "string" && typeof loc.city === "string" && typeof loc.tables === "number" && typeof loc.active === "boolean";
+};
+
+const isLocationArray = (v: unknown): v is Location[] => {
+  return Array.isArray(v) && v.every(isLocation);
+};
+
+export const loadSettings = (): { values: Record<string, Record<string, SettingValue>>; locations: Location[] } => {
+  try {
+    const data = localStorage.getItem("plinth-settings");
+    if (data) {
+      const parsed = JSON.parse(data) as unknown;
+      if (typeof parsed === "object" && parsed !== null) {
+        const p = parsed as Record<string, unknown>;
+        const values = isValuesRecord(p.values) ? p.values : DEFAULTS;
+        const locations = isLocationArray(p.locations) ? p.locations : seedLocations();
+        return { values, locations };
+      }
+    }
+  } catch {
+    // Ignore parse errors and fall back to defaults
+  }
+  return { values: DEFAULTS, locations: seedLocations() };
+};
+
+export const saveSettings = (state: { values: Record<string, Record<string, SettingValue>>; locations: Location[] }): void => {
+  localStorage.setItem("plinth-settings", JSON.stringify(state));
+};
+
 export const SettingsPage: React.FC = () => {
   const [tab, setTab] = useState<string>("general");
-  const [values, setValues] = useState<Record<string, Record<string, SettingValue>>>(DEFAULTS);
-  const [locations, setLocations] = useState<Location[]>(seedLocations);
+  const [values, setValues] = useState<Record<string, Record<string, SettingValue>>>(() => loadSettings().values);
+  const [locations, setLocations] = useState<Location[]>(() => loadSettings().locations);
   const [editing, setEditing] = useState<Location | "new" | null>(null);
   const [form] = Form.useForm<LocationFormValues>();
 
@@ -101,11 +145,14 @@ export const SettingsPage: React.FC = () => {
   };
 
   const saveTab = (): void => {
+    saveSettings({ values, locations });
     void message.success("Settings saved.");
   };
 
   const toggleLocation = (key: string, active: boolean): void => {
-    setLocations((prev: Location[]): Location[] => prev.map((l: Location): Location => (l.key === key ? { ...l, active } : l)));
+    const updated = locations.map((l: Location): Location => (l.key === key ? { ...l, active } : l));
+    setLocations(updated);
+    saveSettings({ values, locations: updated });
   };
 
   const openAdd = (): void => {
@@ -121,10 +168,15 @@ export const SettingsPage: React.FC = () => {
   const saveLocation = (v: LocationFormValues): void => {
     if (editing === "new") {
       const key = `L-${locations.length + 1}-${v.name.length}`;
-      setLocations((prev: Location[]): Location[] => [...prev, { key, active: true, ...v }]);
+      const newLoc = { key, active: true, ...v };
+      const updated = [...locations, newLoc];
+      setLocations(updated);
+      saveSettings({ values, locations: updated });
       void message.success(`Location ${v.name} added.`);
     } else if (editing !== null) {
-      setLocations((prev: Location[]): Location[] => prev.map((l: Location): Location => (l.key === editing.key ? { ...l, ...v } : l)));
+      const updated = locations.map((l: Location): Location => (l.key === editing.key ? { ...l, ...v } : l));
+      setLocations(updated);
+      saveSettings({ values, locations: updated });
       void message.success(`Location ${v.name} updated.`);
     }
     setEditing(null);
