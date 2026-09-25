@@ -2,6 +2,8 @@ import { mockCategories, mockMenuItems, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, List, Modal, Radio, Row, Segmented, Space, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { usePosShortcuts } from "../hooks/usePosShortcuts.js";
+import { logAudit } from "../lib/auditTrail.js";
+import { useAuth } from "../providers/AuthProvider.js";
 import { useCartStore, type CartRow } from "../stores/cartStore.js";
 
 const CHANNELS: string[] = ["Dine-in", "Takeaway", "Swiggy", "Zomato"];
@@ -22,6 +24,7 @@ export const validateTender = (method: string, total: number, tendered: number |
 };
 
 export const PosPage: React.FC = () => {
+  const { client } = useAuth();
   const [categoryId, setCategoryId] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
   const lines = useCartStore((s) => s.lines);
@@ -158,6 +161,7 @@ export const PosPage: React.FC = () => {
   const saveDisc = (): void => {
     setDiscountPct(Math.min(100, Math.max(0, discDraft)));
     setDiscOpen(false);
+    void logAudit(client, "APPLY_DISCOUNT", "cart", "");
   };
 
   const placeOrder = (): void => {
