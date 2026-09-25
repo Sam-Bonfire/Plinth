@@ -24,6 +24,8 @@ export interface ParkedOrder {
 interface PosCartState {
   lines: CartLine[];
   parkedOrders: ParkedOrder[];
+  tableId: string | null;
+  setTable: (tableId: string | null) => void;
   addToCart: (item: MenuItem, selections: Record<string, string>) => AddToCartResult;
   changeQty: (key: string, qty: number) => void;
   removeLine: (key: string) => void;
@@ -36,6 +38,11 @@ interface PosCartState {
 export const usePosCartStore = create<PosCartState>((set) => ({
   lines: [],
   parkedOrders: [],
+  tableId: null,
+
+  setTable: (tableId) => {
+    set({ tableId });
+  },
 
   addToCart: (item, selections) => {
     if (!item.isAvailable) {
@@ -115,7 +122,7 @@ export const usePosCartStore = create<PosCartState>((set) => ({
   },
 
   clear: () => {
-    set({ lines: [] });
+    set({ lines: [], tableId: null });
   },
 
   parkOrder: (customerLabel) => {

@@ -61,7 +61,7 @@ describe("CheckoutPage", () => {
     expect(await screen.findByText(/Last order: order-9/)).toBeDefined();
     expect(tauriApiCore.invoke).toHaveBeenCalledWith(
       "submit_order",
-      expect.objectContaining({ req: expect.objectContaining({ terminal_id: "term-1" }) }),
+      expect.objectContaining({ req: expect.objectContaining({ terminal_id: "term-1", table_id: null }) }),
     );
     expect(usePosCartStore.getState().lines).toHaveLength(0);
     expect(await screen.findByText("Receipt")).toBeDefined();
