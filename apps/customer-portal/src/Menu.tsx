@@ -2,8 +2,9 @@ import { Alert, Button, Card, Empty, Flex, Segmented, Space, Spin, Tag, Typograp
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { addToCart, cartCount, cartTotal, type Cart } from './cart.js';
+import { ConsentDrawer, type ConsentChoices } from './ConsentDrawer.js';
 import { LoginModal, type LoginSubmitData } from './LoginModal.js';
-import { loadCustomer, saveCustomer, saveOrder, type PortalCustomer } from './session.js';
+import { loadConsent, loadCustomer, saveConsent, saveCustomer, saveOrder, type PortalCustomer } from './session.js';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -41,6 +42,7 @@ export const Menu = (): React.JSX.Element => {
   const [loginError, setLoginError] = useState<string | undefined>(undefined);
   const [placing, setPlacing] = useState<boolean>(false);
   const [placedId, setPlacedId] = useState<string | null>(null);
+  const [consentOpen, setConsentOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -132,9 +134,22 @@ export const Menu = (): React.JSX.Element => {
       const cust: PortalCustomer = { name: profile.name, phone: profile.phone };
       setCustomer(cust);
       saveCustomer(cust);
+      if (loadConsent() === null) {
+        setLoginOpen(false);
+        setConsentOpen(true);
+        return;
+      }
       await placeOrder(cust);
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'Login failed');
+    }
+  };
+
+  const handleConsent = async (choices: ConsentChoices): Promise<void> => {
+    saveConsent(choices);
+    setConsentOpen(false);
+    if (customer) {
+      await placeOrder(customer);
     }
   };
 
@@ -249,6 +264,7 @@ export const Menu = (): React.JSX.Element => {
       )}
 
       <LoginModal open={loginOpen} onCancel={() => setLoginOpen(false)} onSubmit={handleLogin} error={loginError} />
+      <ConsentDrawer open={consentOpen} onConsent={handleConsent} />
     </div>
   );
 };

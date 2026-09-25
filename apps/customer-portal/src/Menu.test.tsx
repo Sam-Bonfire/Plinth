@@ -131,4 +131,39 @@ describe('Menu', () => {
     expect(await screen.findByPlaceholderText('Enter your phone number')).toBeDefined();
     localStorage.clear();
   });
+
+  it('gates checkout on consent after login, then places the order', async () => {
+    localStorage.clear();
+    global.fetch = vi.fn((url: unknown) => {
+      const u = String(url);
+      if (u.includes('/public/menu')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockCatalog) });
+      }
+      if (u.includes('/customer-auth/login')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: 'Asha', phone: '+919820012345' }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-7', ticket_id: 'T-7', total_minor: 2000 }) });
+    }) as unknown as typeof fetch;
+
+    render(
+      <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
+        <Menu />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Classic Burger')).toBeDefined();
+    });
+
+    const adds = screen.getAllByRole('button', { name: 'Add' });
+    fireEvent.click(adds[0] as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Login & Order' }));
+    fireEvent.change(await screen.findByPlaceholderText('Enter your phone number'), { target: { value: '+919820012345' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter your PIN'), { target: { value: '1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+    expect(await screen.findByText('Decline All')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Decline All' }));
+    expect(await screen.findByText('Order placed: ORD-7')).toBeDefined();
+    localStorage.clear();
+  });
 });
