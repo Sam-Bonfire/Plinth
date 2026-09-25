@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, Space, Table, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Form, Input, InputNumber, Modal, Segmented, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.js";
 import { useTauriIpc, type OrderLineItem } from "../hooks/useTauriIpc.js";
@@ -12,16 +12,38 @@ interface CheckoutForm {
   terminalId: string;
 }
 
+export type TenderMethod = "Cash" | "UPI" | "Card";
+
+/** Change due (negative when under-tendered). */
+export const tenderChange = (total: number, tendered: number): number => tendered - total;
+
+/** Builds monospace receipt lines for an order. */
+export const formatReceipt = (orderId: string, lines: CartLine[], subtotal: number, tendered: number, change: number): string[] => {
+  const out: string[] = ["PLINTH POS", `Order: ${orderId}`, "--------------------------------"];
+  for (const l of lines) {
+    out.push(`${l.qty}x ${l.name}`.padEnd(24, " ") + `Rs.${l.qty * l.unitPrice}`);
+  }
+  out.push("--------------------------------");
+  out.push(`Subtotal: Rs.${subtotal}`);
+  out.push(`Tendered: Rs.${tendered}`);
+  out.push(`Change: Rs.${change}`);
+  return out;
+};
+
 export const CheckoutPage: React.FC = () => {
   const lines = usePosCartStore((s) => s.lines);
   const clear = usePosCartStore((s) => s.clear);
   const subtotal = usePosCartStore(selectSubtotal);
   const itemCount = usePosCartStore(selectItemCount);
   const { session } = usePosSession();
-  const { submitOrder } = useTauriIpc();
+  const { submitOrder, printReceipt } = useTauriIpc();
   const [placing, setPlacing] = useState<boolean>(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [sku, setSku] = useState<string>("");
+  const [method, setMethod] = useState<TenderMethod>("Cash");
+  const [tendered, setTendered] = useState<number | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState<boolean>(false);
+  const [receiptLines, setReceiptLines] = useState<string[]>([]);
 
   useBarcodeScanner((code: string) => {
     setSku(code);
@@ -30,6 +52,14 @@ export const CheckoutPage: React.FC = () => {
   const placeOrder = async (values: CheckoutForm): Promise<void> => {
     if (!session) {
       void message.error("Sign in first");
+      return;
+    }
+    if (lines.length === 0) {
+      void message.error("Cart is empty");
+      return;
+    }
+    if (method === "Cash" && (tendered === null || tendered < subtotal)) {
+      void message.error(`Cash short by Rs.${subtotal - (tendered ?? 0)}`);
       return;
     }
     setPlacing(true);
@@ -59,6 +89,9 @@ export const CheckoutPage: React.FC = () => {
         items,
       });
       setOrderId(id);
+      const paid = method === "Cash" ? (tendered ?? subtotal) : subtotal;
+      setReceiptLines(formatReceipt(id, lines, subtotal, paid, paid - subtotal));
+      setReceiptOpen(true);
       clear();
       playTone("success");
       void message.success(`Order placed · ${itemCount} items`);
@@ -67,6 +100,17 @@ export const CheckoutPage: React.FC = () => {
       void message.error(e instanceof Error ? e.message : "Order failed");
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const print = async (): Promise<void> => {
+    try {
+      const bytes = Array.from(new TextEncoder().encode(receiptLines.join("\n")));
+      const jobId = await printReceipt(bytes);
+      void message.success(`Receipt queued: ${jobId}`);
+      setReceiptOpen(false);
+    } catch (e) {
+      void message.error(e instanceof Error ? e.message : "Print failed");
     }
   };
 
@@ -113,6 +157,14 @@ export const CheckoutPage: React.FC = () => {
           <Form.Item label="Terminal ID" name="terminalId" rules={[{ required: true, message: "Terminal is required" }]}>
             <Input placeholder="terminal uuid" />
           </Form.Item>
+          <Form.Item label="Pay method">
+            <Segmented options={["Cash", "UPI", "Card"]} value={method} onChange={(v: string | number): void => setMethod(v.toString() as TenderMethod)} />
+          </Form.Item>
+          {method === "Cash" && (
+            <Form.Item label="Cash tendered">
+              <InputNumber min={0} value={tendered} onChange={(v: number | null): void => setTendered(v)} style={{ width: "100%" }} />
+            </Form.Item>
+          )}
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={placing} disabled={lines.length === 0}>
               Place Order
@@ -120,6 +172,11 @@ export const CheckoutPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Card>
+      <Modal title="Receipt" open={receiptOpen} onCancel={(): void => setReceiptOpen(false)} onOk={print} okText="Print">
+        <Typography.Text code style={{ whiteSpace: "pre-wrap" }}>
+          {receiptLines.join("\n")}
+        </Typography.Text>
+      </Modal>
       <Card title="Cart" style={{ marginTop: 16 }}>
         <Table<CartLine> dataSource={lines} columns={columns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "Cart is empty." }} />
       </Card>
