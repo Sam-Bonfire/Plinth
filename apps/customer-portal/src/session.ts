@@ -11,8 +11,16 @@ export interface PlacedOrder {
   placedAt: string;
 }
 
+export interface ConsentState {
+  sms: boolean;
+  email: boolean;
+  whatsapp: boolean;
+  decidedAt: string;
+}
+
 const CUSTOMER_KEY = 'plinth-portal-customer';
 const ORDERS_KEY = 'plinth-portal-orders';
+const CONSENT_KEY = 'plinth-portal-consent';
 
 const readJson = <T,>(key: string): T | null => {
   try {
@@ -38,3 +46,8 @@ export const saveCustomer = (c: PortalCustomer): void => writeJson(CUSTOMER_KEY,
 export const loadOrders = (): PlacedOrder[] => readJson<PlacedOrder[]>(ORDERS_KEY) ?? [];
 
 export const saveOrder = (o: PlacedOrder): void => writeJson(ORDERS_KEY, [o, ...loadOrders()].slice(0, 20));
+
+export const loadConsent = (): ConsentState | null => readJson<ConsentState>(CONSENT_KEY);
+
+export const saveConsent = (c: Omit<ConsentState, 'decidedAt'>): void =>
+  writeJson(CONSENT_KEY, { ...c, decidedAt: new Date().toISOString() });
