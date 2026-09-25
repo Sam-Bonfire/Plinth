@@ -10,7 +10,7 @@ import type {
   StockItemResponseDto,
   AuditResponseDto,
   ZReportDto,
-  HealthResponse,
+  HealthResponseDto,
 } from "./generated/types.js";
 
 describe("PlinthApiClient Contract and Wire Verification", () => {
@@ -37,10 +37,11 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
   });
 
   it("sends health probe to /health and returns parsed response", async () => {
-    const mockHealth: HealthResponse = {
+    const mockHealth: HealthResponseDto = {
       status: "ok",
-      timestamp: 1724850000,
       version: "0.1.0",
+      uptime_secs: 42,
+      d1_reachable: true,
     };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
