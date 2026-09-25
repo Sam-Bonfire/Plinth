@@ -1,5 +1,5 @@
 import { mockActiveDineInOrder, mockAggregatorOrders, mockTakeawayOrder, type OrderStatus } from "@plinth/ui-kit";
-import { Button, Card, Empty, Input, Space, Steps, Typography } from "antd";
+import { Button, Card, Empty, Input, Space, Steps, Typography, message } from "antd";
 import React, { useState } from "react";
 
 export function statusToStep(status: OrderStatus): number {
@@ -39,7 +39,9 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   Served: "Settled",
 };
 
+import { useContext } from "react";
 import { useTrackingTick } from "../hooks/useTrackingTick.js";
+import { AuthContext } from "../providers/AuthProvider.js";
 
 export const TrackingPage: React.FC = () => {
   const [orders, setOrders] = useState<TrackedOrder[]>(seedOrders);
@@ -54,11 +56,39 @@ export const TrackingPage: React.FC = () => {
     setOrders((prevOrders) => updater(prevOrders, NEXT_STATUS));
   });
 
-  const handleSearch = (): void => {
+  const authCtx = useContext(AuthContext);
+  const client = authCtx?.client ?? null;
+
+  const handleSearch = async (): Promise<void> => {
     const q = searchId.trim();
     if (!q) return;
     setSearched(true);
-    setSearchedId(q);
+
+    if (client) {
+      try {
+        const res = await client.getOrderStatus(q);
+        setOrders((prev) => {
+          const others = prev.filter((o) => o.id !== q);
+          return [...others, { id: q, status: res.status }];
+        });
+        setSearchedId(q);
+      } catch (err) {
+        // Fallback to local seed search
+        if (orders.some((o) => o.id === q)) {
+          setSearchedId(q);
+        } else {
+          message.error("Invalid Order ID or unreachable. Please check and try again.");
+          setSearchedId("");
+        }
+      }
+    } else {
+       if (orders.some((o) => o.id === q)) {
+          setSearchedId(q);
+       } else {
+          message.error("Invalid Order ID or unreachable. Please check and try again.");
+          setSearchedId("");
+       }
+    }
   };
 
   return (

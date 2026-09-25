@@ -163,6 +163,34 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
     );
   });
 
+
+  it("fetches order status correctly", async () => {
+    const mockStatus = {
+      order_id: "order-999",
+      status: "Preparing",
+      updated_at: "2026-08-28T12:00:00Z",
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => mockStatus,
+      headers: new Headers(),
+    });
+
+    const res = await client.getOrderStatus("order-999");
+
+    expect(res.status).toBe("Preparing");
+    expect(res.order_id).toBe("order-999");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://api.plinth.local/api/v1/orders/order-999/status",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
   it("formats query strings correctly for listOrders", async () => {
     const mockList: PaginatedResponse<OrderSummaryDto> = {
       page: 1,

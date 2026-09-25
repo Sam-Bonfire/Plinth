@@ -67,3 +67,10 @@ pub struct PaginatedResponse<T> {
     pub total_pages: u32,
     pub data: Vec<T>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct OrderStatusResponseDto {
+    pub order_id: OrderId,
+    pub status: OrderStatus,
+    pub updated_at: DateTime<Utc>,
+}

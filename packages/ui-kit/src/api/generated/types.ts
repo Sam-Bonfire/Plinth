@@ -779,6 +779,8 @@ export type OrderStatus =
  */
 "Refunded"
 
+export type OrderStatusResponseDto = { order_id: OrderId; status: OrderStatus; updated_at: string }
+
 export type OrderSummaryDto = { id: OrderId; status: OrderStatus; channel: OrderChannel; terminal_id: TerminalId; table_id: FloorTableId | null; grand_total_minor: number; balance_due_minor: number; created_at: string }
 
 export type PaginatedResponse<T> = { page: number; page_size: number; total_records: number; total_pages: number; data: T[] }
