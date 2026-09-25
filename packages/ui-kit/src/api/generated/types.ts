@@ -239,7 +239,7 @@ export type GstRate =
  */
 "TwentyEightPercent"
 
-export type HealthResponse = { status: string; timestamp: number; version: string }
+export type HealthResponseDto = { status: string; version: string; uptime_secs: number; d1_reachable: boolean }
 
 /**
  * Request payload to ingest an audit log event
@@ -441,6 +441,14 @@ export type MenuItemDto = { id: MenuItemId; primary_category_id: MenuCategoryId;
  * Identifier for a Menu Item
  */
 export type MenuItemId = string
+
+export type MessBalanceResponse = { account_id: string; balance_minor: number }
+
+export type MessLedgerResponse = { success: boolean; entry_id: string }
+
+export type MessPayRequest = { account_id: string; amount_minor: number; memo: string | null }
+
+export type MessTopUpRequest = { account_id: string; amount_minor: number; memo: string | null }
 
 /**
  * A grouping of modifier options (e.g., "Crust Type", "Toppings")

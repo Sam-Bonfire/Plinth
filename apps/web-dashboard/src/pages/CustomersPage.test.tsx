@@ -1,6 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../providers/AuthProvider.js";
 import { CustomersPage, avgRating, upcomingOccasions, type Feedback } from "./CustomersPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
@@ -11,7 +12,9 @@ vi.mock("@ant-design/charts", () => ({
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <CustomersPage />
+      <AuthProvider>
+        <CustomersPage />
+      </AuthProvider>
     </PlinthThemeProvider>,
   );
 }
@@ -109,6 +112,8 @@ describe("CustomersPage", () => {
 
   it("renders mess accounts tab and performs a top-up", { timeout: 60000 }, async () => {
     renderPage();
+    // Force the ledger sync offline so the local balance stands.
+    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
     // Click on the Mess Accounts tab
     const messTab = screen.getByRole("tab", { name: "Mess Accounts" });
     fireEvent.click(messTab);

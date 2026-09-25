@@ -10,7 +10,7 @@ import type {
   StockItemResponseDto,
   AuditResponseDto,
   ZReportDto,
-  HealthResponse,
+  HealthResponseDto,
 } from "./generated/types.js";
 
 describe("PlinthApiClient Contract and Wire Verification", () => {
@@ -37,10 +37,11 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
   });
 
   it("sends health probe to /health and returns parsed response", async () => {
-    const mockHealth: HealthResponse = {
+    const mockHealth: HealthResponseDto = {
       status: "ok",
-      timestamp: 1724850000,
       version: "0.1.0",
+      uptime_secs: 42,
+      d1_reachable: true,
     };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -67,8 +68,31 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
     );
   });
 
-  it("serializes createOrder request payload and sets headers accurately", async () => {
-    const orderReq: CreateOrderRequest = {
+  it("posts mess topup/pay and reads balance", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ success: true, entry_id: "e-1" }),
+      headers: new Headers(),
+    });
+
+    const top = await client.messTopup({ account_id: "a-1", amount_minor: 5000, memo: null });
+    expect(top.entry_id).toBe("e-1");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://api.plinth.local/api/v1/mess/topup",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ account_id: "a-1", balance_minor: 5000 }),
+      headers: new Headers(),
+    });
+    await expect(client.messBalance("a-1")).resolves.toBe(5000);
+  });
+
+  it("serializes createOrder request payload and sets headers accurately", async () => {    const orderReq: CreateOrderRequest = {
       channel: "DineIn",
       terminal_id: "term-1",
       table_id: "table-4",

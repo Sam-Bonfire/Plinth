@@ -6,7 +6,7 @@ import type {
   CloseShiftRequest,
   CreateOrderRequest,
   CreateStaffRequest,
-  HealthResponse,
+  HealthResponseDto,
   IngestAuditRequest,
   InventoryQueryParams,
   KitchenTicketDto,
@@ -15,6 +15,10 @@ import type {
   MenuCatalogResponseDto,
   MenuItemDto,
   MenuItemId,
+  MessBalanceResponse,
+  MessLedgerResponse,
+  MessPayRequest,
+  MessTopUpRequest,
   OrderChannel,
   OrderResponseDto,
   OrderStatus,
@@ -216,8 +220,8 @@ export class PlinthApiClient {
   }
 
   // --- Health Endpoint ---
-  public async getHealth(): Promise<HealthResponse> {
-    return this.request<HealthResponse>("/health", "GET");
+  public async getHealth(): Promise<HealthResponseDto> {
+    return this.request<HealthResponseDto>("/health", "GET");
   }
 
   // --- Auth Endpoint ---
@@ -318,6 +322,20 @@ export class PlinthApiClient {
   // --- Audit Ingestion Endpoint ---
   public async ingestAudit(req: IngestAuditRequest): Promise<AuditResponseDto> {
     return this.request<AuditResponseDto>("/api/v1/audit", "POST", req);
+  }
+
+  // --- Mess Ledger Endpoints ---
+  public async messTopup(req: MessTopUpRequest): Promise<MessLedgerResponse> {
+    return this.request<MessLedgerResponse>("/api/v1/mess/topup", "POST", req);
+  }
+
+  public async messPay(req: MessPayRequest): Promise<MessLedgerResponse> {
+    return this.request<MessLedgerResponse>("/api/v1/mess/pay", "POST", req);
+  }
+
+  public async messBalance(accountId: string): Promise<number> {
+    const res = await this.request<MessBalanceResponse>(`/api/v1/mess/accounts/${accountId}/balance`, "GET");
+    return res.balance_minor;
   }
 
   // --- End of Day (EOD) Shift Closure Endpoint ---
