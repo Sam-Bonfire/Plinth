@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Menu } from './Menu';
@@ -102,5 +102,33 @@ describe('Menu', () => {
 
     // Check for Veg badge
     expect(screen.getByText('Veg')).toBeDefined();
+  });
+
+  it('adds items to the cart and opens login on checkout', async () => {
+    localStorage.clear();
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockCatalog),
+      })
+    ) as unknown as typeof fetch;
+
+    render(
+      <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
+        <Menu />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Classic Burger')).toBeDefined();
+    });
+
+    const adds = screen.getAllByRole('button', { name: 'Add' });
+    fireEvent.click(adds[0] as HTMLElement);
+    fireEvent.click(adds[0] as HTMLElement);
+    expect(await screen.findByText('2 items · $20.00')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Login & Order' }));
+    expect(await screen.findByPlaceholderText('Enter your phone number')).toBeDefined();
+    localStorage.clear();
   });
 });
