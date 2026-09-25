@@ -10,6 +10,17 @@ const PAY_METHODS: string[] = ["UPI", "Cash", "Card"];
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
 
+/** Change due (negative when under-tendered). */
+export const tenderChange = (total: number, tendered: number): number => tendered - total;
+
+/** Returns an error message when the tender cannot settle the bill, else null. */
+export const validateTender = (method: string, total: number, tendered: number | null): string | null => {
+  if (method !== "Cash") return null;
+  if (tendered === null || !(tendered > 0)) return "Enter the cash tendered.";
+  if (tendered < total) return `Short by ${inr(total - tendered)}.`;
+  return null;
+};
+
 export const PosPage: React.FC = () => {
   const [categoryId, setCategoryId] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
@@ -26,6 +37,10 @@ export const PosPage: React.FC = () => {
   const [noteDraft, setNoteDraft] = useState<string>("");
   const [discOpen, setDiscOpen] = useState<boolean>(false);
   const [discDraft, setDiscDraft] = useState<number>(0);
+  const [tenderOpen, setTenderOpen] = useState<boolean>(false);
+  const [tendered, setTendered] = useState<number | null>(null);
+  const [tenderRef, setTenderRef] = useState<string>("");
+  const [completed, setCompleted] = useState<{ id: number; change: number } | null>(null);
 
   const visibleItems = useMemo((): MenuItem[] => {
     const q = query.trim().toLowerCase();
@@ -150,10 +165,31 @@ export const PosPage: React.FC = () => {
       void message.warning("Cart is empty — add items before placing the order.");
       return;
     }
+    setTendered(total);
+    setTenderRef("");
+    setCompleted(null);
+    setTenderOpen(true);
+  };
+
+  const confirmTender = (): void => {
+    const err = validateTender(payMethod, total, tendered);
+    if (err !== null) {
+      void message.error(err);
+      return;
+    }
+    const change = payMethod === "Cash" ? tenderChange(total, tendered ?? total) : 0;
     const itemCount = useCartStore.getState().lines.reduce((sum: number, l): number => sum + l.qty, 0);
-    void message.success(`Order #${orderSeq} placed · ${itemCount} items · ${inr(total)} via ${payMethod}.`);
+    setCompleted({ id: orderSeq, change });
     setOrderSeq((seq: number): number => seq + 1);
-    clearOrder();
+    void message.success(`Order settled · ${itemCount} items · ${inr(total)} via ${payMethod}.`);
+  };
+
+  const closeTender = (): void => {
+    setTenderOpen(false);
+    if (completed !== null) {
+      clearOrder();
+      setCompleted(null);
+    }
   };
 
   const modsComplete = pendingItem !== null && pendingItem.modifierGroups.every((g): boolean => pendingMods[g.name] !== undefined);
@@ -297,6 +333,44 @@ export const PosPage: React.FC = () => {
           <InputNumber min={0} max={100} value={discDraft} onChange={(v: number | null): void => setDiscDraft(v ?? 0)} />
           <Typography.Text>% off subtotal</Typography.Text>
         </Space>
+      </Modal>
+
+      <Modal
+        title={completed !== null ? `Order #${completed.id} settled` : `Tender ${inr(total)} via ${payMethod}`}
+        open={tenderOpen}
+        onCancel={closeTender}
+        footer={
+          completed !== null
+            ? [<Button key="done" type="primary" onClick={closeTender}>Done</Button>]
+            : [<Button key="pay" type="primary" onClick={confirmTender}>Confirm Payment</Button>]
+        }
+      >
+        {completed !== null ? (
+          <Space direction="vertical" style={{ width: "100%" }} size="middle">
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              {payMethod === "Cash" ? `Change due: ${inr(completed.change)}` : "Payment recorded."}
+            </Typography.Title>
+            {tenderRef !== "" && <Typography.Text type="secondary">Ref: {tenderRef}</Typography.Text>}
+          </Space>
+        ) : (
+          <Space direction="vertical" style={{ width: "100%" }} size="middle">
+            {payMethod === "Cash" ? (
+              <InputNumber
+                placeholder="Cash tendered"
+                prefix="₹"
+                min={0}
+                value={tendered}
+                onChange={(v: number | null): void => setTendered(v)}
+                style={{ width: "100%" }}
+              />
+            ) : (
+              <Input placeholder={`${payMethod} reference (optional)`} value={tenderRef} onChange={(e): void => setTenderRef(e.target.value)} />
+            )}
+            {payMethod === "Cash" && tendered !== null && tendered >= total && (
+              <Typography.Text type="success">Change: {inr(tenderChange(total, tendered))}</Typography.Text>
+            )}
+          </Space>
+        )}
       </Modal>
     </div>
   );

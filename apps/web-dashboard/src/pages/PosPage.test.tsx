@@ -2,7 +2,7 @@ import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, beforeEach } from "vitest";
 import { useCartStore } from "../stores/cartStore.js";
-import { PosPage } from "./PosPage.js";
+import { PosPage, tenderChange, validateTender } from "./PosPage.js";
 
 function renderPage(): HTMLElement {
   const { container } = render(
@@ -50,7 +50,28 @@ describe("PosPage", () => {
     expect(await screen.findByText(/Cart is empty/)).toBeDefined();
     fireEvent.click(await screen.findByText("Mango Lassi"));
     fireEvent.click(await screen.findByRole("button", { name: /Place Order/ }));
-    expect(await screen.findByText(/placed/)).toBeDefined();
-    expect(await screen.findByText("Order #4428")).toBeDefined();
+    expect(await screen.findByText(/Tender/)).toBeDefined();
+    fireEvent.click(await screen.findByRole("button", { name: /Confirm Payment/ }));
+    expect(await screen.findByText(/Order #\d+ settled/)).toBeDefined();
   });
+
+  it("computes change and blocks under-tendered cash", () => {
+    expect(tenderChange(100, 150)).toBe(50);
+    expect(validateTender("Cash", 100, 150)).toBeNull();
+    expect(validateTender("Cash", 100, 60)).toContain("Short by");
+    expect(validateTender("Cash", 100, null)).toContain("Enter the cash tendered");
+    expect(validateTender("UPI", 100, null)).toBeNull();
+  });
+
+  it("shows change due after a cash tender", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByText("Mango Lassi"));
+    fireEvent.click(screen.getByRole("radio", { name: "Cash" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Place Order/ }));
+    const tendered = screen.getByPlaceholderText("Cash tendered");
+    fireEvent.change(tendered, { target: { value: 200 } });
+    expect(await screen.findByText(/Change:/)).toBeDefined();
+    fireEvent.click(await screen.findByRole("button", { name: /Confirm Payment/ }));
+    expect(await screen.findByText(/Change due:/)).toBeDefined();
+  }, 60000);
 });

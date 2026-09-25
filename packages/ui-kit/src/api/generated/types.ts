@@ -5,9 +5,19 @@ export type AdjustStockRequest = { stock_item_id: StockItemId; delta: string; re
 export type ApiErrorResponse = { error: string; code: string; request_id: string }
 
 /**
+ * One audit log event as stored
+ */
+export type AuditEventDto = { id: string; actor_id: string; action: string; target_type: string; target_id: string; is_anomaly: boolean; timestamp: string }
+
+/**
  * Identifier for an Audit Event
  */
 export type AuditEventId = string
+
+/**
+ * Page of audit log events
+ */
+export type AuditListResponse = { events: AuditEventDto[] }
 
 /**
  * Response after successfully recording an audit event

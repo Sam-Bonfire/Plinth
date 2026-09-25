@@ -1,6 +1,8 @@
 import type {
   AdjustStockRequest,
   ApiErrorResponse,
+  AuditEventDto,
+  AuditListResponse,
   AuditResponseDto,
   BumpTicketRequest,
   CloseShiftRequest,
@@ -337,6 +339,13 @@ export class PlinthApiClient {
     const res = await this.request<MessBalanceResponse>(`/api/v1/mess/accounts/${accountId}/balance`, "GET");
     return res.balance_minor;
   }
+
+  // --- Audit Listing Endpoint ---
+  public async listAuditEvents(limit?: number): Promise<AuditEventDto[]> {
+    const res = await this.request<AuditListResponse>("/api/v1/audit", "GET", undefined, { limit });
+    return res.events;
+  }
+
 
   // --- End of Day (EOD) Shift Closure Endpoint ---
   public async closeShift(req: CloseShiftRequest): Promise<ZReportDto> {
