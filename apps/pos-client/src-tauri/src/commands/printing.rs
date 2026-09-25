@@ -6,10 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
 fn now_ms() -> u64 {
-    SystemTime::now()
+    let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis());
+    u64::try_from(millis).unwrap_or(0)
 }
 
 /// Enqueues a receipt payload for printing, returning the job id.
@@ -17,6 +17,7 @@ fn now_ms() -> u64 {
 /// # Errors
 /// Returns an error if the payload is empty.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
 pub fn print_receipt(spooler: State<'_, Mutex<Spooler>>, payload: Vec<u8>) -> Result<String, String> {
     if payload.is_empty() {
         return Err("Receipt payload cannot be empty".to_string());
@@ -34,6 +35,7 @@ pub fn print_receipt(spooler: State<'_, Mutex<Spooler>>, payload: Vec<u8>) -> Re
 /// # Errors
 /// Returns an error if the queue lock is unavailable.
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
 pub fn print_queue_depth(spooler: State<'_, Mutex<Spooler>>) -> Result<usize, String> {
     spooler
         .lock()
