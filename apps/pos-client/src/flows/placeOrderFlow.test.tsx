@@ -67,6 +67,7 @@ describe("POS order placement flow", () => {
     fireEvent.change(screen.getByPlaceholderText("tenant uuid"), { target: { value: "t-1" } });
     fireEvent.change(screen.getByPlaceholderText("location uuid"), { target: { value: "l-1" } });
     fireEvent.change(screen.getByPlaceholderText("terminal uuid"), { target: { value: "term-1" } });
+    fireEvent.click(screen.getByRole("radio", { name: "UPI" }));
     fireEvent.click(await screen.findByRole("button", { name: "Place Order" }));
 
     expect(await screen.findByText(/Last order: order-flow-1/)).toBeDefined();
