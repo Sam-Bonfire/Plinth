@@ -1,7 +1,8 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { PaymentsPage, buildPaymentsCsv } from "./PaymentsPage.js";
+import { AuthProvider } from "../providers/AuthProvider.js";
+import { PaymentsPage, buildLocalZ, buildPaymentsCsv } from "./PaymentsPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
 vi.mock("@ant-design/charts", () => ({
@@ -11,10 +12,26 @@ vi.mock("@ant-design/charts", () => ({
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <PaymentsPage />
+      <AuthProvider>
+        <PaymentsPage />
+      </AuthProvider>
     </PlinthThemeProvider>,
   );
 }
+
+describe("buildLocalZ", () => {
+  it("summarizes settled sales by method plus refunds", () => {
+    const z = buildLocalZ([
+      { key: "a", id: "a", order: "o", method: "Cash", channel: "Dine-in", amount: 100, time: "t", status: "Settled" },
+      { key: "b", id: "b", order: "o", method: "UPI", channel: "Dine-in", amount: 50, time: "t", status: "Settled" },
+      { key: "c", id: "c", order: "o", method: "Cash", channel: "Dine-in", amount: 25, time: "t", status: "Refunded" },
+      { key: "d", id: "d", order: "o", method: "Cash", channel: "Dine-in", amount: 10, time: "t", status: "Pending" },
+    ]);
+    expect(z.gross).toBe(150);
+    expect(z.byMethod).toEqual({ Cash: 100, UPI: 50 });
+    expect(z.refunded).toBe(25);
+  });
+});
 
 describe("buildPaymentsCsv", () => {
   it("generates correct CSV headers and data", () => {
@@ -152,4 +169,18 @@ describe("PaymentsPage", () => {
 
     createElementSpy.mockRestore();
   });
+
+  it("closes the shift with a local Z summary when offline", async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
+    renderPage();
+    await screen.findByText("TXN-9001");
+    fireEvent.click(screen.getByRole("button", { name: "Close Shift" }));
+    fireEvent.change(await screen.findByPlaceholderText("Shift ID (e.g. SHIFT-2026-09-25-M1)"), { target: { value: "SHIFT-1" } });
+    const counted = screen.getByPlaceholderText("Counted cash");
+    fireEvent.change(counted, { target: { value: 900 } });
+    const confirms = screen.getAllByRole("button", { name: "Close Shift" });
+    fireEvent.click(confirms[confirms.length - 1] as HTMLElement);
+    expect(await screen.findByText("Z-Report")).toBeDefined();
+    expect(await screen.findByText(/Gross \(local\)/)).toBeDefined();
+  }, 60000);
 });
