@@ -1,5 +1,5 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../providers/AuthProvider.js";
 import { CustomersPage, avgRating, upcomingOccasions, type Feedback } from "./CustomersPage.js";
@@ -79,17 +79,19 @@ describe("CustomersPage", () => {
     const topUpButtons = await screen.findAllByRole("button", { name: "Top-up" });
     fireEvent.click(topUpButtons[0] as HTMLElement);
 
+    // Scope to the modal: under load the dialog may mount after the click.
+    const dialog = await screen.findByRole("dialog");
+    const modal = within(dialog as HTMLElement);
+
     // Enter zero
-    const amountInput = screen.getAllByRole("spinbutton")[0] as HTMLElement;
+    const amountInput = modal.getByRole("spinbutton");
     fireEvent.change(amountInput, { target: { value: 0 } });
 
-    const allTopUpButtons = await screen.findAllByRole("button", { name: "Top-up" });
-    const confirmBtn = allTopUpButtons[allTopUpButtons.length - 1];
-    fireEvent.click(confirmBtn as HTMLElement);
+    fireEvent.click(modal.getByRole("button", { name: "Top-up" }));
 
     // Expect validation message (it doesn't close). Under CI load the
     // change event can race the modal mount, yielding either message.
-    expect(await screen.findByText(/Amount (must be > 0|is required)/)).toBeDefined();
+    expect(await modal.findByText(/Amount (must be > 0|is required)/)).toBeDefined();
 
     // Test export CSV
     // Mock URL.createObjectURL temporarily
@@ -126,16 +128,14 @@ describe("CustomersPage", () => {
     const topUpButtons = await screen.findAllByRole("button", { name: "Top-up" });
     fireEvent.click(topUpButtons[0] as HTMLElement);
 
-    // Fill top-up modal
-    const amountInput = screen.getAllByRole("spinbutton")[0] as HTMLElement;
-    fireEvent.change(amountInput, { target: { value: 1500 } });
-    const memoInput = screen.getByPlaceholderText("e.g. Monthly allowance");
-    fireEvent.change(memoInput, { target: { value: "Bonus" } });
+    // Scope to the modal dialog once mounted.
+    const dialog = await screen.findByRole("dialog");
+    const modal = within(dialog as HTMLElement);
 
-    // Top-up modal "Top-up" button is a primary button. We can find it by getting all and filtering or taking the last one (since the modal adds one).
-    const allTopUpButtons = await screen.findAllByRole("button", { name: "Top-up" });
-    const confirmBtn = allTopUpButtons[allTopUpButtons.length - 1];
-    fireEvent.click(confirmBtn as HTMLElement);
+    // Fill top-up modal
+    fireEvent.change(modal.getByRole("spinbutton"), { target: { value: 1500 } });
+    fireEvent.change(modal.getByPlaceholderText("e.g. Monthly allowance"), { target: { value: "Bonus" } });
+    fireEvent.click(modal.getByRole("button", { name: "Top-up" }));
 
     // Verify balance updated: original 5000 + 1500 = 6500 (displayed as ₹6,500)
     expect(await screen.findByText("₹6,500")).toBeDefined();
