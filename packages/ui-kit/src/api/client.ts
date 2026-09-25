@@ -1,12 +1,14 @@
 import type {
   AdjustStockRequest,
   ApiErrorResponse,
+  AuditEventDto,
+  AuditListResponse,
   AuditResponseDto,
   BumpTicketRequest,
   CloseShiftRequest,
   CreateOrderRequest,
   CreateStaffRequest,
-  HealthResponse,
+  HealthResponseDto,
   IngestAuditRequest,
   InventoryQueryParams,
   KitchenTicketDto,
@@ -216,8 +218,8 @@ export class PlinthApiClient {
   }
 
   // --- Health Endpoint ---
-  public async getHealth(): Promise<HealthResponse> {
-    return this.request<HealthResponse>("/health", "GET");
+  public async getHealth(): Promise<HealthResponseDto> {
+    return this.request<HealthResponseDto>("/health", "GET");
   }
 
   // --- Auth Endpoint ---
@@ -318,6 +320,12 @@ export class PlinthApiClient {
   // --- Audit Ingestion Endpoint ---
   public async ingestAudit(req: IngestAuditRequest): Promise<AuditResponseDto> {
     return this.request<AuditResponseDto>("/api/v1/audit", "POST", req);
+  }
+
+  // --- Audit Listing Endpoint ---
+  public async listAuditEvents(limit?: number): Promise<AuditEventDto[]> {
+    const res = await this.request<AuditListResponse>("/api/v1/audit", "GET", undefined, { limit });
+    return res.events;
   }
 
   // --- End of Day (EOD) Shift Closure Endpoint ---

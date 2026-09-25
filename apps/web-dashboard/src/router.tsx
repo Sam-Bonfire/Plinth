@@ -1,15 +1,15 @@
 import React from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
+import { AuditLogPage } from "./pages/AuditLogPage.js";
 import { CustomersPage } from "./pages/CustomersPage.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { InventoryPage } from "./pages/InventoryPage.js";
 import { KitchenPage } from "./pages/KitchenPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { MenuPage } from "./pages/MenuPage.js";
+import { OnboardingWizard } from "./pages/OnboardingWizard.js";
 import { OrdersPage } from "./pages/OrdersPage.js";
-import { PaymentsPage } from "./pages/PaymentsPage.js";
-import { PlaceholderPage } from "./pages/PlaceholderPage.js";
 import { PosPage } from "./pages/PosPage.js";
 import { RecipesPage } from "./pages/RecipesPage.js";
 import { ReportsPage } from "./pages/ReportsPage.js";
@@ -52,8 +52,8 @@ export const router = createBrowserRouter([
           { path: "/reports", element: <ReportsPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/floor", element: <TablesPage /> },
-          { path: "/audit", element: <PlaceholderPage title="Audit Log" description="Immutable audit viewer" /> },
-          { path: "/onboarding", element: <PlaceholderPage title="Onboarding Wizard" description="7-step setup flow" /> },
+          { path: "/audit", element: <AuditLogPage /> },
+          { path: "/onboarding", element: <OnboardingWizard /> },
         ],
       },
     ],
