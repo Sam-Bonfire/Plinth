@@ -50,6 +50,14 @@ describe('usePosCartStore', () => {
     usePosCartStore.setState({ parkedOrders: [] });
   });
 
+  it('setTable attaches a table and clear releases it', () => {
+    expect(usePosCartStore.getState().tableId).toBeNull();
+    usePosCartStore.getState().setTable('T-3');
+    expect(usePosCartStore.getState().tableId).toBe('T-3');
+    usePosCartStore.getState().clear();
+    expect(usePosCartStore.getState().tableId).toBeNull();
+  });
+
   it('valid add - adds an item with valid modifiers', () => {
     const store = usePosCartStore.getState();
     const result = store.addToCart(mockItemWithModifiers, {

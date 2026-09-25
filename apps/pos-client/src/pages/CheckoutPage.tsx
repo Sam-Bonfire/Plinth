@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, InputNumber, Modal, Segmented, Space, Table, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.js";
 import { useTauriIpc, type OrderLineItem } from "../hooks/useTauriIpc.js";
@@ -13,6 +13,8 @@ interface CheckoutForm {
 }
 
 export type TenderMethod = "Cash" | "UPI" | "Card";
+
+const TABLE_OPTIONS: string[] = ["Takeaway", "T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8"];
 
 /** Change due (negative when under-tendered). */
 export const tenderChange = (total: number, tendered: number): number => tendered - total;
@@ -33,6 +35,8 @@ export const formatReceipt = (orderId: string, lines: CartLine[], subtotal: numb
 export const CheckoutPage: React.FC = () => {
   const lines = usePosCartStore((s) => s.lines);
   const clear = usePosCartStore((s) => s.clear);
+  const tableId = usePosCartStore((s) => s.tableId);
+  const setTable = usePosCartStore((s) => s.setTable);
   const subtotal = usePosCartStore(selectSubtotal);
   const itemCount = usePosCartStore(selectItemCount);
   const { session } = usePosSession();
@@ -82,9 +86,9 @@ export const CheckoutPage: React.FC = () => {
         tenant_id: values.tenantId,
         location_id: values.locationId,
         terminal_id: values.terminalId,
-        channel: "DineIn",
+        channel: tableId === null ? "Takeaway" : "DineIn",
         created_by: session.staffId,
-        table_id: null,
+        table_id: tableId,
         seat_number: null,
         items,
       });
@@ -142,6 +146,12 @@ export const CheckoutPage: React.FC = () => {
             value={sku}
             onChange={(e): void => setSku(e.target.value)}
             placeholder="SKU/search field"
+            style={{ maxWidth: 300 }}
+          />
+          <Select
+            value={tableId ?? "Takeaway"}
+            onChange={(v: string): void => setTable(v === "Takeaway" ? null : v)}
+            options={TABLE_OPTIONS.map((t: string): { label: string; value: string } => ({ label: t === "Takeaway" ? "Takeaway" : `Table ${t}`, value: t }))}
             style={{ maxWidth: 300 }}
           />
         </Space>
