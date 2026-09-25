@@ -64,6 +64,7 @@ describe("CheckoutPage", () => {
       expect.objectContaining({ req: expect.objectContaining({ terminal_id: "term-1" }) }),
     );
     expect(usePosCartStore.getState().lines).toHaveLength(0);
+    expect(await screen.findByText("Receipt")).toBeDefined();
     fireEvent.click(await screen.findByRole("button", { name: "Print" }));
     expect(tauriApiCore.invoke).toHaveBeenCalledWith("print_receipt", expect.objectContaining({}));
     usePosCartStore.getState().clear();
