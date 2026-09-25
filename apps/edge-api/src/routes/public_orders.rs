@@ -39,7 +39,9 @@ pub struct PublicOrderResponseDto {
 /// Registers the public order submission route
 #[must_use]
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
-    router.post_async("/api/v1/public/orders", submit_public_order)
+    router
+        .post_async("/api/v1/public/orders", submit_public_order)
+        .get_async("/api/v1/public/orders/:id/status", public_order_status)
 }
 
 /// Validates a public order request, returning the computed total.
@@ -184,6 +186,37 @@ pub async fn submit_public_order<D>(mut req: Request, ctx: RouteContext<D>) -> R
     let mut resp = Response::from_json(&res_dto)?;
     resp = resp.with_status(201);
     Ok(resp)
+}
+
+/// Public order status, looked up by unguessable order id (no auth).
+///
+/// # Errors
+/// Returns an error if the id is missing, the order is unknown,
+/// or the database read fails.
+pub async fn public_order_status<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let request_id = crate::router::get_request_id(&req);
+    let order_id = ctx.param("id").unwrap_or(&String::new()).clone();
+    if order_id.is_empty() {
+        return crate::router::json_error("Order ID is required", "BAD_REQUEST", &request_id, 400);
+    }
+
+    let Ok(db) = ctx.env.d1("CELLAR_DB") else {
+        return crate::router::json_error("Database error", "INTERNAL_ERROR", &request_id, 500);
+    };
+
+    let stmt = db
+        .prepare("SELECT status FROM orders WHERE id = ?")
+        .bind(&[order_id.clone().into()])?;
+    let row: Option<serde_json::Value> = stmt.first(None).await?;
+    let Some(status) = row
+        .as_ref()
+        .and_then(|v| v.get("status"))
+        .and_then(|v| v.as_str())
+    else {
+        return crate::router::json_error("Order not found", "NOT_FOUND", &request_id, 404);
+    };
+
+    Response::from_json(&serde_json::json!({ "order_id": order_id, "status": status }))
 }
 
 #[cfg(test)]
