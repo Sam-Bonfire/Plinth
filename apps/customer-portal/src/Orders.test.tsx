@@ -26,4 +26,19 @@ describe('Orders page', () => {
     expect(screen.getByText('ORD-1')).toBeDefined();
     localStorage.clear();
   });
+
+  it('shows live status when the endpoint resolves', async () => {
+    localStorage.clear();
+    saveOrder({ order_id: 'ORD-9', ticket_id: 'T-9', total_minor: 2000, itemCount: 2, placedAt: new Date().toISOString() });
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-9', status: 'Preparing' }) })
+    ) as unknown as typeof fetch;
+    render(
+      <MemoryRouter>
+        <Orders />
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Preparing')).toBeDefined();
+    localStorage.clear();
+  });
 });
