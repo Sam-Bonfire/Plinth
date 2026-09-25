@@ -1,6 +1,7 @@
 import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
 import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Rate, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { useAuth } from "../providers/AuthProvider.js";
 
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
 
@@ -154,6 +155,7 @@ export const upcomingOccasions = (customers: Customer[], todayIso: string, withi
 
 export const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(seedCustomers);
+  const { client } = useAuth();
   const [query, setQuery] = useState<string>("");
   const [tierFilter, setTierFilter] = useState<string>("All");
   const [minOrders, setMinOrders] = useState<number | null>(null);
@@ -236,20 +238,44 @@ export const CustomersPage: React.FC = () => {
 
   const submitTopUp = (values: { amount: number; memo: string }): void => {
     if (!topUpAccount) return;
-    setMessAccounts((prev: MessAccount[]): MessAccount[] =>
-      prev.map((m: MessAccount): MessAccount => (m.key === topUpAccount.key ? { ...m, balance: m.balance + values.amount } : m)),
-    );
+    const account = topUpAccount;
+    const applyLocal = (): void => {
+      setMessAccounts((prev: MessAccount[]): MessAccount[] =>
+        prev.map((m: MessAccount): MessAccount => (m.key === account.key ? { ...m, balance: m.balance + values.amount } : m)),
+      );
+    };
+    applyLocal();
     setLedgerRows((prev: LedgerRow[]): LedgerRow[] => [
       ...prev,
       {
         date: new Date().toISOString().split("T")[0] ?? "2023-10-10",
-        account: topUpAccount.name,
+        account: account.name,
         type: "Top-up",
         amount: values.amount,
         memo: values.memo ?? "Top-up",
       },
     ]);
-    void message.success(`Added ${inr(values.amount)} to ${topUpAccount.name}`);
+    // Sync to the ledger service; local state stays as offline fallback.
+    // Wrapped in try/catch: the service client may throw synchronously
+    // (no fetch implementation) as well as reject asynchronously.
+    try {
+      client
+        .messTopup({ account_id: account.key, amount_minor: Math.round(values.amount * 100), memo: values.memo ?? null })
+        .then((): Promise<number> => client.messBalance(account.key))
+        .then((balanceMinor: number): void => {
+          if (!Number.isFinite(balanceMinor)) return;
+          const balance = balanceMinor / 100;
+          setMessAccounts((prev: MessAccount[]): MessAccount[] =>
+            prev.map((m: MessAccount): MessAccount => (m.key === account.key ? { ...m, balance } : m)),
+          );
+          void message.success(`Synced ${inr(values.amount)} to ${account.name}`);
+        })
+        .catch((): void => {
+          void message.success(`Added ${inr(values.amount)} to ${account.name} (offline)`);
+        });
+    } catch {
+      void message.success(`Added ${inr(values.amount)} to ${account.name} (offline)`);
+    }
     setTopUpAccount(null);
     topUpForm.resetFields();
   };

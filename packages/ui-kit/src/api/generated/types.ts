@@ -452,6 +452,14 @@ export type MenuItemDto = { id: MenuItemId; primary_category_id: MenuCategoryId;
  */
 export type MenuItemId = string
 
+export type MessBalanceResponse = { account_id: string; balance_minor: number }
+
+export type MessLedgerResponse = { success: boolean; entry_id: string }
+
+export type MessPayRequest = { account_id: string; amount_minor: number; memo: string | null }
+
+export type MessTopUpRequest = { account_id: string; amount_minor: number; memo: string | null }
+
 /**
  * A grouping of modifier options (e.g., "Crust Type", "Toppings")
  */

@@ -17,6 +17,10 @@ import type {
   MenuCatalogResponseDto,
   MenuItemDto,
   MenuItemId,
+  MessBalanceResponse,
+  MessLedgerResponse,
+  MessPayRequest,
+  MessTopUpRequest,
   OrderChannel,
   OrderResponseDto,
   OrderStatus,
@@ -322,11 +326,26 @@ export class PlinthApiClient {
     return this.request<AuditResponseDto>("/api/v1/audit", "POST", req);
   }
 
+  // --- Mess Ledger Endpoints ---
+  public async messTopup(req: MessTopUpRequest): Promise<MessLedgerResponse> {
+    return this.request<MessLedgerResponse>("/api/v1/mess/topup", "POST", req);
+  }
+
+  public async messPay(req: MessPayRequest): Promise<MessLedgerResponse> {
+    return this.request<MessLedgerResponse>("/api/v1/mess/pay", "POST", req);
+  }
+
+  public async messBalance(accountId: string): Promise<number> {
+    const res = await this.request<MessBalanceResponse>(`/api/v1/mess/accounts/${accountId}/balance`, "GET");
+    return res.balance_minor;
+  }
+
   // --- Audit Listing Endpoint ---
   public async listAuditEvents(limit?: number): Promise<AuditEventDto[]> {
     const res = await this.request<AuditListResponse>("/api/v1/audit", "GET", undefined, { limit });
     return res.events;
   }
+
 
   // --- End of Day (EOD) Shift Closure Endpoint ---
   public async closeShift(req: CloseShiftRequest): Promise<ZReportDto> {
