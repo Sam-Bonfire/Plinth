@@ -1,5 +1,6 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../providers/AuthProvider.js";
 import { CustomersPage, avgRating, upcomingOccasions, type Feedback } from "./CustomersPage.js";
@@ -70,27 +71,27 @@ describe("CustomersPage", () => {
     expect(await screen.findByText("Visit Frequency")).toBeDefined();
   });
 
-  it("validates zero amount top-up and tests CSV export", { timeout: 60000 }, async () => {
+  it("validates zero amount top-up and tests CSV export", { timeout: 120000 }, async () => {
+    const user = userEvent.setup();
     renderPage();
     // Go to Mess Accounts tab
-    fireEvent.click(screen.getByRole("tab", { name: "Mess Accounts" }));
+    await user.click(screen.getByRole("tab", { name: "Mess Accounts" }));
 
     // Top-up first account
     const topUpButtons = await screen.findAllByRole("button", { name: "Top-up" });
-    fireEvent.click(topUpButtons[0] as HTMLElement);
+    await user.click(topUpButtons[0] as HTMLElement);
 
-    // Scope to the modal: under load the dialog may mount after the click.
+    // Scope to the modal dialog once mounted.
     const dialog = await screen.findByRole("dialog");
     const modal = within(dialog as HTMLElement);
 
     // Enter zero
-    const amountInput = modal.getByRole("spinbutton");
-    fireEvent.change(amountInput, { target: { value: 0 } });
+    await user.clear(modal.getByRole("spinbutton"));
+    await user.type(modal.getByRole("spinbutton"), "0");
 
-    fireEvent.click(modal.getByRole("button", { name: "Top-up" }));
+    await user.click(modal.getByRole("button", { name: "Top-up" }));
 
-    // Expect validation message (it doesn't close). Under CI load the
-    // change event can race the modal mount, yielding either message.
+    // Expect validation message (it doesn't close).
     expect(await modal.findByText(/Amount (must be > 0|is required)/)).toBeDefined();
 
     // Test export CSV
