@@ -2,7 +2,7 @@ import { LockOutlined, SoundOutlined, AudioMutedOutlined } from "@ant-design/ico
 import { App, Button, Space } from "antd";
 import React from "react";
 import { useState } from "react";
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useTauriIpc } from "./hooks/useTauriIpc.js";
 import { useSoundEnabled } from "./lib/sounds.js";
 import { CheckoutPage } from "./pages/CheckoutPage.js";
@@ -18,6 +18,24 @@ function RequireSession({ children }: { children: React.JSX.Element }): React.JS
   }
   return children;
 }
+
+const TerminalNav: React.FC = () => {
+  const { pathname } = useLocation();
+  return (
+    <Space>
+      <Link to="/checkout">
+        <Button type={pathname === "/checkout" ? "primary" : "default"} size="small">
+          Checkout
+        </Button>
+      </Link>
+      <Link to="/showcase">
+        <Button type={pathname === "/showcase" ? "primary" : "default"} size="small">
+          Demo
+        </Button>
+      </Link>
+    </Space>
+  );
+};
 
 export const PosRouter: React.FC = () => {
   const { session } = usePosSession();
@@ -39,6 +57,7 @@ export const PosRouter: React.FC = () => {
     <HashRouter>
       {session && (
         <Space style={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}>
+          <TerminalNav />
           <Button
             type="default"
             icon={soundEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
@@ -59,7 +78,7 @@ export const PosRouter: React.FC = () => {
         staffName={session?.name ?? ""}
       />
       <Routes>
-        <Route path="/" element={<Navigate to="/showcase" replace />} />
+        <Route path="/" element={<Navigate to="/checkout" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
           path="/checkout"
@@ -77,7 +96,7 @@ export const PosRouter: React.FC = () => {
             </RequireSession>
           }
         />
-        <Route path="*" element={<Navigate to="/showcase" replace />} />
+        <Route path="*" element={<Navigate to="/checkout" replace />} />
       </Routes>
     </HashRouter>
     </App>
