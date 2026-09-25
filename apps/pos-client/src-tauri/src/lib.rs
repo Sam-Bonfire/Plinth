@@ -29,10 +29,13 @@ pub fn run() {
         .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
         .manage(Mutex::new(diag_log::DiagLog::new(1000)))
         .manage(std::sync::Mutex::new(window::WindowMachine::new()))
+        .manage(std::sync::Mutex::new(printing::spooler::Spooler::new()))
         .invoke_handler(tauri::generate_handler![
             lock_daemon::lock_report_activity,
             lock_daemon::lock_status,
             commands::orders::submit_order,
+            commands::printing::print_receipt,
+            commands::printing::print_queue_depth,
             commands::orders::get_active_orders,
             commands::orders::advance_order_status,
             commands::orders::void_order,
