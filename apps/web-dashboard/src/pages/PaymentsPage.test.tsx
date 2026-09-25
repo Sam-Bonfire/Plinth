@@ -91,6 +91,7 @@ describe("PaymentsPage", () => {
   });
 
   it("processes a refund from the row action", async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
     renderPage();
     await screen.findByText("TXN-9001");
     const refunds = screen.getAllByRole("button", { name: "Refund" });

@@ -93,6 +93,7 @@ export const buildLocalZ = (rows: Txn[]): LocalZ => {
 
 export const PaymentsPage: React.FC = () => {
   const [txns, setTxns] = useState<Txn[]>(seedTxns);
+  const { client } = useAuth();
   const [recon] = useState<ReconRow[]>(seedRecon);
   const [query, setQuery] = useState<string>("");
   const [methodFilter, setMethodFilter] = useState<string>("all");
@@ -109,7 +110,6 @@ export const PaymentsPage: React.FC = () => {
   const [closeNote, setCloseNote] = useState<string>("");
   const [zReport, setZReport] = useState<ZReportDto | null>(null);
   const [zLocal, setZLocal] = useState<LocalZ | null>(null);
-  const { client } = useAuth();
 
   const settled = useMemo((): Txn[] => txns.filter((t: Txn): boolean => t.status === "Settled"), [txns]);
   const sumBy = (m: PayMethod): number => settled.filter((t: Txn): boolean => t.method === m).reduce((s: number, t: Txn): number => s + t.amount, 0);
@@ -130,8 +130,24 @@ export const PaymentsPage: React.FC = () => {
 
   const confirmRefund = (): void => {
     if (!refundTarget) return;
-    setTxns((prev: Txn[]): Txn[] => prev.map((t: Txn): Txn => (t.key === refundTarget.key ? { ...t, status: "Refunded" } : t)));
-    void message.success(`Refund of ${inr(refundTarget.amount)} for ${refundTarget.id} processed.`);
+    const target = refundTarget;
+    const applyLocal = (): void => {
+      setTxns((prev: Txn[]): Txn[] => prev.map((t: Txn): Txn => (t.key === target.key ? { ...t, status: "Refunded" } : t)));
+    };
+    applyLocal();
+    // Sync to the backend; local state stays as offline fallback.
+    try {
+      client
+        .recordRefund({ order_id: target.order, amount_minor: Math.round(target.amount * 100), reason: "Cashier refund" })
+        .then((): void => {
+          void message.success(`Refund of ${inr(target.amount)} for ${target.id} synced.`);
+        })
+        .catch((): void => {
+          void message.success(`Refund of ${inr(target.amount)} for ${target.id} processed (offline).`);
+        });
+    } catch {
+      void message.success(`Refund of ${inr(target.amount)} for ${target.id} processed (offline).`);
+    }
     setRefundKey(null);
   };
 

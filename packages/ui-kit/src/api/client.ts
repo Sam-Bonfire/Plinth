@@ -29,6 +29,8 @@ import type {
   PaginatedResponse,
   PinVerifyRequest,
   PinVerifyResponse,
+  RefundRequest,
+  RefundResponse,
   StaffResponseDto,
   UpdateStaffRequest,
   SalesReportDto,
@@ -346,6 +348,11 @@ export class PlinthApiClient {
   public async messBalance(accountId: string): Promise<number> {
     const res = await this.request<MessBalanceResponse>(`/api/v1/mess/accounts/${accountId}/balance`, "GET");
     return res.balance_minor;
+  }
+
+  // --- Refund Endpoints ---
+  public async recordRefund(req: RefundRequest): Promise<RefundResponse> {
+    return this.request<RefundResponse>("/api/v1/refunds", "POST", req);
   }
 
   // --- Audit Listing Endpoint ---
