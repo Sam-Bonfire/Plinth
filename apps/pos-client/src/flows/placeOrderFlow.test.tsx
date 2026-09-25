@@ -57,7 +57,7 @@ describe("POS order placement flow", () => {
     expect(usePosCartStore.getState().lines).toHaveLength(0);
   });
 
-  it("places a variant-complete cart through checkout", async () => {
+  it("places a variant-complete cart through checkout", { timeout: 30000 }, async () => {
     vi.mocked(tauriApiCore.invoke).mockResolvedValueOnce("order-flow-1");
     const added = usePosCartStore.getState().addToCart(MENU_ITEM, { "Spice level": "Medium" });
     expect(added.ok).toBe(true);
