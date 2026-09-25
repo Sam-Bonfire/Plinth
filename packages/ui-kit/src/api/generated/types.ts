@@ -956,6 +956,16 @@ export type RefundReason =
 { Custom: string }
 
 /**
+ * Request payload to record a refund
+ */
+export type RefundRequest = { order_id: string; amount_minor: number; reason: string }
+
+/**
+ * Response after recording a refund
+ */
+export type RefundResponse = { refund_id: string }
+
+/**
  * Status of a refund
  */
 export type RefundStatus = 

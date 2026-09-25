@@ -92,6 +92,21 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
     await expect(client.messBalance("a-1")).resolves.toBe(5000);
   });
 
+  it("posts refunds and returns the refund id", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ refund_id: "r-1" }),
+      headers: new Headers(),
+    });
+    const res = await client.recordRefund({ order_id: "o-1", amount_minor: 500, reason: "Cold food" });
+    expect(res.refund_id).toBe("r-1");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://api.plinth.local/api/v1/refunds",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("serializes createOrder request payload and sets headers accurately", async () => {    const orderReq: CreateOrderRequest = {
       channel: "DineIn",
       terminal_id: "term-1",

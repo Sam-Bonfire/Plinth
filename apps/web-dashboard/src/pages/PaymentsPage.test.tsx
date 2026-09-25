@@ -1,6 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../providers/AuthProvider.js";
 import { PaymentsPage, buildPaymentsCsv } from "./PaymentsPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
@@ -11,7 +12,9 @@ vi.mock("@ant-design/charts", () => ({
 function renderPage(): void {
   render(
     <PlinthThemeProvider>
-      <PaymentsPage />
+      <AuthProvider>
+        <PaymentsPage />
+      </AuthProvider>
     </PlinthThemeProvider>,
   );
 }
@@ -74,6 +77,7 @@ describe("PaymentsPage", () => {
   });
 
   it("processes a refund from the row action", async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
     renderPage();
     await screen.findByText("TXN-9001");
     const refunds = screen.getAllByRole("button", { name: "Refund" });

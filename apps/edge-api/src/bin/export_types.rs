@@ -51,6 +51,7 @@ use edge_api::routes::eod::{CloseShiftRequest, ZReportDto};
 use edge_api::routes::inventory::{AdjustStockRequest, InventoryQueryParams, StockItemResponseDto};
 use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryParams};
 use edge_api::routes::mess::{MessBalanceResponse, MessLedgerResponse, MessPayRequest, MessTopUpRequest};
+use edge_api::routes::refunds::{RefundRequest, RefundResponse};
 use edge_api::routes::reports::SalesReportDto;
 use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest};
 
@@ -174,6 +175,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<MessPayRequest>();
     types.register::<MessBalanceResponse>();
     types.register::<MessLedgerResponse>();
+
+    types.register::<RefundRequest>();
+    types.register::<RefundResponse>();
 
     types.register::<SalesReportDto>();
     types.register::<ApiErrorResponse>();
