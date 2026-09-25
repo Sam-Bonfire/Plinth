@@ -110,7 +110,6 @@ export const PaymentsPage: React.FC = () => {
   const [closeNote, setCloseNote] = useState<string>("");
   const [zReport, setZReport] = useState<ZReportDto | null>(null);
   const [zLocal, setZLocal] = useState<LocalZ | null>(null);
-  const { client } = useAuth();
 
   const settled = useMemo((): Txn[] => txns.filter((t: Txn): boolean => t.status === "Settled"), [txns]);
   const sumBy = (m: PayMethod): number => settled.filter((t: Txn): boolean => t.method === m).reduce((s: number, t: Txn): number => s + t.amount, 0);
