@@ -140,6 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<CreateOrderRequest>();
     types.register::<OrderResponseDto>();
     types.register::<OrderSummaryDto>();
+    types.register::<edge_api::dto::order::OrderStatusResponseDto>();
     types.register::<PaginatedResponse<OrderSummaryDto>>();
 
     types.register::<TicketQueryParams>();

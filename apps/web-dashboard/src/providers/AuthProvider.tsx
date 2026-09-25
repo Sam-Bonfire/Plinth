@@ -11,7 +11,7 @@ export interface AuthContextValue {
   client: PlinthApiClient;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const useAuth = (): AuthContextValue => {
   const ctx = useContext(AuthContext);

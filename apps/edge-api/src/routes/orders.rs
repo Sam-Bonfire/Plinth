@@ -1,5 +1,6 @@
 use crate::dto::order::{
-    CreateOrderRequest, OrderResponseDto, OrderSummaryDto, PaginatedResponse,
+    CreateOrderRequest, OrderResponseDto, OrderStatusResponseDto, OrderSummaryDto,
+    PaginatedResponse,
 };
 use core_domain::{
     enums::staff::Permissions,
@@ -18,6 +19,7 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .post_async("/api/v1/orders", create_order)
         .get_async("/api/v1/orders", list_orders)
+        .get_async("/api/v1/orders/:id/status", get_order_status)
 }
 
 /// Ingests a new order into the database.
@@ -341,6 +343,67 @@ pub async fn list_orders<D>(
     Response::from_json(&response)
 }
 
+
+
+/// Gets the live status of a specific order.
+///
+/// # Errors
+/// Returns an error if the request is unauthorized, the order is not found, or database operations fail.
+pub async fn get_order_status<D>(
+    req: Request,
+    ctx: RouteContext<D>,
+) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    };
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
+        &req,
+        &secret,
+        Permissions::empty(),
+    ) else {
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    };
+
+    let tenant_id = tenant_ctx.tenant_id;
+    let location_id = tenant_ctx.location_id;
+
+    let order_id = ctx.param("id").unwrap_or(&String::new()).clone();
+    if order_id.is_empty() {
+        return crate::router::json_error("Order ID is required", "BAD_REQUEST", &crate::router::get_request_id(&req), 400);
+    }
+
+    let db = ctx.env.d1("CELLAR_DB")?;
+
+    let sql = "SELECT payload FROM orders WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3";
+    let stmt = db.prepare(sql).bind(&[
+        order_id.clone().into(),
+        tenant_id.to_string().into(),
+        location_id.to_string().into(),
+    ])?;
+
+    let row: Option<serde_json::Value> = stmt.first(None).await?;
+
+    let Some(row) = row else {
+        return crate::router::json_error("Order not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
+    };
+
+    let Some(payload_str) = row.get("payload").and_then(|v| v.as_str()) else {
+         return crate::router::json_error("Invalid order data", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
+    };
+
+    let Ok(order) = serde_json::from_str::<Order>(payload_str) else {
+        return crate::router::json_error("Failed to parse order", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
+    };
+
+    let response_body = OrderStatusResponseDto {
+        order_id: order.id,
+        status: order.status,
+        updated_at: order.updated_at,
+    };
+
+    Response::from_json(&response_body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,4 +480,33 @@ mod tests {
         assert_eq!(summary.channel, OrderChannel::Takeaway);
         assert_eq!(summary.grand_total_minor, 0);
     }
+
+    #[test]
+    fn test_order_status_response_dto_mapping() {
+        use crate::dto::order::OrderStatusResponseDto;
+        let (mut order, _) = Order::new(
+            core_domain::ids::TenantId::new(),
+            core_domain::ids::LocationId::new(),
+            TerminalId::new(),
+            OrderChannel::Takeaway,
+            core_domain::ids::StaffMemberId::new(),
+            None,
+            None,
+        );
+        order.status = OrderStatus::Preparing;
+
+        let dto = OrderStatusResponseDto {
+            order_id: order.id,
+            status: order.status,
+            updated_at: order.updated_at,
+        };
+
+        assert_eq!(dto.order_id, order.id);
+        assert_eq!(dto.status, OrderStatus::Preparing);
+        assert_eq!(dto.updated_at, order.updated_at);
+
+        let serialized = serde_json::to_string(&dto).expect("Serialization failed");
+        assert!(serialized.contains("Preparing"));
+    }
+
 }

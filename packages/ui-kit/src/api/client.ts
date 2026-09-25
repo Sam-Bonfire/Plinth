@@ -18,6 +18,7 @@ import type {
   OrderChannel,
   OrderResponseDto,
   OrderStatus,
+  OrderStatusResponseDto,
   OrderSummaryDto,
   PaginatedResponse,
   PinVerifyRequest,
@@ -248,6 +249,13 @@ export class PlinthApiClient {
       "GET",
       undefined,
       params as Record<string, string | number | boolean | undefined | null>,
+    );
+  }
+
+  public async getOrderStatus(orderId: string): Promise<OrderStatusResponseDto> {
+    return this.request<OrderStatusResponseDto>(
+      `/api/v1/orders/${encodeURIComponent(orderId)}/status`,
+      "GET",
     );
   }
 

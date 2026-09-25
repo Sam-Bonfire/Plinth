@@ -39,6 +39,8 @@ Content-Type: application/json
   "tip": null
 }
 HTTP 201
+[Captures]
+created_order_id: jsonpath "$.order.id"
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.order.id" isString
@@ -90,6 +92,25 @@ HTTP 401
 
 # Negative: List orders with incorrect tenant_id (tenant-isolation)
 GET {{base_url}}/api/v1/orders?page=1&page_size=10
+Authorization: Bearer {{token}}
+x-tenant-id: 11111111-1111-1111-1111-111111111111
+x-location-id: {{location_id}}
+HTTP 401
+
+# Positive: Get Order Status
+GET {{base_url}}/api/v1/orders/{{created_order_id}}/status
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.order_id" == "{{created_order_id}}"
+jsonpath "$.status" isString
+jsonpath "$.updated_at" isString
+
+# Negative: Get Order Status with incorrect tenant_id (tenant-isolation)
+GET {{base_url}}/api/v1/orders/{{created_order_id}}/status
 Authorization: Bearer {{token}}
 x-tenant-id: 11111111-1111-1111-1111-111111111111
 x-location-id: {{location_id}}

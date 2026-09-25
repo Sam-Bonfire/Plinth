@@ -239,7 +239,7 @@ export type GstRate =
  */
 "TwentyEightPercent"
 
-export type HealthResponse = { status: string; timestamp: number; version: string }
+export type HealthResponseDto = { status: string; version: string; uptime_secs: number; d1_reachable: boolean }
 
 /**
  * Request payload to ingest an audit log event
@@ -760,6 +760,8 @@ export type OrderStatus =
  * Order is refunded
  */
 "Refunded"
+
+export type OrderStatusResponseDto = { order_id: OrderId; status: OrderStatus; updated_at: string }
 
 export type OrderSummaryDto = { id: OrderId; status: OrderStatus; channel: OrderChannel; terminal_id: TerminalId; table_id: FloorTableId | null; grand_total_minor: number; balance_due_minor: number; created_at: string }
 
