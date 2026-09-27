@@ -99,8 +99,8 @@ pub fn enter_kiosk(
     let mut machine = state.lock().map_err(|_| "Failed to lock state")?;
     machine.enter_kiosk(pin.to_string())?;
 
-    window.set_fullscreen(true).map_err(|e| e.to_string())?;
-    window.set_always_on_top(true).map_err(|e| e.to_string())?;
+    apply_fullscreen(&window, true)?;
+    apply_always_on_top(&window, true)?;
 
     Ok(())
 }
@@ -120,8 +120,8 @@ pub fn exit_kiosk(
     let mut machine = state.lock().map_err(|_| "Failed to lock state")?;
     machine.exit_kiosk(pin)?;
 
-    window.set_fullscreen(false).map_err(|e| e.to_string())?;
-    window.set_always_on_top(false).map_err(|e| e.to_string())?;
+    apply_fullscreen(&window, false)?;
+    apply_always_on_top(&window, false)?;
 
     Ok(())
 }
@@ -142,15 +142,42 @@ pub fn toggle_fullscreen(
 
     match new_mode {
         WindowMode::Fullscreen => {
-            window.set_fullscreen(true).map_err(|e| e.to_string())?;
+            apply_fullscreen(&window, true)?;
         }
         WindowMode::Windowed => {
-            window.set_fullscreen(false).map_err(|e| e.to_string())?;
+            apply_fullscreen(&window, false)?;
         }
         WindowMode::Kiosk { .. } => unreachable!(),
     }
 
     Ok(())
+}
+
+/// Applies fullscreen where the platform supports window chrome control.
+/// Mobile targets have no window chrome, so this is a clean error there.
+fn apply_fullscreen(window: &tauri::Window, fullscreen: bool) -> Result<(), String> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = (window, fullscreen);
+        return Err("Fullscreen control is not available on mobile".into());
+    }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+    }
+}
+
+/// Applies always-on-top where the platform supports it.
+fn apply_always_on_top(window: &tauri::Window, on_top: bool) -> Result<(), String> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = (window, on_top);
+        return Err("Always-on-top is not available on mobile".into());
+    }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        window.set_always_on_top(on_top).map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(test)]

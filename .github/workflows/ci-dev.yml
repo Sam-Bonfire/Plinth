@@ -50,6 +50,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
+      - name: Install worker-build for edge WASM bundle
+        run: cargo install worker-build --locked
+
       - name: Initialize Monorepo Environment
         run: mise run init
 
