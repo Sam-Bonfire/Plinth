@@ -49,6 +49,15 @@ describe("PlinthThemeProvider", () => {
     expect(screen.getByTestId("is-dark").textContent).toBe("true");
   });
 
+  it("marks the theme on a wrapper for CSS variables", () => {
+    const { container } = render(
+      <PlinthThemeProvider defaultIsDark={true}>
+        <span>child</span>
+      </PlinthThemeProvider>
+    );
+    expect(container.querySelector('[data-theme="dark"]')).not.toBeNull();
+  });
+
   it("throws error if usePlinthTheme used outside provider", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<TestConsumer />)).toThrowError(
