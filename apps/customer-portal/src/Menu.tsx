@@ -1,7 +1,7 @@
 import { Alert, Button, Card, Empty, Flex, Segmented, Space, Spin, Tag, Typography, message } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { addToCart, cartCount, cartTotal, type Cart } from './cart.js';
+import { addToCart, cartCount, cartTotal, inr, type Cart } from './cart.js';
 import { ConsentDrawer, type ConsentChoices } from './ConsentDrawer.js';
 import { LoginModal, type LoginSubmitData } from './LoginModal.js';
 import { loadConsent, loadCustomer, saveConsent, saveCustomer, saveOrder, type PortalCustomer } from './session.js';
@@ -233,7 +233,7 @@ export const Menu = (): React.JSX.Element => {
               </div>
               <Space direction="vertical" align="end" style={{ flexShrink: 0 }}>
                 <Text strong style={{ fontSize: '16px', color: 'var(--font)' }}>
-                  ${(item.price_minor / 100).toFixed(2)}
+                  {inr(item.price_minor)}
                 </Text>
                 <Button size="small" type="primary" onClick={() => setCart((c) => addToCart(c, item))}>
                   Add
@@ -254,7 +254,7 @@ export const Menu = (): React.JSX.Element => {
         >
           <Flex justify="space-between" align="center">
             <Text strong>
-              {cartCount(cart)} items · ${(cartTotal(cart) / 100).toFixed(2)}
+              {cartCount(cart)} items · {inr(cartTotal(cart))}
             </Text>
             <Button type="primary" loading={placing} onClick={checkout}>
               {customer ? `Order as ${customer.name}` : 'Login & Order'}
