@@ -157,7 +157,7 @@ export const CheckoutPage: React.FC = () => {
         </Space>
       </Card>
       <Card title="Outlet & Terminal">
-        <Form layout="vertical" onFinish={(v): Promise<void> => placeOrder(v as CheckoutForm)}>
+        <Form layout="vertical" scrollToFirstError onFinish={(v): Promise<void> => placeOrder(v as CheckoutForm)}>
           <Form.Item label="Tenant ID" name="tenantId" rules={[{ required: true, message: "Tenant is required" }]}>
             <Input placeholder="tenant uuid" />
           </Form.Item>

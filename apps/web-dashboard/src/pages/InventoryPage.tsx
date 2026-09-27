@@ -4,7 +4,9 @@ import React, { useMemo, useState } from "react";
 import { PurchaseOrderCreator, type PurchaseOrder } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
 import { seedRecipes, type Recipe } from "../data/recipes.js";
+import { logAudit } from "../lib/auditTrail.js";
 import { receivePurchaseOrder } from "../lib/inventoryReceiving.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 interface Ingredient {
   key: string;
@@ -71,6 +73,7 @@ const statusColor = (s: StockStatus): string => (s === "OK" ? "success" : s === 
 
 export const InventoryPage: React.FC = () => {
   const [ingredients, setIngredients] = useState<Ingredient[]>(seedIngredients);
+  const { client } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>(seedRecipes);
   const [category, setCategory] = useState<string>("all");
   const [adjusting, setAdjusting] = useState<Ingredient | null>(null);
@@ -365,6 +368,7 @@ export const InventoryPage: React.FC = () => {
         onSubmit={(po: PurchaseOrder): void => {
           const res = receivePurchaseOrder(ingredients, po.lines);
           setIngredients(res.updated);
+          void logAudit(client, "PO_RECEIVE", "supplier", po.supplier);
           if (res.unmatched.length > 0) {
             void message.warning(`Received ${res.received} lines; unmatched: ${res.unmatched.join(", ")}.`);
           } else {

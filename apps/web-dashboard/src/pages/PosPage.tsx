@@ -185,6 +185,7 @@ export const PosPage: React.FC = () => {
     const itemCount = useCartStore.getState().lines.reduce((sum: number, l): number => sum + l.qty, 0);
     setCompleted({ id: orderSeq, change });
     setOrderSeq((seq: number): number => seq + 1);
+    void logAudit(client, `TENDER_${payMethod.toUpperCase()}`, "order", `#${orderSeq}`);
     void message.success(`Order settled · ${itemCount} items · ${inr(total)} via ${payMethod}.`);
   };
 

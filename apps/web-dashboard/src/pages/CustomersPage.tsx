@@ -1,8 +1,8 @@
 import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
 import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Rate, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
+import { logAudit } from "../lib/auditTrail.js";
 import { useAuth } from "../providers/AuthProvider.js";
-
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
 
 interface Customer {
@@ -245,7 +245,7 @@ export const CustomersPage: React.FC = () => {
       );
     };
     applyLocal();
-    setLedgerRows((prev: LedgerRow[]): LedgerRow[] => [
+    void logAudit(client, "MESS_TOPUP", "mess-account", account.key);    setLedgerRows((prev: LedgerRow[]): LedgerRow[] => [
       ...prev,
       {
         date: new Date().toISOString().split("T")[0] ?? "2023-10-10",

@@ -176,6 +176,7 @@ export const PaymentsPage: React.FC = () => {
       void message.error("Enter the shift ID and counted cash.");
       return;
     }
+    void logAudit(client, "CLOSE_SHIFT", "shift", shiftId.trim());
     client
       .closeShift({ shift_id: shiftId.trim(), physical_cash_minor: Math.round(physicalCash * 100), notes: closeNote.trim() === "" ? null : closeNote.trim() })
       .then((report: ZReportDto): void => {
