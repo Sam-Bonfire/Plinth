@@ -53,7 +53,7 @@ export const TableSeatModal: React.FC<Props> = ({ tableLabel, capacity, waiters,
         style={{ width: "100%" }}
       />
       {error !== null && (
-        <Typography.Text type="danger">{error}</Typography.Text>
+        <Typography.Text type="danger" role="alert">{error}</Typography.Text>
       )}
     </Modal>
   );

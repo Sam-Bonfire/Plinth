@@ -38,7 +38,11 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
           </Space>
         )}
 
-        <div style={{ height: typeof height === 'number' ? height : '100%', width: "100%", position: "relative" }}>
+        <div
+          style={{ height: typeof height === 'number' ? height : '100%', width: "100%", position: "relative" }}
+          role="img"
+          aria-label={typeof title === "string" ? `Chart: ${title}` : "Chart"}
+        >
           {loading ? (
             <Skeleton active paragraph={{ rows: 6 }} title={false} />
           ) : isEmpty ? (

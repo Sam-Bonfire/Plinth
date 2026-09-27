@@ -237,8 +237,8 @@ export const MenuPage: React.FC = () => {
                       onChange={(color: string): void => handleColorChange(c.id, color)}
                       options={PRESET_COLORS.map((color) => ({ label: color, value: color }))}
                     />
-                    <Button size="small" icon={<ArrowUpOutlined />} aria-label={`Move ${c.name} up`} onClick={(): void => handleMoveCategory(c.id, "up")} />
-                    <Button size="small" icon={<ArrowDownOutlined />} aria-label={`Move ${c.name} down`} onClick={(): void => handleMoveCategory(c.id, "down")} />
+                    <Button icon={<ArrowUpOutlined />} aria-label={`Move ${c.name} up`} onClick={(): void => handleMoveCategory(c.id, "up")} />
+                    <Button icon={<ArrowDownOutlined />} aria-label={`Move ${c.name} down`} onClick={(): void => handleMoveCategory(c.id, "down")} />
                   </div>
                 );
               })}

@@ -140,7 +140,7 @@ export const MenuCsvWizard: React.FC<MenuCsvWizardProps> = ({ open, onClose, ite
           </Upload.Dragger>
 
           {parseErrors.length > 0 && (
-            <div style={{ marginTop: 16, color: "red" }}>
+            <div style={{ marginTop: 16, color: "red" }} role="alert">
               <Typography.Text type="danger" strong>
                 Validation Errors:
               </Typography.Text>
