@@ -2,6 +2,7 @@ import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
+import { AuthProvider } from "../providers/AuthProvider.js";
 import { InventoryPage } from "./InventoryPage.js";
 
 // Canvas-backed chart renders cannot run in jsdom; mock the chart binding.
@@ -29,7 +30,9 @@ function renderPage(): void {
   render(
     <PlinthThemeProvider>
       <App>
-        <InventoryPage />
+        <AuthProvider>
+          <InventoryPage />
+        </AuthProvider>
       </App>
     </PlinthThemeProvider>,
   );
