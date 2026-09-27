@@ -44,7 +44,9 @@ export const PlinthThemeProvider: React.FC<PlinthThemeProviderProps> = ({
   return (
     <PlinthThemeContext.Provider value={contextValue}>
       <ConfigProvider theme={getThemeConfig(isDark)}>
-        {children}
+        <div data-theme={isDark ? "dark" : "light"} style={{ display: "contents" }}>
+          {children}
+        </div>
       </ConfigProvider>
     </PlinthThemeContext.Provider>
   );
