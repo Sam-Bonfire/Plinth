@@ -35,3 +35,13 @@
     opacity: 0.7;
   }
 }
+
+/* Respect users who prefer reduced motion: kill pulses and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

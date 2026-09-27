@@ -33,7 +33,7 @@ describe("MenuPage", () => {
   it("filters items by category", async () => {
     renderPage();
     await screen.findByText("Butter Chicken");
-    fireEvent.click(screen.getByRole("button", { name: /Beverages/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Beverages · 1" }));
     expect(await screen.findByText("Mango Lassi")).toBeDefined();
     expect(screen.queryByText("Butter Chicken")).toBeNull();
   });

@@ -53,7 +53,7 @@ export const RiderPickupModal: React.FC<RiderPickupModalProps> = ({ open, onClos
         maxLength={6}
       />
       {error !== "" && (
-        <Typography.Text type="danger" style={{ display: "block", marginTop: 8 }}>
+        <Typography.Text type="danger" role="alert" style={{ display: "block", marginTop: 8 }}>
           {error}
         </Typography.Text>
       )}
