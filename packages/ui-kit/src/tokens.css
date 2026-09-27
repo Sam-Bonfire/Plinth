@@ -36,6 +36,31 @@
   }
 }
 
+/* Dark theme overrides (applied via data-theme on the provider wrapper). */
+[data-theme="dark"] {
+  --bg: #0e1110;
+  --acc: #e8ece8;
+  --s1: #171b17;
+  --s2: #1d221d;
+  --s3: #262b26;
+  --s4: #313631;
+  --s5: #3f453f;
+  --b1: rgba(255, 255, 255, 0.12);
+  --g: #4ade80;
+  --r: #f87171;
+  --y: #facc15;
+  --bl: #60a5fa;
+  --p: #c084fc;
+  --o: #fb923c;
+}
+
+/* Print: hide fixed chrome so reports and receipts use the page. */
+@media print {
+  [style*="position: fixed"] {
+    display: none !important;
+  }
+}
+
 /* Respect users who prefer reduced motion: kill pulses and transitions. */
 @media (prefers-reduced-motion: reduce) {
   *,

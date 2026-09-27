@@ -62,6 +62,7 @@ export const PosRouter: React.FC = () => {
             type="default"
             icon={soundEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
             onClick={toggleSound}
+            aria-label={soundEnabled ? "Mute sounds" : "Unmute sounds"}
           />
           <Button
             type="default"
