@@ -94,11 +94,11 @@ describe('Menu', () => {
     // Check if items are rendered
     expect(screen.getByText('Classic Burger')).toBeDefined();
     expect(screen.getByText('Beef patty with cheese')).toBeDefined();
-    expect(screen.getByText('$10.00')).toBeDefined();
+    expect(screen.getByText('₹10.00')).toBeDefined();
 
     expect(screen.getByText('Veggie Burger')).toBeDefined();
     expect(screen.getByText('Plant-based patty')).toBeDefined();
-    expect(screen.getByText('$12.00')).toBeDefined();
+    expect(screen.getByText('₹12.00')).toBeDefined();
 
     // Check for Veg badge
     expect(screen.getByText('Veg')).toBeDefined();
@@ -126,7 +126,7 @@ describe('Menu', () => {
     const adds = screen.getAllByRole('button', { name: 'Add' });
     fireEvent.click(adds[0] as HTMLElement);
     fireEvent.click(adds[0] as HTMLElement);
-    expect(await screen.findByText('2 items · $20.00')).toBeDefined();
+    expect(await screen.findByText('2 items · ₹20.00')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Login & Order' }));
     expect(await screen.findByPlaceholderText('Enter your phone number')).toBeDefined();
     localStorage.clear();

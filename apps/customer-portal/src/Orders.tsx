@@ -1,6 +1,7 @@
 import { Card, Flex, List, Tag, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { inr } from './cart.js';
 import { loadOrders } from './session.js';
 
 const { Title, Text } = Typography;
@@ -63,7 +64,7 @@ export const Orders = (): React.JSX.Element => {
                   <Text strong>{o.order_id}</Text>
                   <br />
                   <Text type="secondary">
-                    {o.itemCount} items · ${(o.total_minor / 100).toFixed(2)} · Ticket {o.ticket_id}
+                    {o.itemCount} items · {inr(o.total_minor)} · Ticket {o.ticket_id}
                   </Text>
                 </div>
                 <Tag color={liveStatus[o.order_id] ? 'success' : 'processing'}>{liveStatus[o.order_id] ?? 'Placed'}</Tag>
