@@ -10,6 +10,7 @@ import { LoginPage } from "./pages/LoginPage.js";
 import { MenuPage } from "./pages/MenuPage.js";
 import { OnboardingWizard } from "./pages/OnboardingWizard.js";
 import { OrdersPage } from "./pages/OrdersPage.js";
+import { PaymentsPage } from "./pages/PaymentsPage.js";
 import { PosPage } from "./pages/PosPage.js";
 import { RecipesPage } from "./pages/RecipesPage.js";
 import { ReportsPage } from "./pages/ReportsPage.js";
