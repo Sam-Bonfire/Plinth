@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import React from "react";
 import { describe, it, expect } from "vitest";
 import { DocsPortal, filterTopics, DocTopic } from "./DocsPortal.js";
 import "@testing-library/jest-dom/vitest";

@@ -5,7 +5,7 @@ import { logAudit } from "../lib/auditTrail.js";
 import { useAuth } from "../providers/AuthProvider.js";
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
 
-interface Customer {
+export interface Customer {
   key: string;
   name: string;
   phone: string;
