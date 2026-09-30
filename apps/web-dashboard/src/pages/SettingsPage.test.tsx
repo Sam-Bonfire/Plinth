@@ -1,13 +1,16 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SettingsPage, loadSettings, saveSettings, seedLocations } from "./SettingsPage.js";
 
 function renderPage(): void {
   render(
-    <PlinthThemeProvider>
-      <SettingsPage />
-    </PlinthThemeProvider>,
+    <MemoryRouter>
+      <PlinthThemeProvider>
+        <SettingsPage />
+      </PlinthThemeProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -77,5 +80,15 @@ describe("SettingsPage", () => {
     fireEvent.change(await screen.findByPlaceholderText("City"), { target: { value: "Bengaluru" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Whitefield")).toBeDefined();
+  });
+
+  it("exposes the floor plan as a tab and links the setup wizard", async () => {
+    renderPage();
+    await screen.findByText("Restaurant name");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Floor Plan" }));
+    expect(await screen.findByText("Covers")).toBeDefined();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Locations" }));
+    const wizard = await screen.findByRole("link", { name: "Setup Wizard" });
+    expect(wizard.getAttribute("href")).toBe("/onboarding");
   });
 });

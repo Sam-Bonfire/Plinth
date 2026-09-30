@@ -68,4 +68,11 @@ describe("OrdersPage", () => {
     fireEvent.click(views[0] as HTMLElement);
     expect(await screen.findByText("Butter Chicken")).toBeDefined();
   });
+
+  it("exposes live tracking as a tab", async () => {
+    renderPage();
+    await screen.findByText("ORD-1098");
+    fireEvent.click(screen.getByRole("tab", { name: "Live Tracking" }));
+    expect(await screen.findByText("Track Your Order")).toBeDefined();
+  });
 });

@@ -89,4 +89,13 @@ describe("InventoryPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Cumin")).toBeDefined();
   }, 60000);
+
+  it("exposes recipes and vendors as tabs", async () => {
+    renderPage();
+    await screen.findByText("Chicken Breast");
+    fireEvent.click(screen.getByRole("tab", { name: "Recipes" }));
+    expect(await screen.findByText("Avg Food Cost")).toBeDefined();
+    fireEvent.click(screen.getByRole("tab", { name: "Vendors" }));
+    expect(await screen.findByText("Vendor / Supplier Directory")).toBeDefined();
+  });
 });

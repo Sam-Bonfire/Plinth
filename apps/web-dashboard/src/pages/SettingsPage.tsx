@@ -1,5 +1,7 @@
-import { Button, Card, Col, Form, Input, InputNumber, Menu, Modal, Row, Select, Switch, Table, Typography, message, type MenuProps, type TableColumnsType } from "antd";
+import { Button, Card, Col, Form, Input, InputNumber, Menu, Modal, Row, Select, Space, Switch, Table, Typography, message, type MenuProps, type TableColumnsType } from "antd";
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { TablesPage } from "./TablesPage.js";
 
 type SettingValue = string | number | boolean;
 
@@ -30,6 +32,7 @@ interface LocationFormValues {
 const TABS: { key: string; label: string }[] = [
   { key: "general", label: "General" },
   { key: "locations", label: "Locations" },
+  { key: "floor", label: "Floor Plan" },
   { key: "integrations", label: "Integrations" },
   { key: "devices", label: "Devices" },
   { key: "tax", label: "Tax & Pricing" },
@@ -242,13 +245,20 @@ export const SettingsPage: React.FC = () => {
             <Card
               title="Locations"
               extra={
-                <Button size="small" type="primary" onClick={openAdd}>
-                  + Add Location
-                </Button>
+                <Space>
+                  <Link to="/onboarding">
+                    <Button size="small">Setup Wizard</Button>
+                  </Link>
+                  <Button size="small" type="primary" onClick={openAdd}>
+                    + Add Location
+                  </Button>
+                </Space>
               }
             >
               <Table<Location> dataSource={locations} columns={locationColumns} rowKey="key" pagination={false} size="small" />
             </Card>
+          ) : tab === "floor" ? (
+            <TablesPage />
           ) : (
             <Card title={activeTab.label} extra={<Button size="small" type="primary" onClick={saveTab}>Save Changes</Button>}>
               {(DEFS[tab] ?? []).map((def: SettingDef): React.ReactNode => (
