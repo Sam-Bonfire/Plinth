@@ -146,10 +146,12 @@ export const CheckoutPage: React.FC = () => {
             value={sku}
             onChange={(e): void => setSku(e.target.value)}
             placeholder="SKU/search field"
+            aria-label="SKU or item search"
             style={{ maxWidth: 300 }}
           />
           <Select
             value={tableId ?? "Takeaway"}
+            aria-label="Table"
             onChange={(v: string): void => setTable(v === "Takeaway" ? null : v)}
             options={TABLE_OPTIONS.map((t: string): { label: string; value: string } => ({ label: t === "Takeaway" ? "Takeaway" : `Table ${t}`, value: t }))}
             style={{ maxWidth: 300 }}
