@@ -1,5 +1,6 @@
+import { Typography } from "antd";
 import React from "react";
-import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { createBrowserRouter, Link, Navigate, Outlet, useRouteError } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
 import { AuditLogPage } from "./pages/AuditLogPage.js";
 import { CustomersPage } from "./pages/CustomersPage.js";
@@ -29,10 +30,24 @@ const ProtectedRoute: React.FC = () => {
   return <Outlet />;
 };
 
+export const NotFoundPage: React.FC = () => {
+  const error = useRouteError() as { statusText?: string; message?: string } | null;
+  return (
+    <main style={{ padding: 48, textAlign: "center" }}>
+      <Typography.Title level={1}>Page not found</Typography.Title>
+      <Typography.Paragraph type="secondary">
+        {error?.statusText ?? error?.message ?? "The page you asked for does not exist."}
+      </Typography.Paragraph>
+      <Link to="/pos">Back to POS</Link>
+    </main>
+  );
+};
+
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
+  { path: "/login", element: <LoginPage />, errorElement: <NotFoundPage /> },
   {
     element: <ProtectedRoute />,
+    errorElement: <NotFoundPage />,
     children: [
       {
         element: <AppLayout />,
@@ -59,5 +74,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: "*", element: <Navigate to="/" replace /> },
+  { path: "*", element: <NotFoundPage /> },
 ]);
