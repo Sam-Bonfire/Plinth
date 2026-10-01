@@ -151,7 +151,7 @@ export const KitchenPage: React.FC = () => {
             const stationTickets = tickets.filter((t: TicketView): boolean => t.station === station);
             return (
               <Col span={8} key={station}>
-                <Typography.Title level={5}>
+                <Typography.Title level={2} style={{ fontSize: 14 }}>
                   {station} · {stationTickets.length}
                 </Typography.Title>
                 {stationTickets.map((t: TicketView): React.ReactNode => (

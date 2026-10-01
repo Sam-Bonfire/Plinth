@@ -34,7 +34,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div>
       {!live && <Alert message="Showing cached sample entries - live analytics service unreachable." type="warning" showIcon style={{ marginBottom: 16 }} />}
-      <Typography.Title level={3}>Dashboard</Typography.Title>
+      <Typography.Title level={2}>Dashboard</Typography.Title>
       <Row gutter={16}>
         <Col span={6}>
           <Link to="/reports">

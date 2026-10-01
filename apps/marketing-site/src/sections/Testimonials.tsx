@@ -105,18 +105,22 @@ export const Testimonials = ({
         <Button icon={<LeftOutlined />} onClick={handlePrev} aria-label="Previous Testimonial" />
         <Space size="small">
           {testimonials.map((_, index) => (
-            <div
+            <button
               key={index}
+              type="button"
               onClick={() => { handleDotClick(index); }}
               data-testid={`dot-${index}`}
+              aria-label={`Go to testimonial ${index + 1}`}
+              aria-current={index === currentIndex}
               style={{
                 width: 10,
                 height: 10,
                 borderRadius: '50%',
+                border: 'none',
+                padding: 0,
                 backgroundColor: index === currentIndex ? '#1677ff' : '#d9d9d9',
                 cursor: 'pointer',
               }}
-              aria-label={`Go to testimonial ${index + 1}`}
             />
           ))}
         </Space>

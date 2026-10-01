@@ -113,7 +113,7 @@ export const TrackingPage: React.FC = () => {
           <Card>
             {trackedOrder ? (
               <div style={{ padding: "16px 0" }}>
-                <Typography.Title level={4} style={{ marginBottom: 24, textAlign: "center" }}>
+                <Typography.Title level={2} style={{ marginBottom: 24, textAlign: "center" }}>
                   Order {trackedOrder.id}
                 </Typography.Title>
                 <Steps
