@@ -9,4 +9,12 @@ describe('Marketing Site App', () => {
     expect(await screen.findByText('Power Your Restaurant')).toBeDefined();
     expect(await screen.findByRole('contentinfo')).toBeDefined();
   });
+
+  it('exposes anchor targets for header links and CTA', async () => {
+    render(<App />);
+    for (const id of ['product', 'pricing', 'docs', 'contact']) {
+      expect(await screen.findByRole('region', { name: new RegExp(id, 'i') })).toBeDefined();
+    }
+    expect(await screen.findByRole('link', { name: 'PlinthOS home' })).toBeDefined();
+  });
 });
