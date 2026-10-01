@@ -40,7 +40,7 @@ export const Orders = (): React.JSX.Element => {
   if (orders.length === 0) {
     return (
       <Flex vertical align="center" justify="center" style={{ minHeight: '100vh', padding: '16px' }}>
-        <Title level={2}>My Orders</Title>
+        <Title level={1} style={{ fontSize: 24 }}>My Orders</Title>
         <Text type="secondary" style={{ textAlign: 'center' }}>
           No orders yet.
         </Text>
@@ -51,7 +51,7 @@ export const Orders = (): React.JSX.Element => {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px' }}>
-      <Title level={2} style={{ textAlign: 'center' }}>
+      <Title level={1} style={{ textAlign: 'center', fontSize: 24 }}>
         My Orders
       </Title>
       <List
