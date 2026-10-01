@@ -57,15 +57,16 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ links, ctaLabel, onCtaCl
         }
       `}</style>
 
-      <Header className="site-header">
-        <div className="site-header-logo">
+      <Header id="top" className="site-header">
+        <a href="#top" className="site-header-logo" aria-label="PlinthOS home" style={{ color: "inherit", textDecoration: "none" }}>
           PlinthOS
-        </div>
+        </a>
 
         <Menu
           className="site-header-desktop-menu"
           mode="horizontal"
           items={menuItems}
+          aria-label="Site"
         />
 
         <div className="site-header-cta">
@@ -92,6 +93,7 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ links, ctaLabel, onCtaCl
         <Menu
           mode="inline"
           items={menuItems}
+          aria-label="Site mobile"
           style={{ borderRight: 'none', marginBottom: 24 }}
         />
         <Button type="primary" block onClick={onCtaClick}>

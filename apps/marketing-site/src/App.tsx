@@ -69,18 +69,26 @@ const App: React.FC = () => {
       />
       <main aria-label="PlinthOS overview">
         <HeroSection />
-        <PillarsGrid />
+        <section id="product" aria-label="Product" style={{ scrollMarginTop: 64 }}>
+          <PillarsGrid />
+        </section>
         <RoiCalculator />
         <KdsDemo />
         <OfflineSim />
         <MultiLocation />
         <ByodMatrix />
-        <PricingCards />
+        <section id="pricing" aria-label="Pricing" style={{ scrollMarginTop: 64 }}>
+          <PricingCards />
+        </section>
         <Testimonials />
         <ApiPlayground />
-        <DocsPortal />
+        <section id="docs" aria-label="Docs" style={{ scrollMarginTop: 64 }}>
+          <DocsPortal />
+        </section>
         <FaqAccordion />
-        <LeadForm onSubmit={submitLead} />
+        <section id="contact" aria-label="Contact" style={{ scrollMarginTop: 64 }}>
+          <LeadForm onSubmit={submitLead} />
+        </section>
         <ComplianceBadges />
       </main>
       <SiteFooter />
