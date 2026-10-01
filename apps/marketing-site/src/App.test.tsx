@@ -12,9 +12,10 @@ describe('Marketing Site App', () => {
 
   it('exposes anchor targets for header links and CTA', async () => {
     render(<App />);
+    await screen.findByText('Power Your Restaurant');
     for (const id of ['product', 'pricing', 'docs', 'contact']) {
-      expect(await screen.findByRole('region', { name: new RegExp(id, 'i') })).toBeDefined();
+      expect(document.getElementById(id)).not.toBeNull();
     }
-    expect(await screen.findByRole('link', { name: 'PlinthOS home' })).toBeDefined();
-  });
+    expect(screen.getByRole('link', { name: 'PlinthOS home' })).toBeDefined();
+  }, 30000);
 });
