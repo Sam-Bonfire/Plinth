@@ -189,8 +189,8 @@ export const Menu = (): React.JSX.Element => {
   const selectedCategory = catalog.categories.find((c) => c.id === selectedCategoryId);
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px', paddingBottom: '96px' }}>
-      <Title level={2} style={{ textAlign: 'center', marginBottom: '24px' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px', paddingBottom: '96px', scrollPaddingBottom: 96 }}>
+      <Title level={1} style={{ textAlign: 'center', marginBottom: '24px', fontSize: 24 }}>
         Digital Menu
       </Title>
 
@@ -208,6 +208,7 @@ export const Menu = (): React.JSX.Element => {
 
       <div style={{ overflowX: 'auto', marginBottom: '24px', paddingBottom: '8px' }}>
         <Segmented
+          aria-label="Menu category"
           options={catalog.categories.map((c) => ({ label: c.name, value: c.id }))}
           value={selectedCategoryId || undefined}
           onChange={(val) => setSelectedCategoryId(val.toString())}
@@ -249,7 +250,9 @@ export const Menu = (): React.JSX.Element => {
 
       {cart.length > 0 && (
         <Card
-          style={{ position: 'fixed', bottom: 16, left: 16, right: 16, maxWidth: '768px', margin: '0 auto' }}
+          role="region"
+          aria-label="Cart summary"
+          style={{ position: 'sticky', bottom: 16, marginTop: 16 }}
           size="small"
         >
           <Flex justify="space-between" align="center">
