@@ -53,4 +53,18 @@ describe("PosRouter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Checkout" }));
     expect(await screen.findByText("checkout-page")).toBeDefined();
   });
+
+  it("renders a header with brand, terminal nav and skip link", async () => {
+    render(
+      <PosProviders>
+        <SignInHelper />
+        <PosRouter />
+      </PosProviders>,
+    );
+    fireEvent.click(await screen.findByText("helper-signin"));
+    expect(await screen.findByRole("link", { name: "Skip to content" })).toBeDefined();
+    expect(await screen.findByRole("link", { name: "PlinthOS POS home" })).toBeDefined();
+    expect(await screen.findByRole("navigation", { name: "Terminal" })).toBeDefined();
+    expect(await screen.findByText("Mina")).toBeDefined();
+  });
 });

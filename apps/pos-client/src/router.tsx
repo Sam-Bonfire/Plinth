@@ -55,29 +55,62 @@ export const PosRouter: React.FC = () => {
   return (
     <App>
     <HashRouter>
+      <a
+        href="#pos-main"
+        style={{ position: "absolute", left: -9999, top: 0, zIndex: 1001, background: "var(--s1)", padding: 8 }}
+        onFocus={(e): void => {
+          e.currentTarget.style.left = "8px";
+        }}
+        onBlur={(e): void => {
+          e.currentTarget.style.left = "-9999px";
+        }}
+      >
+        Skip to content
+      </a>
       {session && (
-        <Space style={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}>
-          <TerminalNav />
-          <Button
-            type="default"
-            icon={soundEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
-            onClick={toggleSound}
-            aria-label={soundEnabled ? "Mute sounds" : "Unmute sounds"}
-          />
-          <Button
-            type="default"
-            icon={<LockOutlined />}
-            onClick={(): void => setLocked(true)}
-          >
-            Lock
-          </Button>
-        </Space>
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            padding: "8px 16px",
+            borderBottom: "1px solid var(--b1)",
+          }}
+        >
+          <Link to="/checkout" aria-label="PlinthOS POS home" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+            PlinthOS POS
+          </Link>
+          <nav aria-label="Terminal">
+            <TerminalNav />
+          </nav>
+          <Space>
+            <span aria-live="polite" style={{ fontSize: 12 }}>
+              {session.name}
+            </span>
+            <Button
+              type="default"
+              icon={soundEnabled ? <SoundOutlined /> : <AudioMutedOutlined />}
+              onClick={toggleSound}
+              aria-label={soundEnabled ? "Mute sounds" : "Unmute sounds"}
+            />
+            <Button
+              type="default"
+              icon={<LockOutlined />}
+              onClick={(): void => setLocked(true)}
+              aria-label="Lock terminal"
+            >
+              Lock
+            </Button>
+          </Space>
+        </header>
       )}
       <LockScreen
         open={locked}
         onUnlock={handleUnlock}
         staffName={session?.name ?? ""}
       />
+      <main id="pos-main">
       <Routes>
         <Route path="/" element={<Navigate to="/checkout" replace />} />
         <Route path="/login" element={<LoginPage />} />
@@ -99,6 +132,7 @@ export const PosRouter: React.FC = () => {
         />
         <Route path="*" element={<Navigate to="/checkout" replace />} />
       </Routes>
+      </main>
     </HashRouter>
     </App>
   );
