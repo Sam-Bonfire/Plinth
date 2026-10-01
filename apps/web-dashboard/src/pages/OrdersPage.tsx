@@ -8,12 +8,13 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "@plinth/ui-kit";
-import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Typography, message, type TableColumnsType } from "antd";
+import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Tabs, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
 import { RiderPickupModal } from "../components/RiderPickupModal.js";
 import { logAudit } from "../lib/auditTrail.js";
 import { useAuth } from "../providers/AuthProvider.js";
+import { TrackingPage } from "./TrackingPage.js";
 
 interface OrderRow {
   key: string;
@@ -214,7 +215,7 @@ export const OrdersPage: React.FC = () => {
     },
   ];
 
-  return (
+  const ordersContent: React.ReactNode = (
     <div>
       <Space wrap style={{ marginBottom: 16 }}>
         <Segmented value={statusFilter} onChange={(v): void => setStatusFilter(v as string)} options={STATUS_OPTIONS} />
@@ -262,5 +263,14 @@ export const OrdersPage: React.FC = () => {
       )}
       <ReceiptPreview order={previewOrder} onClose={(): void => setPreviewOrder(null)} />
     </div>
+  );
+  return (
+    <Tabs
+      defaultActiveKey="orders"
+      items={[
+        { key: "orders", label: "Orders", children: ordersContent },
+        { key: "tracking", label: "Live Tracking", children: <TrackingPage /> },
+      ]}
+    />
   );
 };

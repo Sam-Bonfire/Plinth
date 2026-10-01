@@ -1,5 +1,5 @@
 import { AlertBanner, BarChart, InventoryStockBar } from "@plinth/ui-kit";
-import { App, Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tag, Typography, type TableColumnsType } from "antd";
+import { App, Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tabs, Tag, Typography, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { PurchaseOrderCreator, type PurchaseOrder } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
@@ -7,6 +7,8 @@ import { seedRecipes, type Recipe } from "../data/recipes.js";
 import { logAudit } from "../lib/auditTrail.js";
 import { receivePurchaseOrder } from "../lib/inventoryReceiving.js";
 import { useAuth } from "../providers/AuthProvider.js";
+import { RecipesPage } from "./RecipesPage.js";
+import { VendorsPage } from "./VendorsPage.js";
 
 interface Ingredient {
   key: string;
@@ -205,7 +207,7 @@ export const InventoryPage: React.FC = () => {
     { title: "Margin", dataIndex: "margin", key: "margin", width: 90 },
   ];
 
-  return (
+  const stockContent: React.ReactNode = (
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
@@ -378,5 +380,15 @@ export const InventoryPage: React.FC = () => {
         }}
       />
     </div>
+  );
+  return (
+    <Tabs
+      defaultActiveKey="stock"
+      items={[
+        { key: "stock", label: "Stock", children: stockContent },
+        { key: "recipes", label: "Recipes", children: <RecipesPage /> },
+        { key: "vendors", label: "Vendors", children: <VendorsPage /> },
+      ]}
+    />
   );
 };
