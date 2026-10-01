@@ -51,7 +51,10 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install worker-build for edge WASM bundle
-        run: cargo install worker-build --locked
+        run: |
+          if ! command -v worker-build >/dev/null 2>&1; then
+            cargo install worker-build --locked
+          fi
 
       - name: Initialize Monorepo Environment
         run: mise run init
