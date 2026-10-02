@@ -1,0 +1,49 @@
+name: Daily Security Checks
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    name: Dependency Audit (npm + cargo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup mise toolchains & cache
+        uses: jdx/mise-action@v4
+        with:
+          cache: true
+
+      - name: Initialize Monorepo Environment
+        run: mise run init
+
+      - name: Audit npm dependencies (high and above)
+        run: pnpm audit --audit-level=high
+
+      - name: Audit Rust dependencies
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  secrets:
+    name: Verified Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan history for verified secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified --fail

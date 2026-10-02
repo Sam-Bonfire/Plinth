@@ -4,6 +4,16 @@ set -e
 
 echo "🔍 Running pre-commit checks..."
 
+echo "Checking staged changes for secrets..."
+if git diff --cached --name-only | grep -Eq '(^|/)\.env(\.|$)|(^|/)secrets?/|\.pem$|\.key$|\.p12$|\.pfx$'; then
+  echo "❌ Blocked: staged secret files (.env, secrets/, keys, certs)."
+  exit 1
+fi
+if git diff --cached -U0 | grep -E '^\+' | grep -v '^\+\+\+' | grep -Eq 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[bpas]-[A-Za-z0-9-]+'; then
+  echo "❌ Blocked: staged changes look like committed credentials."
+  exit 1
+fi
+
 echo "Checking TypeScript linting..."
 pnpm -r --parallel lint
 

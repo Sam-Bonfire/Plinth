@@ -1,0 +1,20 @@
+# Grouped, weekly dependency updates. Security fixes still arrive
+# immediately via Dependabot alerts; this file governs version bumps.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      dev-only:
+        patterns: ["*"]
+        exclude-patterns: ["vite", "happy-dom", "vitest"]
+    open-pull-requests-limit: 5
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
