@@ -37,7 +37,10 @@ pub async fn fetch(
 
     let path = req.path();
 
-    if path.starts_with("/api/v1/auth") || path.starts_with("/api/v1/public") {
+    if path.starts_with("/api/v1/auth")
+        || path.starts_with("/api/v1/public")
+        || path.starts_with("/api/v1/customer-auth")
+    {
         let limiter = RATE_LIMITER.get_or_init(|| middleware::rate_limit::RateLimiter::new(100, 60));
 
         let ip = req.headers().get("cf-connecting-ip").ok().flatten().unwrap_or_else(|| "unknown".to_string());
@@ -52,7 +55,15 @@ pub async fn fetch(
 
     let mut auth_context = None;
 
-    if path.starts_with("/api/v1") && !path.starts_with("/api/v1/auth") {
+    // Paths designed for unauthenticated callers keep their own explicit
+    // checks at the route level; the staff-JWT gate skips them here.
+    let public_path = path.starts_with("/api/v1/auth")
+        || path.starts_with("/api/v1/public")
+        || path.starts_with("/api/v1/customer-auth")
+        || path.starts_with("/api/v1/webhooks")
+        || path.starts_with("/api/v1/marketing");
+
+    if path.starts_with("/api/v1") && !public_path {
         // Canonical secret name is JWT_SECRET. JWT_PUBLIC_KEY is accepted
         // as a legacy fallback and will be removed.
         let secret = match env.secret("JWT_SECRET") {

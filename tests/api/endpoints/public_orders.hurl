@@ -1,5 +1,8 @@
 # Endpoint: POST /api/v1/public/orders
 # Verification: Public aggregator order submission with KDS dispatch
+# Prerequisite: simulator seeded via `mise run db:seed:local`
+# (item 00000000-0000-0000-0000-000000000010 at 32000 minor).
+# Totals always come from the catalog: caller prices are ignored.
 
 # Positive: Submit a Swiggy order
 POST {{base_url}}/api/v1/public/orders
@@ -67,6 +70,25 @@ Content-Type: application/json
       "menu_item_id": "00000000-0000-0000-0000-000000000010",
       "name": "Paneer Tikka",
       "unit_price_minor": 32000,
+      "quantity": 1
+    }
+  ]
+}
+HTTP 400
+
+# Negative: Caller prices are ignored, unknown items rejected
+POST {{base_url}}/api/v1/public/orders
+Content-Type: application/json
+{
+  "tenant_id": "{{tenant_id}}",
+  "location_id": "{{location_id}}",
+  "channel": "Swiggy",
+  "customer_name": "Guest",
+  "items": [
+    {
+      "menu_item_id": "00000000-0000-0000-0000-000000000099",
+      "name": "Paneer Tikka",
+      "unit_price_minor": 1,
       "quantity": 1
     }
   ]

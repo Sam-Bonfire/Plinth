@@ -6,6 +6,7 @@ export interface PortalCustomer {
 export interface PlacedOrder {
   order_id: string;
   ticket_id: string;
+  tenant_id: string;
   total_minor: number;
   itemCount: number;
   placedAt: string;

@@ -1,5 +1,7 @@
 # ==============================================================================
 # E2E FLOW 01: Multi-Tenant Staff Authentication & RBAC Permission Matrix
+# Prerequisite: simulator seeded via `mise run db:seed:local`. Role and
+# permissions always come from the stored staff row, never the request.
 # ==============================================================================
 
 # Health check probe
@@ -18,7 +20,6 @@ Content-Type: application/json
 {
   "staff_id": "{{staff_id}}",
   "pin": "1234",
-  "role": "Owner"
 }
 HTTP 400
 [Asserts]
@@ -33,7 +34,6 @@ Content-Type: application/json
 {
   "staff_id": "{{staff_id}}",
   "pin": "   ",
-  "role": "Owner"
 }
 HTTP 400
 [Asserts]
@@ -45,9 +45,8 @@ x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 Content-Type: application/json
 {
-  "staff_id": "{{staff_id}}",
+  "staff_id": "{{staff_owner_id}}",
   "pin": "1234",
-  "role": "Owner"
 }
 HTTP 200
 [Asserts]
@@ -65,9 +64,8 @@ x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 Content-Type: application/json
 {
-  "staff_id": "{{staff_id}}",
+  "staff_id": "{{staff_cashier_id}}",
   "pin": "1234",
-  "role": "Cashier"
 }
 HTTP 200
 [Asserts]
@@ -83,9 +81,8 @@ x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 Content-Type: application/json
 {
-  "staff_id": "{{staff_id}}",
+  "staff_id": "{{staff_waiter_id}}",
   "pin": "1234",
-  "role": "Waiter"
 }
 HTTP 200
 [Asserts]

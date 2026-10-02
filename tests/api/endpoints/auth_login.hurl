@@ -1,5 +1,8 @@
 # Endpoint: POST /api/v1/auth/login
 # Verification: Staff PIN authentication and JWT issuance
+# Prerequisite: simulator seeded via `mise run db:seed:local`
+# ({{staff_id}} must be a seeded staff id with PIN 1234).
+# The role always comes from the stored row: callers cannot grant one.
 
 # Positive: Authenticate staff with PIN
 POST {{base_url}}/api/v1/auth/login
@@ -8,8 +11,7 @@ x-location-id: {{location_id}}
 Content-Type: application/json
 {
   "staff_id": "{{staff_id}}",
-  "pin": "1234",
-  "role": "Owner"
+  "pin": "1234"
 }
 HTTP 200
 [Asserts]
@@ -57,3 +59,17 @@ Content-Type: application/json
   "pin": "1234"
 }
 HTTP 401
+
+# Negative: Unknown staff fails closed without a token
+POST {{base_url}}/api/v1/auth/login
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "staff_id": "00000000-0000-0000-0000-000000000099",
+  "pin": "1234"
+}
+HTTP 401
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.error" contains "Invalid staff ID or PIN"

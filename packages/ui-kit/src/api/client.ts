@@ -230,8 +230,9 @@ export class PlinthApiClient {
   }
 
   // --- Auth Endpoint ---
+  // The role always comes from the stored staff row: callers cannot send one.
   public async login(
-    req: { staff_id: string; pin: string; role?: string },
+    req: { staff_id: string; pin: string },
   ): Promise<{ token: string; staff_id: string; role: string; permissions: number; expires_in: number }> {
     const res = await this.request<{
       token: string;

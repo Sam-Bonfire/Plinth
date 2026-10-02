@@ -10,7 +10,6 @@ Content-Type: application/json
 {
   "staff_id": "{{staff_id}}",
   "pin": "1234",
-  "role": "Owner"
 }
 HTTP 200
 [Asserts]

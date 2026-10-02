@@ -105,12 +105,16 @@ description = "Execute Rust unit tests and TypeScript specs"
 run = "mise run test:rust && mise run test:ts"
 
 [tasks."test:api"]
-description = "Execute Hurl endpoint contract tests (needs edge simulator on :8787)"
+description = "Execute Hurl endpoint contract tests (needs edge simulator on :8787 seeded via db:seed:local)"
 run = "hurl --test tests/api/endpoints"
 
 [tasks."test:api:e2e"]
-description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787)"
+description = "Execute multi-step Hurl E2E lifecycle flows (needs edge simulator on :8787 seeded via db:seed:local)"
 run = "hurl --test tests/api/e2e"
+
+[tasks."db:seed:local"]
+description = "Seed local D1 simulator with dev tenant, staff, and menu (dev only, never remote)"
+run = "pnpm --filter edge-api exec wrangler d1 execute plinth_cellar --local --file ../../tests/api/seeds/local.sql"
 
 [tasks."smoke:e2e"]
 description = "End-to-end system health check without live services (contracts format, domain tests, UI typecheck)"
