@@ -18,12 +18,13 @@ fn verify_pin_hash(hash: &str, pin: &str) -> bool {
         .is_ok()
 }
 
-/// Request payload for staff login / PIN authentication
+/// Request payload for staff login / PIN authentication.
+/// The role is always read from the stored staff row: callers cannot
+/// grant themselves a role.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct LoginRequest {
     pub staff_id: StaffMemberId,
     pub pin: String,
-    pub role: Option<StaffRole>,
 }
 
 /// Response returned upon successful authentication
@@ -34,6 +35,52 @@ pub struct LoginResponse {
     pub role: StaffRole,
     pub permissions: u32,
     pub expires_in: usize,
+}
+
+/// Stored staff identity fields needed to decide a login.
+pub struct StoredStaffIdentity {
+    pub role: Option<String>,
+    pub permissions: Option<u64>,
+    pub pin_hash: Option<String>,
+}
+
+/// Why a login was refused. Unknown staff and bad PIN map to the same
+/// caller-facing error so usernames cannot be enumerated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginRefusal {
+    UnknownStaff,
+    InvalidPin,
+}
+
+/// Pure login decision: fail closed when the row is absent, the hash is
+/// missing, or the `PIN` does not verify. The role always comes from the
+/// stored row, never from the request.
+///
+/// # Errors
+/// Returns `LoginRefusal::UnknownStaff` when no staff row matches, and
+/// `LoginRefusal::InvalidPin` when the hash is missing or does not verify.
+pub fn resolve_login_identity(
+    row: Option<StoredStaffIdentity>,
+    pin: &str,
+) -> std::result::Result<(StaffRole, u32), LoginRefusal> {
+    let Some(stored) = row else {
+        return Err(LoginRefusal::UnknownStaff);
+    };
+    let Some(hash) = stored.pin_hash.as_deref().filter(|h| !h.is_empty()) else {
+        return Err(LoginRefusal::InvalidPin);
+    };
+    if !verify_pin_hash(hash, pin) {
+        return Err(LoginRefusal::InvalidPin);
+    }
+    let role = match stored.role.as_deref() {
+        Some("Owner") => StaffRole::Owner,
+        Some("Manager") => StaffRole::Manager,
+        Some("Cashier") => StaffRole::Cashier,
+        Some("Kitchen") => StaffRole::Kitchen,
+        _ => StaffRole::Waiter,
+    };
+    let permissions = stored.permissions.and_then(|v| u32::try_from(v).ok()).unwrap_or_else(|| role.default_permissions().bits());
+    Ok((role, permissions))
 }
 
 /// Registers auth routing endpoints
@@ -70,45 +117,37 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         return crate::router::json_error("PIN cannot be empty", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
-    // Verify PIN against D1 if available; fallback to role from request for tests
-    let mut role = payload.role.unwrap_or(StaffRole::Waiter);
-    let mut permissions = role.default_permissions().bits();
-
-    if let Ok(db) = ctx.env.d1("CELLAR_DB") {
-        if let Ok(stmt) = db
-            .prepare(
-                "SELECT role, permissions, pin_hash FROM staff_members WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3 AND deleted_at IS NULL AND is_active = 1",
-            )
-            .bind(&[
-                payload.staff_id.to_string().into(),
-                tenant_id_str.clone().into(),
-                location_id_str.clone().into(),
-            ])
-        {
-            if let Ok(Some(row)) = stmt.first::<serde_json::Value>(None).await {
-                if let Some(hash) = row.get("pin_hash").and_then(serde_json::Value::as_str) {
-                    if !verify_pin_hash(hash, &payload.pin) {
-                        return crate::router::json_error("Invalid PIN", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-                    }
-                }
-                if let Some(role_str) = row.get("role").and_then(serde_json::Value::as_str) {
-                    role = match role_str {
-                        "Owner" => StaffRole::Owner,
-                        "Manager" => StaffRole::Manager,
-                        "Cashier" => StaffRole::Cashier,
-                        "Kitchen" => StaffRole::Kitchen,
-                        _ => StaffRole::Waiter,
-                    };
-                    permissions = row
-                        .get("permissions")
-                        .and_then(serde_json::Value::as_u64)
-                        .map_or(role.default_permissions().bits(), |v| {
-                            u32::try_from(v).unwrap_or(role.default_permissions().bits())
-                        });
-                }
-            }
+    // Fail closed: no database means no authentication, never a token.
+    let Ok(db) = ctx.env.d1("CELLAR_DB") else {
+        return crate::router::json_error("Authentication unavailable", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
+    };
+    let Ok(stmt) = db
+        .prepare(
+            "SELECT role, permissions, pin_hash FROM staff_members WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3 AND deleted_at IS NULL AND is_active = 1",
+        )
+        .bind(&[
+            payload.staff_id.to_string().into(),
+            tenant_id_str.clone().into(),
+            location_id_str.clone().into(),
+        ])
+    else {
+        return crate::router::json_error("Authentication unavailable", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
+    };
+    let stored = match stmt.first::<serde_json::Value>(None).await {
+        Ok(Some(row)) => Some(StoredStaffIdentity {
+            role: row.get("role").and_then(serde_json::Value::as_str).map(ToString::to_string),
+            permissions: row.get("permissions").and_then(serde_json::Value::as_u64),
+            pin_hash: row.get("pin_hash").and_then(serde_json::Value::as_str).map(ToString::to_string),
+        }),
+        Ok(None) => None,
+        Err(_) => {
+            return crate::router::json_error("Authentication unavailable", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
         }
-    }
+    };
+    // Unknown staff and bad PIN share one response so staff IDs cannot be enumerated.
+    let Ok((role, permissions)) = resolve_login_identity(stored, &payload.pin) else {
+        return crate::router::json_error("Invalid staff ID or PIN", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    };
 
     let now_ts = usize::try_from(chrono::Utc::now().timestamp()).unwrap_or(0);
     let expires_in: usize = 86400; // 24 hours
@@ -151,15 +190,83 @@ mod tests {
     use core_domain::enums::staff::StaffRole;
     use core_domain::ids::StaffMemberId;
 
+    fn hash_for_test(pin: &str) -> String {
+        use argon2::password_hash::{PasswordHasher, SaltString};
+        use rand_core::OsRng;
+        Argon2::default()
+            .hash_password(pin.as_bytes(), &SaltString::generate(&mut OsRng))
+            .map(|h| h.to_string())
+            .expect("test hash")
+    }
+
+    fn stored(role: &str, permissions: u64, pin: &str) -> StoredStaffIdentity {
+        StoredStaffIdentity {
+            role: Some(role.to_string()),
+            permissions: Some(permissions),
+            pin_hash: Some(hash_for_test(pin)),
+        }
+    }
+
     #[test]
     fn test_login_request_serde() {
         let req = LoginRequest {
             staff_id: StaffMemberId::new(),
             pin: "1234".to_string(),
-            role: Some(StaffRole::Owner),
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("1234"));
-        assert!(json.contains("Owner"));
+        assert!(!json.contains("role"));
+    }
+
+    #[test]
+    fn refuses_unknown_staff() {
+        assert_eq!(
+            resolve_login_identity(None, "1234"),
+            Err(LoginRefusal::UnknownStaff)
+        );
+    }
+
+    #[test]
+    fn refuses_wrong_pin_and_missing_hash() {
+        assert_eq!(
+            resolve_login_identity(Some(stored("Manager", 1023, "1234")), "9999"),
+            Err(LoginRefusal::InvalidPin)
+        );
+        assert_eq!(
+            resolve_login_identity(
+                Some(StoredStaffIdentity { role: Some("Manager".to_string()), permissions: Some(1023), pin_hash: None }),
+                "1234"
+            ),
+            Err(LoginRefusal::InvalidPin)
+        );
+        assert_eq!(
+            resolve_login_identity(
+                Some(StoredStaffIdentity { role: Some("Manager".to_string()), permissions: Some(1023), pin_hash: Some(String::new()) }),
+                "1234"
+            ),
+            Err(LoginRefusal::InvalidPin)
+        );
+    }
+
+    #[test]
+    fn accepts_correct_pin_with_stored_role_and_permissions() {
+        let (role, permissions) = resolve_login_identity(Some(stored("Manager", 513, "1234")), "1234").expect("valid");
+        assert!(matches!(role, StaffRole::Manager));
+        assert_eq!(permissions, 513);
+    }
+
+    #[test]
+    fn falls_back_safely_on_unknown_role_and_overflowing_permissions() {
+        let (role, permissions) = resolve_login_identity(
+            Some(StoredStaffIdentity {
+                role: Some("Superuser".to_string()),
+                permissions: Some(u64::MAX),
+                pin_hash: Some(hash_for_test("1234")),
+            }),
+            "1234",
+        )
+        .expect("valid");
+        assert!(matches!(role, StaffRole::Waiter));
+        assert_eq!(permissions, StaffRole::Waiter.default_permissions().bits());
     }
 }

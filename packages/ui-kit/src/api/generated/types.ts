@@ -418,9 +418,11 @@ export type ListStaffResponse = { data: StaffResponseDto[]; total: number }
 export type LocationId = string
 
 /**
- * Request payload for staff login / PIN authentication
+ * Request payload for staff login / PIN authentication.
+ * The role is always read from the stored staff row: callers cannot
+ * grant themselves a role.
  */
-export type LoginRequest = { staff_id: StaffMemberId; pin: string; role: StaffRole | null }
+export type LoginRequest = { staff_id: StaffMemberId; pin: string }
 
 /**
  * Response returned upon successful authentication

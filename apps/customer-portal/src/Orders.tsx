@@ -18,7 +18,7 @@ export const Orders = (): React.JSX.Element => {
       const entries = await Promise.all(
         orders.map(async (o) => {
           try {
-            const res = await fetch(`${apiBase()}/api/v1/public/orders/${o.order_id}/status`);
+            const res = await fetch(`${apiBase()}/api/v1/public/orders/${o.order_id}/status?tenant_id=${o.tenant_id}`);
             if (!res.ok) return null;
             const data = (await res.json()) as { status?: string };
             return typeof data.status === 'string' ? ([o.order_id, data.status] as const) : null;

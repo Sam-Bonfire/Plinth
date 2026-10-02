@@ -105,6 +105,7 @@ export const Menu = (): React.JSX.Element => {
       saveOrder({
         order_id: data.order_id,
         ticket_id: data.ticket_id,
+        tenant_id: tenantId,
         total_minor: data.total_minor,
         itemCount: cartCount(cart),
         placedAt: new Date().toISOString(),

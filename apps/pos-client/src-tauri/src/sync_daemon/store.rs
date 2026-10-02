@@ -272,7 +272,7 @@ mod tests {
             .mark_in_flight(&[entry.mutation_id], Utc::now())
             .await
             .expect("in flight");
-        assert!(store.fetch_pending(10, Utc::now()).await.expect("fetch").is_empty());
+        assert_eq!(store.fetch_pending(10, Utc::now()).await.expect("fetch").len(), 0);
         store
             .mark_settled(&[entry.mutation_id], Utc::now())
             .await
@@ -300,6 +300,6 @@ mod tests {
             .quarantine_dead_letter(entry.mutation_id, "too many retries".to_string(), Utc::now())
             .await
             .expect("quarantine");
-        assert!(store.fetch_pending(10, Utc::now()).await.expect("fetch").is_empty());
+        assert_eq!(store.fetch_pending(10, Utc::now()).await.expect("fetch").len(), 0);
     }
 }

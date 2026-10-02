@@ -17,7 +17,7 @@ describe('Orders page', () => {
 
   it('lists placed session orders', () => {
     localStorage.clear();
-    saveOrder({ order_id: 'ORD-1', ticket_id: 'T-1', total_minor: 2000, itemCount: 2, placedAt: new Date().toISOString() });
+    saveOrder({ order_id: 'ORD-1', ticket_id: 'T-1', tenant_id: 't-1', total_minor: 2000, itemCount: 2, placedAt: new Date().toISOString() });
     render(
       <MemoryRouter>
         <Orders />
@@ -29,10 +29,11 @@ describe('Orders page', () => {
 
   it('shows live status when the endpoint resolves', async () => {
     localStorage.clear();
-    saveOrder({ order_id: 'ORD-9', ticket_id: 'T-9', total_minor: 2000, itemCount: 2, placedAt: new Date().toISOString() });
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-9', status: 'Preparing' }) })
-    ) as unknown as typeof fetch;
+    saveOrder({ order_id: 'ORD-9', ticket_id: 'T-9', tenant_id: 't-1', total_minor: 2000, itemCount: 2, placedAt: new Date().toISOString() });
+    global.fetch = vi.fn((url: string) => {
+      expect(url).toContain('tenant_id=t-1');
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-9', status: 'Preparing' }) });
+    }) as unknown as typeof fetch;
     render(
       <MemoryRouter>
         <Orders />

@@ -128,7 +128,7 @@ async fn order_lifecycle_flow() {
     .await
     .expect("void");
 
-    assert!(get_active_orders_impl(&db, &ctx, table).await.expect("active").is_empty());
+    assert_eq!(get_active_orders_impl(&db, &ctx, table).await.expect("active").len(), 0);
 
     let status = get_sync_status_impl(&db).expect("sync status");
     assert_eq!(status.pending, 0);

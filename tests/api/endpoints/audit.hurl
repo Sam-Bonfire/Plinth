@@ -6,7 +6,7 @@ POST {{base_url}}/api/v1/auth/login
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 Content-Type: application/json
-{ "staff_id": "{{staff_id}}", "pin": "1234", "role": "Owner" }
+{ "staff_id": "{{staff_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
 token: jsonpath "$.token"
