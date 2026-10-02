@@ -346,8 +346,9 @@ mod tests {
         menu.save_item(&item).await.expect("item");
         menu.set_availability(item.id, false).await.expect("toggle");
         assert!(!menu.find_item(item.id).await.expect("find").expect("present").is_available);
-        assert!(
-            menu.query_available(tenant, location).await.expect("query").is_empty()
+        assert_eq!(
+            menu.query_available(tenant, location).await.expect("query").len(),
+            0
         );
         let _ = std::fs::remove_file(&path);
     }

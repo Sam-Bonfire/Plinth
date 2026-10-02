@@ -309,11 +309,13 @@ mod tests {
                 .expect("present")
                 .is_available
         );
-        assert!(repo
-            .query_available(category.tenant_id, category.location_id)
-            .await
-            .expect("query")
-            .is_empty());
+        assert_eq!(
+            repo.query_available(category.tenant_id, category.location_id)
+                .await
+                .expect("query")
+                .len(),
+            0
+        );
         cleanup(&path);
     }
 
