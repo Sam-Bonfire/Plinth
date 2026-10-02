@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(applied, vec![1, 2, 3, 4, 5]);
 
         let applied_second = migrate(&mut conn).expect("second migrate");
-        assert!(applied_second.is_empty());
+        assert_eq!(applied_second.len(), 0);
     }
 
     #[test]

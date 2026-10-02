@@ -377,7 +377,7 @@ mod tests {
             .find_active_by_station(ticket.location_id, &StationId::Beverages)
             .await
             .expect("query");
-        assert!(other.is_empty());
+        assert_eq!(other.len(), 0);
         cleanup(&path);
     }
 

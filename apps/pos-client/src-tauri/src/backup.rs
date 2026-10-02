@@ -102,10 +102,10 @@ mod tests {
         );
 
         let pruned_keep_4 = prune_list(files.clone(), 4);
-        assert!(pruned_keep_4.is_empty());
+        assert_eq!(pruned_keep_4.len(), 0);
 
         let pruned_keep_5 = prune_list(files.clone(), 5);
-        assert!(pruned_keep_5.is_empty());
+        assert_eq!(pruned_keep_5.len(), 0);
     }
 }
 #[allow(clippy::cast_sign_loss)]

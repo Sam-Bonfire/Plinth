@@ -153,6 +153,6 @@ mod tests {
         let subtotal = Money { amount: Decimal::new(1000, 0), currency: Currency::Inr };
         let breakdown = compute_gst(&subtotal, &GstRate::Exempt, &GstApplicability::IntraState);
         assert_eq!(breakdown.total_tax.amount, Decimal::new(0, 0));
-        assert!(breakdown.components.is_empty());
+        assert_eq!(breakdown.components.len(), 0);
     }
 }

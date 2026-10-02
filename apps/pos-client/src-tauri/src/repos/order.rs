@@ -504,7 +504,7 @@ mod tests {
         assert_eq!(back.status, OrderStatus::Draft);
         assert_eq!(back.items.len(), 1);
         assert_eq!(back.items[0].line_total(), order.items[0].line_total());
-        assert!(back.discounts.is_empty());
+        assert_eq!(back.discounts.len(), 0);
         cleanup(&path);
     }
 
@@ -543,7 +543,7 @@ mod tests {
             })
             .await
             .expect("query");
-        assert!(settled.is_empty());
+        assert_eq!(settled.len(), 0);
         cleanup(&path);
     }
 }

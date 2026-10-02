@@ -162,8 +162,8 @@ mod tests {
         assert!(!set.contains(&item));
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
-        assert!(set.read().is_empty());
-        assert!(set.active_tags(&item).unwrap().is_empty());
+        assert_eq!(set.read().len(), 0);
+        assert_eq!(set.active_tags(&item).unwrap().len(), 0);
     }
 
     #[test]
