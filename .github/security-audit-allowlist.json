@@ -1,0 +1,8 @@
+[
+  {
+    "ghsa": "GHSA-vfj7-8cjw-p6xm",
+    "module": "braces",
+    "reason": "No patched release published (latest is 3.0.3, advisory wants >=3.0.4). Dev-tooling only via micromatch in eslint/lingui chains; trigger needs deeply nested glob patterns from trusted config. Drop this entry once a fixed release ships.",
+    "fixed_in": "3.0.4"
+  }
+]
