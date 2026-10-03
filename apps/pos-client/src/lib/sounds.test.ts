@@ -34,7 +34,9 @@ describe("sounds", () => {
       currentTime: 100,
     };
 
-    const MockAudioContext = vi.fn().mockImplementation(() => mockCtx);
+    const MockAudioContext = vi.fn(function () {
+      return mockCtx;
+    });
     vi.stubGlobal("AudioContext", MockAudioContext);
     vi.stubGlobal("webkitAudioContext", MockAudioContext);
 
