@@ -87,7 +87,8 @@ pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     };
 
     let audit_id = AuditEventId::new();
-    let is_anomaly_int = i64::from(payload.is_anomaly.unwrap_or(false));
+    // D1 binds reject BigInt: ship small integers as f64 like staff permissions.
+    let is_anomaly_num = f64::from(payload.is_anomaly.unwrap_or(false));
     let now = chrono::Utc::now().to_rfc3339();
 
     let sql = "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -100,7 +101,7 @@ pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
         payload.target_type.into(),
         payload.target_id.into(),
         payload.payload_json.map_or(JsValue::null(), std::convert::Into::into),
-        is_anomaly_int.into(),
+        is_anomaly_num.into(),
         now.into(),
     ];
 
@@ -127,16 +128,16 @@ pub async fn list_audit<D>(req: Request, ctx: RouteContext<D>) -> Result<Respons
         Err(rejection) => return Ok(rejection),
     };
 
-    let limit: i64 = req
+    let limit: f64 = req
         .url()
         .ok()
         .and_then(|u| {
             u.query_pairs()
                 .find(|(k, _)| k == "limit")
-                .and_then(|(_, v)| v.parse::<i64>().ok())
+                .and_then(|(_, v)| v.parse::<i32>().ok())
         })
         .filter(|n| (1..=200).contains(n))
-        .unwrap_or(50);
+        .map_or(50.0, f64::from);
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
