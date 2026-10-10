@@ -81,11 +81,9 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::MANAGE_STAFF) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let payload: CreateStaffRequest = match req.json().await {
@@ -151,11 +149,9 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 /// Returns error if auth fails or DB fails
 #[allow(clippy::missing_errors_doc, clippy::manual_let_else, clippy::single_match_else, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(db) = ctx.env.d1("CELLAR_DB") else {
@@ -205,11 +201,9 @@ pub async fn list_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Respons
 /// Returns error if auth fails, staff not found or DB fails
 #[allow(clippy::missing_errors_doc, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
 pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v);
@@ -246,11 +240,9 @@ pub async fn get_staff<D>(req: Request, ctx: RouteContext<D>) -> Result<Response
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::MANAGE_STAFF) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::MANAGE_STAFF) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v).to_string();
@@ -291,11 +283,9 @@ pub async fn update_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 /// Returns error if auth fails, payload invalid or DB fails
 #[allow(clippy::missing_errors_doc)]
 pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let staff_id_str = ctx.param("id").map_or("", |v| v).to_string();

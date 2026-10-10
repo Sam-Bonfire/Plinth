@@ -49,15 +49,11 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if the database query fails or authentication context is invalid
 pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
@@ -155,15 +151,11 @@ pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<R
 /// # Errors
 /// Returns an error if the item is not found, user lacks permissions, or database update fails
 pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Forbidden: Insufficient permissions", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::MANAGE_MENU,
-    ) else {
-        return crate::router::json_error("Forbidden: Insufficient permissions", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {

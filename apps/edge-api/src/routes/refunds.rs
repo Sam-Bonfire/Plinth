@@ -48,15 +48,11 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// the order is unknown, or the database write fails
 pub async fn record_refund<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let request_id = crate::router::get_request_id(&req);
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &request_id, 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &request_id, 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let payload: RefundRequest = match req.json().await {

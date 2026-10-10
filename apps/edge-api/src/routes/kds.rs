@@ -194,15 +194,11 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if the database query fails or authentication context is missing
 pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         core_domain::enums::staff::Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {
@@ -282,15 +278,11 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
 /// # Errors
 /// Returns an error if the ticket is not found, state transition is invalid, or database update fails
 pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         core_domain::enums::staff::Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let db = match ctx.env.d1("CELLAR_DB") {

@@ -183,15 +183,11 @@ pub async fn open_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
 /// Returns an error if active orders remain, shift is invalid/closed, or database error occurs
 #[allow(clippy::too_many_lines)]
 pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Forbidden: Insufficient permissions to close shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::OPEN_CLOSE_SHIFT,
-    ) else {
-        return crate::router::json_error("Forbidden: Insufficient permissions to close shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(payload) = req.json::<CloseShiftRequest>().await else {

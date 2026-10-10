@@ -70,15 +70,11 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns an error if authentication fails, input is invalid, or database write fails
 pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(payload) = req.json::<IngestAuditRequest>().await else {
@@ -124,15 +120,11 @@ pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 /// # Errors
 /// Returns an error if authentication fails or the database read fails.
 pub async fn list_audit<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
-        &req,
-        &secret,
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         Permissions::empty(),
-    ) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    ) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let limit: i64 = req

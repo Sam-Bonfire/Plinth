@@ -103,11 +103,9 @@ struct AdjustResponse {
 ///
 /// Returns an error if database operations fail, data binding fails, or invalid context is passed.
 pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, core_domain::enums::staff::Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, core_domain::enums::staff::Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let url = req.url()?;
@@ -203,11 +201,9 @@ pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Resp
 /// Returns an error if database updates fail, JSON parsing fails, or context is invalid.
 #[allow(clippy::too_many_lines)]
 pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, core_domain::enums::staff::Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, core_domain::enums::staff::Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(adjust_req) = req.json::<AdjustStockRequest>().await else {
