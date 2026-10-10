@@ -66,7 +66,13 @@ describe("CheckoutPage", () => {
     expect(usePosCartStore.getState().lines).toHaveLength(0);
     expect(await screen.findByText("Receipt")).toBeDefined();
     fireEvent.click(await screen.findByRole("button", { name: "Print" }));
-    expect(tauriApiCore.invoke).toHaveBeenCalledWith("print_receipt", expect.objectContaining({}));
+    expect(tauriApiCore.invoke).toHaveBeenCalledWith(
+      "print_receipt_doc",
+      expect.objectContaining({
+        lines: [{ name: "Burger", qty: 2, unit_minor: 20000, total_minor: 40000 }],
+        grand_total_minor: 40000,
+      }),
+    );
     usePosCartStore.getState().clear();
   });
 

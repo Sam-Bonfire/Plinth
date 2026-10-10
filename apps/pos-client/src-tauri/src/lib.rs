@@ -35,6 +35,7 @@ pub fn run() {
             lock_daemon::lock_status,
             commands::orders::submit_order,
             commands::printing::print_receipt,
+            commands::printing::print_receipt_doc,
             commands::printing::print_queue_depth,
             commands::orders::get_active_orders,
             commands::orders::advance_order_status,
