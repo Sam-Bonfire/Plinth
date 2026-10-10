@@ -1,7 +1,7 @@
 import { Button, Card, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner.js";
-import { useTauriIpc, type OrderLineItem } from "../hooks/useTauriIpc.js";
+import { useTauriIpc, type OrderLineItem, type ReceiptLineItem } from "../hooks/useTauriIpc.js";
 import { playTone } from "../lib/sounds.js";
 import { usePosSession } from "../providers/PosProviders.js";
 import { selectItemCount, selectSubtotal, usePosCartStore, type CartLine } from "../stores/posCart.js";
@@ -40,7 +40,7 @@ export const CheckoutPage: React.FC = () => {
   const subtotal = usePosCartStore(selectSubtotal);
   const itemCount = usePosCartStore(selectItemCount);
   const { session } = usePosSession();
-  const { submitOrder, printReceipt } = useTauriIpc();
+  const { submitOrder, printReceiptDoc } = useTauriIpc();
   const [placing, setPlacing] = useState<boolean>(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [sku, setSku] = useState<string>("");
@@ -48,6 +48,7 @@ export const CheckoutPage: React.FC = () => {
   const [tendered, setTendered] = useState<number | null>(null);
   const [receiptOpen, setReceiptOpen] = useState<boolean>(false);
   const [receiptLines, setReceiptLines] = useState<string[]>([]);
+  const [receiptDoc, setReceiptDoc] = useState<{ lines: ReceiptLineItem[]; grandTotalMinor: number } | null>(null);
 
   useBarcodeScanner((code: string) => {
     setSku(code);
@@ -95,6 +96,13 @@ export const CheckoutPage: React.FC = () => {
       setOrderId(id);
       const paid = method === "Cash" ? (tendered ?? subtotal) : subtotal;
       setReceiptLines(formatReceipt(id, lines, subtotal, paid, paid - subtotal));
+      setReceiptDoc({
+        lines: lines.map((l: CartLine): ReceiptLineItem => {
+          const unitMinor = Math.round(l.unitPrice * 100);
+          return { name: l.name, qty: l.qty, unit_minor: unitMinor, total_minor: unitMinor * l.qty };
+        }),
+        grandTotalMinor: Math.round(subtotal * 100),
+      });
       setReceiptOpen(true);
       clear();
       playTone("success");
@@ -108,9 +116,17 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const print = async (): Promise<void> => {
+    if (!receiptDoc) {
+      void message.error("Nothing to print");
+      return;
+    }
     try {
-      const bytes = Array.from(new TextEncoder().encode(receiptLines.join("\n")));
-      const jobId = await printReceipt(bytes);
+      const jobId = await printReceiptDoc({
+        header: ["PLINTH POS", `Order: ${orderId ?? ""}`],
+        lines: receiptDoc.lines,
+        footer: ["Thank you"],
+        grand_total_minor: receiptDoc.grandTotalMinor,
+      });
       void message.success(`Receipt queued: ${jobId}`);
       setReceiptOpen(false);
     } catch (e) {

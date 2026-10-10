@@ -57,6 +57,20 @@ export interface BumpTicketRequest {
   bumped_by: string | null;
 }
 
+export interface ReceiptLineItem {
+  name: string;
+  qty: number;
+  unit_minor: number;
+  total_minor: number;
+}
+
+export interface PrintReceiptDocRequest {
+  header: string[];
+  lines: ReceiptLineItem[];
+  footer: string[];
+  grand_total_minor: number;
+}
+
 export interface ToggleAvailabilityRequest {
   menu_item_id: string;
   is_available: boolean;
@@ -182,6 +196,7 @@ interface UseTauriIpcReturn {
   recordAuditEvent: (req: RecordAuditEventRequest) => Promise<void>;
   getSyncStatus: () => Promise<SyncStatusResponse>;
   printReceipt: (payload: number[]) => Promise<string>;
+  printReceiptDoc: (req: PrintReceiptDocRequest) => Promise<string>;
   printQueueDepth: () => Promise<number>;
 }
 
@@ -220,6 +235,7 @@ export function useTauriIpc(): UseTauriIpcReturn {
     recordAuditEvent: (req: RecordAuditEventRequest) => callInvoke<void>('record_audit_event', { req }),
     getSyncStatus: () => callInvoke<SyncStatusResponse>('get_sync_status'),
     printReceipt: (payload: number[]) => callInvoke<string>('print_receipt', { payload }),
+    printReceiptDoc: (req: PrintReceiptDocRequest) => callInvoke<string>('print_receipt_doc', { ...req }),
     printQueueDepth: () => callInvoke<number>('print_queue_depth'),
   };
 }
