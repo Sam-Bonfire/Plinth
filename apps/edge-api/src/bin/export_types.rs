@@ -47,7 +47,7 @@ use edge_api::router::{ApiErrorResponse};
 use edge_api::routes::health::HealthResponseDto;
 use edge_api::routes::audit::{AuditEventDto, AuditListResponse, AuditResponseDto, IngestAuditRequest};
 use edge_api::routes::auth::{LoginRequest, LoginResponse};
-use edge_api::routes::eod::{CloseShiftRequest, ZReportDto};
+use edge_api::routes::eod::{CloseShiftRequest, OpenShiftRequest, OpenShiftResponse, ZReportDto};
 use edge_api::routes::inventory::{AdjustStockRequest, InventoryQueryParams, StockItemResponseDto};
 use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryParams};
 use edge_api::routes::mess::{MessBalanceResponse, MessLedgerResponse, MessPayRequest, MessTopUpRequest};
@@ -169,6 +169,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<PinVerifyResponse>();
 
     types.register::<CloseShiftRequest>();
+    types.register::<OpenShiftRequest>();
+    types.register::<OpenShiftResponse>();
     types.register::<ZReportDto>();
 
     types.register::<MessTopUpRequest>();

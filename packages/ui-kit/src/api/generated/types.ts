@@ -557,6 +557,16 @@ currency: Currency }
 export type NestedMenuCategoryDto = { id: MenuCategoryId; name: string; display_order: number; is_active: boolean; items: MenuItemDto[] }
 
 /**
+ * Request payload to open a shift
+ */
+export type OpenShiftRequest = { opening_float_minor: number; terminal_id: string | null }
+
+/**
+ * Response DTO returned upon opening a shift
+ */
+export type OpenShiftResponse = { shift_id: ShiftId }
+
+/**
  * Order aggregate root
  */
 export type Order = { 
