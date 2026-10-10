@@ -21,6 +21,8 @@ import type {
   MessLedgerResponse,
   MessPayRequest,
   MessTopUpRequest,
+  OpenShiftRequest,
+  OpenShiftResponse,
   OrderChannel,
   OrderResponseDto,
   OrderStatus,
@@ -363,7 +365,11 @@ export class PlinthApiClient {
   }
 
 
-  // --- End of Day (EOD) Shift Closure Endpoint ---
+  // --- End of Day (EOD) Shift Endpoints ---
+  public async openShift(req: OpenShiftRequest): Promise<OpenShiftResponse> {
+    return this.request<OpenShiftResponse>("/api/v1/eod/open", "POST", req);
+  }
+
   public async closeShift(req: CloseShiftRequest): Promise<ZReportDto> {
     return this.request<ZReportDto>("/api/v1/eod/close", "POST", req);
   }

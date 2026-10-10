@@ -1,5 +1,5 @@
-# Endpoint: POST /api/v1/eod/close
-# Verification: End of Day shift closure contracts
+# Endpoint: POST /api/v1/eod/open + POST /api/v1/eod/close
+# Verification: End of Day shift open/closure contracts
 
 # Authenticate first
 POST {{base_url}}/api/v1/auth/login
@@ -10,6 +10,44 @@ Content-Type: application/json
 HTTP 200
 [Captures]
 token: jsonpath "$.token"
+
+# Negative: Empty open payload returns 400
+POST {{base_url}}/api/v1/eod/open
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{}
+HTTP 400
+
+# Positive: Open a new shift returns its id
+POST {{base_url}}/api/v1/eod/open
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "opening_float_minor": 20000,
+  "terminal_id": null
+}
+HTTP 200
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.shift_id" exists
+[Captures]
+shift_id: jsonpath "$.shift_id"
+
+# Negative: Opening a second shift while one is open returns 409
+POST {{base_url}}/api/v1/eod/open
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "opening_float_minor": 20000,
+  "terminal_id": null
+}
+HTTP 409
 
 # Negative: Close non-existent shift ID returns 404
 POST {{base_url}}/api/v1/eod/close

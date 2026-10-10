@@ -171,6 +171,23 @@ describe("PaymentsPage", () => {
     createElementSpy.mockRestore();
   });
 
+  it("opens a shift and reuses its id for closing", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ shift_id: "SHIFT-7" }),
+      }),
+    ) as unknown as typeof fetch;
+    renderPage();
+    await screen.findByText("TXN-9001");
+    const openers = screen.getAllByRole("button", { name: "Open Shift" });
+    fireEvent.click(openers[0] as HTMLElement);
+    fireEvent.change(await screen.findByPlaceholderText("Opening float"), { target: { value: 2000 } });
+    const confirms = screen.getAllByRole("button", { name: "Open Shift" });
+    fireEvent.click(confirms[confirms.length - 1] as HTMLElement);
+    expect(await screen.findByText(/SHIFT-7.*opened/)).toBeDefined();
+  }, 60000);
+
   it("closes the shift with a local Z summary when offline", async () => {
     global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
     renderPage();

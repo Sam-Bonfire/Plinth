@@ -106,6 +106,8 @@ export const PaymentsPage: React.FC = () => {
   const [dropOpen, setDropOpen] = useState<boolean>(false);
   const [upiOpen, setUpiOpen] = useState<boolean>(false);
   const [closeOpen, setCloseOpen] = useState<boolean>(false);
+  const [openShiftOpen, setOpenShiftOpen] = useState<boolean>(false);
+  const [openingFloat, setOpeningFloat] = useState<number | null>(null);
   const [shiftId, setShiftId] = useState<string>("");
   const [physicalCash, setPhysicalCash] = useState<number | null>(null);
   const [closeNote, setCloseNote] = useState<string>("");
@@ -169,6 +171,25 @@ export const PaymentsPage: React.FC = () => {
     const matched = recon.filter((r: ReconRow): boolean => r.expected === r.received).length;
     setReconAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
     void message.success(`Reconciliation complete: ${matched} matched, ${recon.length - matched} need review.`);
+  };
+
+  const submitOpen = (): void => {
+    if (openingFloat === null) {
+      void message.error("Enter the opening float.");
+      return;
+    }
+    void logAudit(client, "OPEN_SHIFT", "shift", "new");
+    client
+      .openShift({ opening_float_minor: Math.round(openingFloat * 100), terminal_id: null })
+      .then((res): void => {
+        setShiftId(res.shift_id);
+        setOpenShiftOpen(false);
+        void message.success(`Shift ${res.shift_id} opened.`);
+      })
+      .catch((): void => {
+        setOpenShiftOpen(false);
+        void message.error("Could not open shift - check connection and retry.");
+      });
   };
 
   const submitClose = (): void => {
@@ -327,6 +348,9 @@ export const PaymentsPage: React.FC = () => {
               <Button block onClick={exportCsv}>
                 Export CSV
               </Button>
+              <Button block onClick={(): void => setOpenShiftOpen(true)}>
+                Open Shift
+              </Button>
               <Button block type="primary" onClick={(): void => setCloseOpen(true)}>
                 Close Shift
               </Button>
@@ -390,6 +414,12 @@ export const PaymentsPage: React.FC = () => {
         pa="store@upi"
         pn="Plinth Store"
       />
+
+      <Modal title="Open Shift" open={openShiftOpen} onOk={submitOpen} onCancel={(): void => setOpenShiftOpen(false)} okText="Open Shift">
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <InputNumber min={0} prefix="₹" placeholder="Opening float" value={openingFloat} onChange={(v: number | null): void => setOpeningFloat(v)} style={{ width: "100%" }} />
+        </Space>
+      </Modal>
 
       <Modal title="Close Shift" open={closeOpen} onOk={submitClose} onCancel={(): void => setCloseOpen(false)} okText="Close Shift">
         <Space direction="vertical" style={{ width: "100%" }}>

@@ -67,10 +67,114 @@ struct OrderTotalsRow {
     wallet_payments_minor: Option<i64>,
 }
 
-/// Registers the End of Day Shift Closure endpoint
+/// Request payload to open a shift
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct OpenShiftRequest {
+    #[specta(type = f64)]
+    pub opening_float_minor: i64,
+    pub terminal_id: Option<String>,
+}
+
+/// Response DTO returned upon opening a shift
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct OpenShiftResponse {
+    pub shift_id: ShiftId,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenShiftCountRow {
+    count: i64,
+}
+
+/// Registers the End of Day Shift endpoints
 #[must_use]
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
-    router.post_async("/api/v1/eod/close", close_shift)
+    router
+        .post_async("/api/v1/eod/open", open_shift)
+        .post_async("/api/v1/eod/close", close_shift)
+}
+
+/// Opens a new store shift
+///
+/// # Errors
+/// Returns an error if a shift is already open, the payload is invalid, or a database error occurs
+pub async fn open_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return crate::router::json_error("Forbidden: Insufficient permissions to open shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    };
+    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(
+        &req,
+        &secret,
+        Permissions::OPEN_CLOSE_SHIFT,
+    ) else {
+        return crate::router::json_error("Forbidden: Insufficient permissions to open shift", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    };
+
+    let Ok(payload) = req.json::<OpenShiftRequest>().await else {
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
+    };
+
+    let db = match ctx.env.d1("CELLAR_DB") {
+        Ok(db) => db,
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+    };
+
+    // 1. Reject when a shift is already open for this location
+    let open_query = "SELECT COUNT(*) as count FROM store_shifts WHERE tenant_id = ? AND location_id = ? AND is_closed = 0";
+    let open_params: Vec<JsValue> = vec![
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+    ];
+    let open_stmt = db.prepare(open_query).bind(&open_params)?;
+    let open_res = open_stmt.all().await?;
+    let open_rows: Vec<OpenShiftCountRow> = open_res.results()?;
+    let open_count = open_rows.first().map_or(0, |r| r.count);
+
+    if open_count > 0 {
+        return Response::error("A shift is already open for this location", 409);
+    }
+
+    // 2. Insert the new shift record
+    let shift_id = ShiftId::new();
+    let opened_at = chrono::Utc::now().to_rfc3339();
+    // ponytail: single-terminal assumption, pass terminal_id explicitly when multi-terminal matters
+    let terminal_id = payload.terminal_id.unwrap_or_else(|| "POS-01".to_string());
+    let insert_sql = "INSERT INTO store_shifts (id, tenant_id, location_id, terminal_id, opened_by, opened_at, opening_float_minor, is_closed) VALUES (?, ?, ?, ?, ?, ?, ?, 0)";
+    let insert_params: Vec<JsValue> = vec![
+        shift_id.to_string().into(),
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+        terminal_id.into(),
+        tenant_ctx.staff_id.to_string().into(),
+        opened_at.clone().into(),
+        payload.opening_float_minor.into(),
+    ];
+    let insert_stmt = db.prepare(insert_sql).bind(&insert_params)?;
+    let _ = insert_stmt.run().await?;
+
+    // 3. Insert audit log event
+    let audit_sql = "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    let audit_id = AuditEventId::new();
+    let audit_payload = serde_json::json!({
+        "shift_id": shift_id,
+        "opening_float_minor": payload.opening_float_minor,
+    });
+    let audit_params: Vec<JsValue> = vec![
+        audit_id.to_string().into(),
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+        tenant_ctx.staff_id.to_string().into(),
+        "SHIFT_OPENED".into(),
+        "StoreShift".into(),
+        shift_id.to_string().into(),
+        audit_payload.to_string().into(),
+        0.into(),
+        opened_at.into(),
+    ];
+    let audit_stmt = db.prepare(audit_sql).bind(&audit_params)?;
+    let _ = audit_stmt.run().await?;
+
+    Response::from_json(&OpenShiftResponse { shift_id })
 }
 
 /// Closes an active store shift and generates the Z-Report
@@ -265,5 +369,25 @@ mod tests {
         let json = serde_json::to_string(&z).unwrap();
         assert!(json.contains("154000"));
         assert!(json.contains("variance"));
+    }
+
+    #[test]
+    fn test_open_shift_dto_serialization() {
+        let req: OpenShiftRequest = serde_json::from_str(
+            r#"{"opening_float_minor":20000,"terminal_id":"POS-01"}"#,
+        )
+        .unwrap();
+        assert_eq!(req.opening_float_minor, 20_000);
+        assert_eq!(req.terminal_id.as_deref(), Some("POS-01"));
+
+        let req_default: OpenShiftRequest =
+            serde_json::from_str(r#"{"opening_float_minor":0,"terminal_id":null}"#).unwrap();
+        assert!(req_default.terminal_id.is_none());
+
+        let res = OpenShiftResponse {
+            shift_id: ShiftId::new(),
+        };
+        let json = serde_json::to_string(&res).unwrap();
+        assert!(json.contains("shift_id"));
     }
 }
