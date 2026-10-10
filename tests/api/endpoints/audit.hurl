@@ -56,3 +56,40 @@ Content-Type: application/json
   "is_anomaly": false
 }
 HTTP 401
+
+# Positive: List audit events with explicit limit bound
+GET {{base_url}}/api/v1/audit?limit=2
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.events" isCollection
+jsonpath "$.events" count <= 2
+
+# Positive: Out-of-range limit falls back to the default page
+GET {{base_url}}/api/v1/audit?limit=500
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.events" isCollection
+
+# Positive: Missing limit lists with the default page
+GET {{base_url}}/api/v1/audit
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.events" isCollection
+
+# Negative: Unauthenticated list returns 401
+GET {{base_url}}/api/v1/audit?limit=2
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 401
