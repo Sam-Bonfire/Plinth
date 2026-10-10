@@ -46,11 +46,9 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns error if validation fails
 pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(payload) = req.json::<MessTopUpRequest>().await else {
@@ -103,11 +101,9 @@ pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Respons
 /// # Errors
 /// Returns error if validation fails
 pub async fn pay<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let Ok(payload) = req.json::<MessPayRequest>().await else {
@@ -174,11 +170,9 @@ pub async fn pay<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> 
 /// # Errors
 /// Returns error if DB fails
 pub async fn get_balance<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
-    };
-    let Ok(tenant_ctx) = crate::auth::extract_and_verify_context(&req, &secret, Permissions::empty()) else {
-        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(tenant_ctx) => tenant_ctx,
+        Err(rejection) => return Ok(rejection),
     };
 
     let account_id = match ctx.param("id") {

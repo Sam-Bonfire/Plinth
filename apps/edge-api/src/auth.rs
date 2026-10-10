@@ -3,7 +3,7 @@ use core_domain::enums::staff::Permissions;
 use core_domain::ids::{LocationId, StaffMemberId, TenantId};
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
-use worker::{Request, RouteContext};
+use worker::{Request, Response, RouteContext};
 use uuid::Uuid;
 use std::collections::HashSet;
 
@@ -126,6 +126,41 @@ pub fn verify_context_from_headers(
         staff_id,
         permissions: claims_permissions,
     })
+}
+
+/// Builds the uniform rejection for failed route authorization.
+///
+/// Unify here and every authenticated route changes envelope together.
+/// The construction only fails if the worker runtime itself is broken, in
+/// which case the route would 500 on any response anyway.
+fn unauthorized_response(request_id: &str) -> Response {
+    crate::router::json_error("Unauthorized", "UNAUTHORIZED", request_id, 401)
+        .or_else(|_| Response::error("Unauthorized", 401))
+        .expect("static unauthorized envelope must build")
+}
+
+/// Single authorization seam for authenticated routes.
+///
+/// Resolves the JWT secret fail-closed, verifies the bearer token and
+/// tenant context, and checks `required`. Returns the verified context, or
+/// the ready-to-return uniform 401 rejection. Behavior matches the majority
+/// route convention and the edge gate in `lib.rs`; the few routes that
+/// returned bespoke 403 envelopes now share this one.
+///
+/// # Errors
+/// Returns the uniform 401 rejection response when the secret is
+/// unconfigured or the request fails verification.
+pub fn authorize<D>(
+    req: &Request,
+    ctx: &RouteContext<D>,
+    required: Permissions,
+) -> std::result::Result<TenantContext, Response> {
+    let request_id = crate::router::get_request_id(req);
+    let reject = || unauthorized_response(&request_id);
+    let Some(secret) = resolve_jwt_secret(ctx) else {
+        return Err(reject());
+    };
+    extract_and_verify_context(req, &secret, required).map_err(|_| reject())
 }
 
 /// Extracts and verifies context from a request
@@ -314,6 +349,40 @@ mod tests {
         let bad = "Bearer not.a.token".to_string();
         assert!(
             verify_context_from_headers(Some(tenant), Some(location), Some(&bad), "unit_secret", Permissions::empty()).is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_expired_token() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let claims = JwtClaims {
+            sub: staff,
+            iss: "plinth-auth".to_string(),
+            exp: 1_000_000_000,
+            tenant_id: tenant.clone(),
+            location_id: location.clone(),
+            roles: vec!["Cashier".to_string()],
+            permissions: 0b11,
+        };
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(b"unit_secret"),
+        )
+        .unwrap();
+        let auth = format!("Bearer {token}");
+        assert!(
+            verify_context_from_headers(Some(tenant), Some(location), Some(&auth), "unit_secret", Permissions::empty()).is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_token_signed_with_wrong_secret() {
+        let (tenant, location, staff) = (uuid(), uuid(), uuid());
+        let token = mint(&tenant, &location, &staff, 0b11, "plinth-auth");
+        let auth = format!("Bearer {token}");
+        assert!(
+            verify_context_from_headers(Some(tenant), Some(location), Some(&auth), "other_secret", Permissions::empty()).is_err()
         );
     }
 
