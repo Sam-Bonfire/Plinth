@@ -1,24 +1,39 @@
-import { KDSTicketCard, PlinthEmptyState, mockKitchenTickets, type KDSTicketItem, type KitchenTicketItem } from "@plinth/ui-kit";
-import { Button, Card, Col, List, Row, Space, Statistic, Typography, message } from "antd";
-import React, { useCallback, useMemo, useState } from "react";
-import { buildReprintJob, type ReprintJob } from "../helpers/reprint.js";
+import { KDSTicketCard, PlinthEmptyState, mockKitchenTickets, type KDSTicketItem, type KitchenTicketDto, type KitchenTicketItem } from "@plinth/ui-kit";
+import { Alert, Button, Card, Col, List, Row, Space, Statistic, Typography, message } from "antd";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { buildReprintJob, type ReprintJob, type TicketView } from "../helpers/reprint.js";
 import { useKdsTick } from "../hooks/useKdsTick.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
-type Sla = "OnTime" | "Warning" | "Late";
+const SLA_MAP: Record<string, TicketView["sla"]> = { "On-Time": "OnTime", Warning: "Warning", Late: "Late" };
 
-interface TicketView {
-  id: string;
-  kot: number;
-  kotLabel: string;
-  station: string;
-  channel: string;
-  tableName: string;
-  elapsedSeconds: number;
-  sla: Sla;
-  items: KDSTicketItem[];
-}
+const STATION_LABELS: Record<string, string> = { MainKitchen: "Main Kitchen", ColdStation: "Cold Station" };
 
-const SLA_MAP: Record<string, Sla> = { "On-Time": "OnTime", Warning: "Warning", Late: "Late" };
+const stationLabel = (station: KitchenTicketDto["station"]): string =>
+  typeof station === "string" ? (STATION_LABELS[station] ?? station) : "Custom";
+
+/** Maps a backend ticket onto the board view (backend carries no channel/table, so show the order ref). */
+export const mapDtoToView = (dto: KitchenTicketDto, nowMs: number = Date.now()): TicketView => {
+  const createdMs = Date.parse(dto.created_at);
+  const elapsedSeconds = Number.isNaN(createdMs) ? 0 : Math.max(0, Math.floor((nowMs - createdMs) / 1000));
+  return {
+    id: dto.id,
+    kot: dto.kot_number,
+    kotLabel: `KOT-${dto.kot_number}`,
+    station: stationLabel(dto.station),
+    channel: "—",
+    tableName: `Order ${dto.order_id.slice(0, 8)}`,
+    elapsedSeconds,
+    sla: dto.sla_status,
+    items: dto.items.map((item, i): KDSTicketItem => ({
+      id: `${dto.id}-LI-${i}`,
+      name: item.name,
+      quantity: item.quantity,
+      modifiers: item.modifiers.flatMap((m): string[] => m.selected_options),
+      notes: item.special_instructions ?? undefined,
+    })),
+  };
+};
 
 const toView = (t: { id: string; kotNumber: string; stationName: string; channel: string; tableName: string; elapsedMinutes: number; timeStatus: string; items: KitchenTicketItem[] }): TicketView => ({
   id: t.id,
@@ -46,7 +61,9 @@ const INJECT_TEMPLATES: { station: string; channel: string; tableName: string; n
 ];
 
 export const KitchenPage: React.FC = () => {
+  const { client } = useAuth();
   const [tickets, setTickets] = useState<TicketView[]>(seedTickets);
+  const [live, setLive] = useState<boolean>(false);
   const [bumpedToday, setBumpedToday] = useState<number>(389);
   const [kotSeq, setKotSeq] = useState<number>(45);
   const [injectIdx, setInjectIdx] = useState<number>(0);
@@ -56,6 +73,32 @@ export const KitchenPage: React.FC = () => {
     setTickets(step);
   }, []);
   useKdsTick<TicketView>(applyTick);
+
+  const fetchLive = useCallback((): void => {
+    client
+      .listKitchenTickets()
+      .then((dtos): void => {
+        if (!Array.isArray(dtos)) throw new Error("Unexpected KDS payload");
+        const nowMs = Date.now();
+        setTickets((prev: TicketView[]): TicketView[] => [
+          ...prev.filter((t: TicketView): boolean => t.id.startsWith("KT-INJ-")),
+          ...dtos.map((dto): TicketView => mapDtoToView(dto, nowMs)),
+        ]);
+        setLive(true);
+      })
+      .catch((): void => {
+        setTickets((prev: TicketView[]): TicketView[] =>
+          prev.length > 0 ? prev : seedTickets(),
+        );
+        setLive(false);
+      });
+  }, [client]);
+
+  useEffect((): (() => void) => {
+    fetchLive();
+    const timer = setInterval(fetchLive, 15_000);
+    return (): void => clearInterval(timer);
+  }, [fetchLive]);
 
   const stations = useMemo((): string[] => {
     const names = tickets.map((t: TicketView): string => t.station);
@@ -98,12 +141,20 @@ export const KitchenPage: React.FC = () => {
   };
 
   const refresh = (): void => {
-    setTickets(seedTickets());
+    fetchLive();
     void message.success("Board refreshed from the pass.");
   };
 
   return (
     <div>
+      {!live && (
+        <Alert
+          message="Showing cached sample entries - live kitchen service unreachable."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Card style={{ marginBottom: 16 }}>
         <Row align="middle" justify="space-between">
           <Col>
