@@ -1,5 +1,5 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
+use getrandom::{rand_core::UnwrapErr, SysRng};
 use std::collections::HashMap;
 
 use crate::clock::ClientNodeId;
@@ -24,7 +24,7 @@ pub struct TerminalKeypair {
 impl TerminalKeypair {
     #[must_use]
     pub fn generate(terminal_id: ClientNodeId) -> Self {
-        let mut csprng = OsRng;
+        let mut csprng = UnwrapErr(SysRng);
         let signing_key = SigningKey::generate(&mut csprng);
         let verifying_key = signing_key.verifying_key();
         Self {
