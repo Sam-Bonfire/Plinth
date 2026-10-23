@@ -94,6 +94,11 @@ jobs:
         id: cargo_tests
         run: cargo test -p core-domain -p sync-protocol -p edge-api
 
+      - name: Check edge-api for wasm32
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check -p edge-api --target wasm32-unknown-unknown
+
       - name: Generate Backend Summary
         if: always()
         run: |
