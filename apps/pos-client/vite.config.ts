@@ -33,6 +33,9 @@ export default defineConfig({
       },
     },
     globals: true,
-    setupFiles: [path.resolve(__dirname, '../../setupTests.ts')],
+    setupFiles: [
+      path.resolve(__dirname, '../../setupTests.ts'),
+      path.resolve(__dirname, './src/testSetup.ts'),
+    ],
   },
 });
