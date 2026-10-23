@@ -1,5 +1,12 @@
-import { vi } from 'vitest';
+import { message } from 'antd';
+import { afterAll, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+
+// Destroy antd notices once per file so their close timers cannot fire after
+// the happy-dom environment is torn down.
+afterAll(() => {
+  message.destroy();
+});
 
 // Mock window.matchMedia for Ant Design components
 Object.defineProperty(window, 'matchMedia', {
