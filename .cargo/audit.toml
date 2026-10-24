@@ -1,0 +1,8 @@
+[advisories]
+# jsonwebtoken's rust_crypto backend links `rsa` for RS*/PS* keys.
+# Plinth only issues and verifies HS256 tokens (apps/edge-api/src/auth.rs),
+# so no RSA key material exists here. No patched release is published;
+# upstream tracking: https://github.com/RustCrypto/RSA/issues/626
+# Remove this ignore when jsonwebtoken drops `rsa` from rust_crypto or the app
+# intentionally adopts RSA keys.
+ignore = ["RUSTSEC-2023-0071"]
