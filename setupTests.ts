@@ -3,9 +3,11 @@ import { afterAll, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 // Destroy antd notices once per file so their close timers cannot fire after
-// the happy-dom environment is torn down.
-afterAll(() => {
+// the happy-dom environment is torn down. React commits the unmount on a later
+// task, so yield one so rc-notification's close timer is cleared first.
+afterAll(async () => {
   message.destroy();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 });
 
 // Mock window.matchMedia for Ant Design components
