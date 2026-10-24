@@ -1,0 +1,14 @@
+[advisories]
+# jsonwebtoken's rust_crypto backend links `rsa` for RS*/PS* keys and
+# `p256`/`p384` (via crypto-bigint) for ES* keys. Plinth only issues and
+# verifies HS256 tokens (apps/edge-api/src/auth.rs), so no RSA or ECDSA key
+# material exists here and none of the affected constant-time code runs.
+#
+# Both crates are unfixed on the versions jsonwebtoken 11 resolves:
+# - RUSTSEC-2023-0071: no patched release (RustCrypto/RSA#626)
+# - RUSTSEC-2026-0387: patched in crypto-bigint 0.7.6, but elliptic-curve
+#   0.13 pins 0.5.x; revisit when jsonwebtoken moves to elliptic-curve 0.14+.
+#
+# Remove each ignore when the backend drops that algorithm or the app
+# intentionally adopts RSA/ECDSA keys.
+ignore = ["RUSTSEC-2023-0071", "RUSTSEC-2026-0387"]
