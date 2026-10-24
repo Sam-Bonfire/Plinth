@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
   checks: write
+  # audit-check files an issue per advisory when triggered by `schedule`,
+  # which is the only reason the cron run needs write access.
+  issues: write
 
 jobs:
   supply-chain:
