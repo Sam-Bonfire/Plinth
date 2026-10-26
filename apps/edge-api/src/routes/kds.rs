@@ -186,6 +186,8 @@ impl TryFrom<RawTicketRow> for KitchenTicket {
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .get_async("/api/v1/kds/tickets", list_active_tickets)
+        .post_async("/api/v1/kds/tickets/:id/start-prep", start_prep_ticket)
+        .post_async("/api/v1/kds/tickets/:id/mark-ready", mark_ready_ticket)
         .post_async("/api/v1/kds/tickets/:id/bump", bump_ticket)
 }
 
@@ -273,11 +275,43 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
     Response::from_json(&ticket_dtos)
 }
 
-/// Bumps a ticket to the next lifecycle state
-///
-/// # Errors
-/// Returns an error if the ticket is not found, state transition is invalid, or database update fails
-pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+/// Lifecycle action requested against a kitchen ticket.
+#[derive(Debug, Clone, Copy)]
+enum TicketAction {
+    StartPrep,
+    MarkReady,
+    Bump,
+}
+
+impl TicketAction {
+    const fn rejection(self) -> &'static str {
+        match self {
+            Self::StartPrep => "Ticket can only start prep while Pending",
+            Self::MarkReady => "Ticket can only be marked ready while InPrep",
+            Self::Bump => "Ticket cannot be bumped from its current status",
+        }
+    }
+}
+
+/// Applies the requested transition through the domain state machine.
+fn apply_action(
+    ticket: &mut KitchenTicket,
+    action: TicketAction,
+    bumped_by: Option<StaffMemberId>,
+) -> std::result::Result<(), core_domain::models::kitchen::KitchenError> {
+    match action {
+        TicketAction::StartPrep => ticket.start_prep().map(|_event| ()),
+        TicketAction::MarkReady => ticket.mark_ready().map(|_event| ()),
+        TicketAction::Bump => ticket.bump(bumped_by).map(|_event| ()),
+    }
+}
+
+/// Loads a ticket, applies one transition, and persists the resulting status.
+async fn advance_ticket<D>(
+    mut req: Request,
+    ctx: RouteContext<D>,
+    action: TicketAction,
+) -> Result<Response> {
     let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         core_domain::enums::staff::Permissions::empty(),
     ) {
@@ -294,8 +328,14 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         return crate::router::json_error("Missing ticket ID", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
-    let body_res = req.json::<BumpTicketRequest>().await;
-    let bumped_by = body_res.ok().and_then(|b| b.bumped_by);
+    let bumped_by = match action {
+        TicketAction::Bump => req
+            .json::<BumpTicketRequest>()
+            .await
+            .ok()
+            .and_then(|body| body.bumped_by),
+        TicketAction::StartPrep | TicketAction::MarkReady => None,
+    };
 
     let query = "SELECT
             t.id, t.order_id, t.tenant_id, t.location_id, t.station, t.kot_number,
@@ -337,8 +377,8 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
 
     let mut ticket = KitchenTicket::try_from(row)?;
 
-    if ticket.bump(bumped_by).is_err() {
-        return crate::router::json_error("Ticket cannot be bumped from its current status", "CONFLICT", &crate::router::get_request_id(&req), 409);
+    if apply_action(&mut ticket, action, bumped_by).is_err() {
+        return crate::router::json_error(action.rejection(), "CONFLICT", &crate::router::get_request_id(&req), 409);
     }
 
     let status_str = match ticket.status {
@@ -376,12 +416,36 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     Response::from_json(&dto)
 }
 
+/// Starts preparation for a pending ticket (`Pending` → `InPrep`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn start_prep_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::StartPrep).await
+}
+
+/// Marks a ticket ready (`InPrep` → `Ready`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn mark_ready_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::MarkReady).await
+}
+
+/// Bumps a ready ticket off the board (`Ready` → `Bumped`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn bump_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::Bump).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use core_domain::{
         enums::kitchen::{KitchenTicketStatus, StationId},
-        ids::{LocationId, OrderId, TenantId},
+        ids::{LocationId, OrderId, StaffMemberId, TenantId},
         models::kitchen::KitchenTicket,
         value_objects::preparation::PreparationSla,
     };
@@ -432,6 +496,37 @@ mod tests {
 
         let result = ticket.bump(None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_apply_action_enforces_ticket_lifecycle() {
+        let sla = PreparationSla::default_restaurant();
+        let (mut ticket, _) = KitchenTicket::new(
+            OrderId::new(),
+            TenantId::new(),
+            LocationId::new(),
+            StationId::Grill,
+            7,
+            vec![],
+            sla,
+        );
+
+        // Illegal skips out of Pending fail closed.
+        assert!(apply_action(&mut ticket, TicketAction::MarkReady, None).is_err());
+        assert!(apply_action(&mut ticket, TicketAction::Bump, None).is_err());
+        assert_eq!(ticket.status, KitchenTicketStatus::Pending);
+
+        apply_action(&mut ticket, TicketAction::StartPrep, None).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::InPrep);
+        assert!(apply_action(&mut ticket, TicketAction::StartPrep, None).is_err());
+
+        apply_action(&mut ticket, TicketAction::MarkReady, None).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Ready);
+        assert!(apply_action(&mut ticket, TicketAction::MarkReady, None).is_err());
+
+        apply_action(&mut ticket, TicketAction::Bump, Some(StaffMemberId::new())).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Bumped);
+        assert!(ticket.bumped_at.is_some());
     }
 
     #[test]

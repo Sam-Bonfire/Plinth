@@ -73,16 +73,16 @@ Content-Type: application/json
 }
 HTTP 201
 
-# Fetch the active kitchen tickets to capture the newly created ticket ID
-GET {{base_url}}/api/v1/kds/tickets
+# Fetch active tickets, restricted to Pending so the lifecycle starts from a fresh ticket
+GET {{base_url}}/api/v1/kds/tickets?status=Pending
 Authorization: Bearer {{token}}
 x-tenant-id: {{tenant_id}}
 x-location-id: {{location_id}}
 HTTP 200
 [Captures]
-ticket_id: jsonpath "$[0].ticket.id"
+ticket_id: jsonpath "$[0].id"
 
-# Positive check that bumping a Pending ticket fails with 409 (validates endpoint logic is hit)
+# Illegal skip: bumping a Pending ticket fails with 409
 POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/bump
 Authorization: Bearer {{token}}
 x-tenant-id: {{tenant_id}}
@@ -92,6 +92,51 @@ Content-Type: application/json
   "bumped_by": "{{staff_id}}"
 }
 HTTP 409
+
+# Pending -> InPrep
+POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/start-prep
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$.status" == "InPrep"
+
+# Illegal skip: marking ready or bumping from InPrep is rejected
+POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/bump
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 409
+
+# Repeating start-prep on an already-started ticket is illegal
+POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/start-prep
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 409
+
+# InPrep -> Ready
+POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/mark-ready
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$.status" == "Ready"
+
+# Ready -> Bumped
+POST {{base_url}}/api/v1/kds/tickets/{{ticket_id}}/bump
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "bumped_by": "{{staff_id}}"
+}
+HTTP 200
+[Asserts]
+jsonpath "$.status" == "Bumped"
 
 # Negative: Filter tickets by incorrect tenant_id (tenant-isolation)
 GET {{base_url}}/api/v1/kds/tickets
