@@ -3,13 +3,12 @@ import { describe, expect, it } from "vitest";
 import { summarizeDashboard } from "./dashboard.js";
 
 describe("summarizeDashboard", () => {
-  it("returns seed data when report is null", () => {
-    const result = summarizeDashboard(null);
-    expect(result).toEqual({
-      grossSales: 12500.5,
-      orders: 42,
-      activeTables: 12,
-      lowStock: 3,
+  it("reports nothing as unknown instead of seed numbers", () => {
+    expect(summarizeDashboard(null)).toEqual({
+      grossSales: null,
+      orders: null,
+      activeTables: null,
+      lowStock: null,
     });
   });
 
@@ -22,12 +21,12 @@ describe("summarizeDashboard", () => {
       tax_liability_minor: 5000,
     };
 
-    const result = summarizeDashboard(report);
-    expect(result).toEqual({
+    expect(summarizeDashboard(report)).toEqual({
       grossSales: 2500,
       orders: 15,
-      activeTables: 12,
-      lowStock: 3,
+      // The sales report carries no floor or stock state, so these stay unknown.
+      activeTables: null,
+      lowStock: null,
     });
   });
 });

@@ -37,6 +37,21 @@ struct RawMenuItemRow {
 }
 
 /// Registers the Menu Catalog routing endpoints
+/// Maps a stored tax label onto the domain GST slab.
+///
+/// Unknown labels return `None`: defaulting a bad row to 5% silently
+/// under- or over-charges GST, so callers fail the request instead.
+fn parse_tax_rate(raw: &str) -> Option<GstRate> {
+    match raw.trim() {
+        "Exempt" | "0" => Some(GstRate::Exempt),
+        "FivePercent" | "5" | "5%" => Some(GstRate::FivePercent),
+        "TwelvePercent" | "12" | "12%" => Some(GstRate::TwelvePercent),
+        "EighteenPercent" | "18" | "18%" => Some(GstRate::EighteenPercent),
+        "TwentyEightPercent" | "28" | "28%" => Some(GstRate::TwentyEightPercent),
+        _ => None,
+    }
+}
+
 #[must_use]
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
@@ -94,12 +109,13 @@ pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<R
                     .map(MenuItemId::from)
                     .map_err(|_| Error::RustError("Invalid item ID".into()))?;
 
-                let tax_rate = match item.tax_rate.as_str() {
-                    "Exempt" | "0" => GstRate::Exempt,
-                    "TwelvePercent" | "12" | "12%" => GstRate::TwelvePercent,
-                    "EighteenPercent" | "18" | "18%" => GstRate::EighteenPercent,
-                    "TwentyEightPercent" | "28" | "28%" => GstRate::TwentyEightPercent,
-                    _ => GstRate::FivePercent,
+                let Some(tax_rate) = parse_tax_rate(&item.tax_rate) else {
+                    return crate::router::json_error(
+                        format!("Unknown tax rate '{}' on menu item {}", item.tax_rate, item.name),
+                        "INVALID_DATA",
+                        &crate::router::get_request_id(&req),
+                        400,
+                    );
                 };
 
                 let kitchen_station = match item.kitchen_station.as_str() {
@@ -210,12 +226,13 @@ pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>)
         .map(MenuCategoryId::from)
         .map_err(|_| Error::RustError("Invalid category ID".into()))?;
 
-    let tax_rate = match item.tax_rate.as_str() {
-        "Exempt" | "0" => GstRate::Exempt,
-        "TwelvePercent" | "12" | "12%" => GstRate::TwelvePercent,
-        "EighteenPercent" | "18" | "18%" => GstRate::EighteenPercent,
-        "TwentyEightPercent" | "28" | "28%" => GstRate::TwentyEightPercent,
-        _ => GstRate::FivePercent,
+    let Some(tax_rate) = parse_tax_rate(&item.tax_rate) else {
+        return crate::router::json_error(
+            format!("Unknown tax rate '{}' on menu item {}", item.tax_rate, item.name),
+            "INVALID_DATA",
+            &crate::router::get_request_id(&req),
+            400,
+        );
     };
 
     let kitchen_station = match item.kitchen_station.as_str() {
@@ -271,6 +288,17 @@ mod tests {
         let json = serde_json::to_string(&cat).unwrap();
         assert!(json.contains("Starters & Appetizers"));
         assert!(json.contains("\"is_active\":true"));
+    }
+
+    #[test]
+    fn test_parse_tax_rate_rejects_unknown_labels() {
+        assert_eq!(parse_tax_rate("12"), Some(GstRate::TwelvePercent));
+        assert_eq!(parse_tax_rate("5%"), Some(GstRate::FivePercent));
+        assert_eq!(parse_tax_rate("EighteenPercent"), Some(GstRate::EighteenPercent));
+        assert_eq!(parse_tax_rate("Exempt"), Some(GstRate::Exempt));
+        // Unknown labels must not silently fall back to 5%.
+        assert_eq!(parse_tax_rate("GST-7"), None);
+        assert_eq!(parse_tax_rate(""), None);
     }
 
     #[test]

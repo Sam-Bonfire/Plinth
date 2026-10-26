@@ -1,7 +1,8 @@
 import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { buildAuditCsv } from "../lib/auditExport.js";
-import { loadRoleMatrix, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
+import { loadRoleMatrix, flushTerminalSync, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
 type StaffStatus = "Active" | "Off duty";
@@ -115,6 +116,7 @@ const seedAttendance = (): AttendanceEntry[] => [
 const roleColor = (r: Role): string => (r === "Owner" ? "purple" : r === "Manager" ? "blue" : r === "Cashier" ? "green" : "orange");
 
 export const StaffPage: React.FC = () => {
+  const { client } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>(seedStaff);
   const [perms, setPerms] = useState<Record<string, Record<Role, boolean>>>(() => loadRoleMatrix(seedPerms()) as Record<string, Record<Role, boolean>>);
   const [auditKind, setAuditKind] = useState<string>("all");
@@ -190,8 +192,24 @@ export const StaffPage: React.FC = () => {
   };
 
   const syncTerminals = (): void => {
-    const depth = queueTerminalSync(perms);
-    void message.success(`Matrix queued for terminal sync (${depth} pending).`);
+    queueTerminalSync(perms);
+    void flushTerminalSync((op) =>
+      client
+        .ingestAudit({
+          action: "ROLE_MATRIX_SYNC",
+          target_type: "role-matrix",
+          target_id: "terminal-sync",
+          payload_json: JSON.stringify(op.matrix),
+          is_anomaly: false,
+        })
+        .then(() => undefined),
+    ).then((pending: number): void => {
+      if (pending === 0) {
+        void message.success("Matrix synced to terminals.");
+      } else {
+        void message.warning(`Terminal sync blocked: ${pending} change(s) still queued.`);
+      }
+    });
   };
 
   const submitEscalation = (): void => {

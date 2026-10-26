@@ -106,27 +106,30 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
         Err(e) => return crate::router::json_error(format!("Failed to hash PIN: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
-    // Persist to D1 if available; fall back to mock on missing binding in tests
-    if let Ok(db) = ctx.env.d1("CELLAR_DB") {
-        let stmt = db
-            .prepare(
-                "INSERT INTO staff_members (id, tenant_id, location_id, name, role, permissions, pin_hash, is_active, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
-            )
-            .bind(&[
-                staff_id.to_string().into(),
-                tenant_ctx.tenant_id.to_string().into(),
-                tenant_ctx.location_id.to_string().into(),
-                payload.name.clone().into(),
-                format!("{:?}", payload.role).into(),
-                f64::from(permissions).into(),
-                pin_hash.into(),
-                1.into(),
-                now.clone().into(),
-                now.clone().into(),
-            ])?;
-        if let Err(e) = stmt.run().await {
-            return crate::router::json_error(format!("Database error: {e:?}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
-        }
+    // Persist to D1. A missing binding must fail the request: answering 201
+    // without storing the staff member silently breaks later PIN logins.
+    let db = match ctx.env.d1("CELLAR_DB") {
+        Ok(db) => db,
+        Err(e) => return crate::router::json_error(format!("Database unavailable: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+    };
+    let stmt = db
+        .prepare(
+            "INSERT INTO staff_members (id, tenant_id, location_id, name, role, permissions, pin_hash, is_active, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
+        )
+        .bind(&[
+            staff_id.to_string().into(),
+            tenant_ctx.tenant_id.to_string().into(),
+            tenant_ctx.location_id.to_string().into(),
+            payload.name.clone().into(),
+            format!("{:?}", payload.role).into(),
+            f64::from(permissions).into(),
+            pin_hash.into(),
+            1.into(),
+            now.clone().into(),
+            now.clone().into(),
+        ])?;
+    if let Err(e) = stmt.run().await {
+        return crate::router::json_error(format!("Database error: {e:?}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
     }
 
     let resp = StaffResponseDto {
