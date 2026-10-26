@@ -30,6 +30,9 @@ base64 = "0.23.1"
 uuid = { workspace = true, features = ["serde", "v4", "v7", "js"] }
 specta = { workspace = true }
 specta-typescript = { workspace = true }
+hmac = "0.13.0"
+sha2 = "0.11.1"
+hex = "0.4.3"
 
 [[bin]]
 name = "export_types"
