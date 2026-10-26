@@ -65,6 +65,7 @@ pub fn is_valid_razorpay_payload(payload: &serde_json::Value) -> bool {
 ///
 /// # Errors
 /// Returns an error if request reading or database access fails
+#[allow(clippy::too_many_lines)]
 pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -> Result<Response> {
     let tenant_id = match req.headers().get("x-tenant-id").ok().flatten() {
         Some(id) if !id.is_empty() => id,
