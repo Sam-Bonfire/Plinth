@@ -77,7 +77,7 @@ pub async fn get_sales_report<D>(req: Request, ctx: RouteContext<D>) -> Result<R
     };
 
     let mut query = String::from(
-        "SELECT (subtotal_minor + tax_minor + charges_minor - discounts_minor) as grand_total_minor, tax_minor, payment_method, created_at FROM orders WHERE tenant_id = ? AND location_id = ? AND status = 'Settled'"
+        "SELECT (subtotal_minor + tax_minor + charges_minor - discount_minor) as grand_total_minor, tax_minor, payment_method, created_at FROM orders WHERE tenant_id = ? AND location_id = ? AND status = 'Settled'"
     );
 
     let mut params: Vec<JsValue> = vec![

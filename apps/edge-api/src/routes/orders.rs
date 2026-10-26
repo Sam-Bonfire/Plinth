@@ -3,8 +3,8 @@ use crate::dto::order::{
     PaginatedResponse,
 };
 use core_domain::{
-    enums::staff::Permissions,
-    ids::{OrderId, OrderLineItemId},
+    enums::{order_status::OrderStatus, staff::Permissions},
+    ids::{AuditEventId, OrderId, OrderLineItemId},
     models::order::{Order, OrderLineItem},
     value_objects::{
         money::{Currency, Money},
@@ -91,6 +91,11 @@ pub async fn create_order<D>(
     order.tip = payload.tip;
     order.created_at = now;
     order.updated_at = now;
+    // A submitted order is confirmed: the kitchen only picks up confirmed tickets.
+    order.status = match order.status.transition_to(OrderStatus::Confirmed) {
+        Ok(status) => status,
+        Err(e) => return crate::router::json_error(format!("Invalid order status: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
+    };
 
     let grand_total = match order.grand_total(&GstApplicability::IntraState) {
         Ok(total) => total,
@@ -102,6 +107,17 @@ pub async fn create_order<D>(
     };
     let grand_total_minor = grand_total.to_minor_units();
     let balance_due_minor = balance_due.to_minor_units();
+    let subtotal_minor = order.subtotal().to_minor_units();
+    let discount_minor = match order.discount_total() {
+        Ok(discount) => discount.to_minor_units(),
+        Err(e) => return crate::router::json_error(format!("Invalid discount: {e}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400),
+    };
+    let charge_minor = order.charge_total().to_minor_units();
+    let tax_minor = order
+        .compute_tax_breakdown(&GstApplicability::IntraState)
+        .total_tax
+        .to_minor_units();
+    let total_paid_minor = order.total_paid().to_minor_units();
 
     let order_json = match serde_json::to_string(&order) {
         Ok(j) => j,
@@ -119,7 +135,7 @@ pub async fn create_order<D>(
 
     let stmt_order = db
         .prepare(
-            "INSERT INTO orders (id, tenant_id, location_id, terminal_id, status, channel, table_id, grand_total_minor, balance_due_minor, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"
+            "INSERT INTO orders (id, tenant_id, location_id, terminal_id, status, channel, table_id, subtotal_minor, discount_minor, tax_minor, charges_minor, total_minor, grand_total_minor, balance_due_minor, total_paid_minor, payload, created_by, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)"
         )
         .bind(&[
             order_id.to_string().into(),
@@ -129,37 +145,60 @@ pub async fn create_order<D>(
             status_str.into(),
             channel_str.into(),
             table_id_str.into(),
-            (grand_total_minor as f64).into(),
-            (balance_due_minor as f64).into(),
+            crate::db::money(subtotal_minor),
+            crate::db::money(discount_minor),
+            crate::db::money(tax_minor),
+            crate::db::money(charge_minor),
+            crate::db::money(grand_total_minor),
+            crate::db::money(grand_total_minor),
+            crate::db::money(balance_due_minor),
+            crate::db::money(total_paid_minor),
             order_json.into(),
+            staff_id.to_string().into(),
+            created_at_str.clone().into(),
             created_at_str.clone().into(),
         ])?;
 
     let mut batch = vec![stmt_order];
 
     for item in &order.items {
+        let item_tax_str = serde_json::to_string(&item.tax_rate)
+            .unwrap_or_default()
+            .replace('"', "");
         let stmt_line_item = db
             .prepare(
-                "INSERT INTO order_line_items (id, order_id, menu_item_id, quantity, unit_price_minor) VALUES (?1, ?2, ?3, ?4, ?5)"
+                "INSERT INTO order_line_items (id, order_id, menu_item_id, name, unit_price_minor, quantity, fired_quantity, tax_rate, notes, seat_number) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
             )
             .bind(&[
                 item.id.to_string().into(),
                 order_id.to_string().into(),
                 item.menu_item_id.to_string().into(),
-                f64::from(item.quantity).into(),
-                (item.unit_price.to_minor_units() as f64).into(),
+                item.name.clone().into(),
+                crate::db::money(item.unit_price.to_minor_units()),
+                crate::db::money(i64::from(item.quantity)),
+                crate::db::money(i64::from(item.fired_quantity)),
+                item_tax_str.into(),
+                item.notes.clone().map_or(JsValue::null(), Into::into),
+                item.seat_number
+                    .map_or(JsValue::null(), |seat| crate::db::money(i64::from(seat.value()))),
             ])?;
         batch.push(stmt_line_item);
     }
 
     let stmt_audit = db
         .prepare(
-            "INSERT INTO audit_events (action, entity_id, actor_id, created_at) VALUES (?1, ?2, ?3, ?4)"
+            "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
         )
         .bind(&[
-            "ORDER_CREATED".into(),
-            order_id.to_string().into(),
+            AuditEventId::new().to_string().into(),
+            tenant_id.to_string().into(),
+            location_id.to_string().into(),
             staff_id.to_string().into(),
+            "ORDER_CREATED".into(),
+            "order".into(),
+            order_id.to_string().into(),
+            JsValue::null(),
+            crate::db::money(0),
             created_at_str.into(),
         ])?;
     batch.push(stmt_audit);

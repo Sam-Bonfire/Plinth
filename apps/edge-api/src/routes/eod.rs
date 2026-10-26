@@ -147,7 +147,7 @@ pub async fn open_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
         terminal_id.into(),
         tenant_ctx.staff_id.to_string().into(),
         opened_at.clone().into(),
-        payload.opening_float_minor.into(),
+        crate::db::money(payload.opening_float_minor),
     ];
     let insert_stmt = db.prepare(insert_sql).bind(&insert_params)?;
     let _ = insert_stmt.run().await?;
@@ -199,25 +199,7 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
-    // 1. Verify no active open orders exist for this location
-    let active_orders_query = "SELECT COUNT(*) as count FROM orders WHERE tenant_id = ? AND location_id = ? AND status IN ('Draft', 'Confirmed', 'Preparing', 'Ready', 'Served')";
-    let active_params: Vec<JsValue> = vec![
-        tenant_ctx.tenant_id.to_string().into(),
-        tenant_ctx.location_id.to_string().into(),
-    ];
-    let active_stmt = db.prepare(active_orders_query).bind(&active_params)?;
-    let active_res = active_stmt.all().await?;
-    let active_rows: Vec<ActiveOrderCountRow> = active_res.results()?;
-    let active_count = active_rows.first().map_or(0, |r| r.count);
-
-    if active_count > 0 {
-        return Response::error(
-            format!("Cannot close shift: {active_count} active orders are still open"),
-            409,
-        );
-    }
-
-    // 2. Fetch shift record
+    // 1. Fetch shift record
     let shift_query = "SELECT opened_at, opening_float_minor, is_closed FROM store_shifts WHERE id = ? AND tenant_id = ? AND location_id = ?";
     let shift_params: Vec<JsValue> = vec![
         payload.shift_id.to_string().into(),
@@ -236,11 +218,32 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         return crate::router::json_error("Shift is already closed", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
+    // 2. Refuse to close while orders are still open, after the shift itself
+    //    is known to exist: an unknown shift is a 404, not a 409.
+    let active_orders_query = "SELECT COUNT(*) as count FROM orders WHERE tenant_id = ? AND location_id = ? AND status IN ('Draft', 'Confirmed', 'Preparing', 'Ready', 'Served')";
+    let active_params: Vec<JsValue> = vec![
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+    ];
+    let active_stmt = db.prepare(active_orders_query).bind(&active_params)?;
+    let active_res = active_stmt.all().await?;
+    let active_rows: Vec<ActiveOrderCountRow> = active_res.results()?;
+    let active_count = active_rows.first().map_or(0, |r| r.count);
+
+    if active_count > 0 {
+        return crate::router::json_error(
+            format!("Cannot close shift: {active_count} active orders are still open"),
+            "CONFLICT",
+            &crate::router::get_request_id(&req),
+            409,
+        );
+    }
+
     // 3. Aggregate totals for settled orders in shift
     let totals_query = "SELECT
-            COALESCE(SUM(subtotal_minor + tax_minor + charges_minor - discounts_minor), 0) as gross_sales_minor,
+            COALESCE(SUM(subtotal_minor + tax_minor + charges_minor - discount_minor), 0) as gross_sales_minor,
             COALESCE(SUM(tax_minor), 0) as tax_minor,
-            COALESCE(SUM(discounts_minor), 0) as discount_minor,
+            COALESCE(SUM(discount_minor), 0) as discount_minor,
             COALESCE(SUM(charges_minor), 0) as charge_minor,
             COALESCE(SUM(CASE WHEN payment_method = 'Cash' THEN total_paid_minor ELSE 0 END), 0) as cash_payments_minor,
             COALESCE(SUM(CASE WHEN payment_method = 'Upi' THEN total_paid_minor ELSE 0 END), 0) as upi_payments_minor,
@@ -281,8 +284,8 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let update_shift_sql = "UPDATE store_shifts SET is_closed = 1, closed_at = ?, closing_cash_minor = ?, expected_cash_minor = ? WHERE id = ? AND tenant_id = ? AND location_id = ?";
     let update_shift_params: Vec<JsValue> = vec![
         closed_at.clone().into(),
-        physical_cash.into(),
-        expected_cash.into(),
+        crate::db::money(physical_cash),
+        crate::db::money(expected_cash),
         payload.shift_id.to_string().into(),
         tenant_ctx.tenant_id.to_string().into(),
         tenant_ctx.location_id.to_string().into(),
@@ -293,7 +296,7 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     // 5. Insert audit log event
     let audit_sql = "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     let audit_id = AuditEventId::new();
-    let is_anomaly_int = i64::from(variance.abs() > 50_000); // flag > ₹500 variance as anomaly
+    let is_anomaly_int = i32::from(variance.abs() > 50_000); // flag > ₹500 variance as anomaly
     let audit_payload = serde_json::json!({
         "shift_id": payload.shift_id,
         "physical_cash_minor": physical_cash,
