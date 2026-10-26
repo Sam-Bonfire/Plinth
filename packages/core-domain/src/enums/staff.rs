@@ -31,6 +31,8 @@ impl Permissions {
     pub const MANAGE_STAFF: Self = Self(0b0000_0000_1000_0000);
     pub const MANAGE_MENU: Self = Self(0b0000_0001_0000_0000);
     pub const OPEN_CLOSE_SHIFT: Self = Self(0b0000_0010_0000_0000);
+    pub const MANAGE_MESS: Self = Self(0b0000_0100_0000_0000);
+    pub const MANAGE_INVENTORY: Self = Self(0b0000_1000_0000_0000);
 
     #[must_use]
     pub const fn empty() -> Self {

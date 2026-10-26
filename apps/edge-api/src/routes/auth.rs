@@ -121,6 +121,12 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     let Ok(db) = ctx.env.d1("CELLAR_DB") else {
         return crate::router::json_error("Authentication unavailable", "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
     };
+
+    if let Ok(true) = crate::lockout::is_locked_out(&db, &tenant_id_str, &payload.staff_id.to_string()).await {
+        worker::console_error!("Lockout enforced for staff_id: {}", payload.staff_id);
+        return crate::router::json_error("Invalid staff ID or PIN", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
+    }
+
     let Ok(stmt) = db
         .prepare(
             "SELECT role, permissions, pin_hash FROM staff_members WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3 AND deleted_at IS NULL AND is_active = 1",
@@ -146,8 +152,11 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     };
     // Unknown staff and bad PIN share one response so staff IDs cannot be enumerated.
     let Ok((role, permissions)) = resolve_login_identity(stored, &payload.pin) else {
+        let _ = crate::lockout::record_attempt(&db, &tenant_id_str, &payload.staff_id.to_string(), false).await;
         return crate::router::json_error("Invalid staff ID or PIN", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
+
+    let _ = crate::lockout::record_attempt(&db, &tenant_id_str, &payload.staff_id.to_string(), true).await;
 
     let now_ts = usize::try_from(chrono::Utc::now().timestamp()).unwrap_or(0);
     let expires_in: usize = 86400; // 24 hours
@@ -161,6 +170,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         location_id: location_id_str,
         roles: vec![format!("{role:?}")],
         permissions,
+        token_type: "staff".to_string(),
     };
 
     let header = Header::new(Algorithm::HS256);

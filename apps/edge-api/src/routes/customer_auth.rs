@@ -151,6 +151,12 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         return crate::router::json_error("Database error", "INTERNAL_ERROR", &request_id, 500);
     };
 
+    if let Ok(true) = crate::lockout::is_locked_out(&db, &payload.tenant_id, &phone).await {
+        worker::console_error!("Lockout enforced for customer phone: {}", phone);
+        let _ = crate::lockout::record_attempt(&db, &payload.tenant_id, &phone, false).await;
+        return crate::router::json_error("Customer not found", "NOT_FOUND", &request_id, 404);
+    }
+
     let Ok(stmt) = db.prepare(
         "SELECT id, location_id, name, phone, email, loyalty_points FROM customers WHERE tenant_id = ?1 AND phone = ?2 AND deleted_at IS NULL"
     ).bind(&[
@@ -172,13 +178,15 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
             "INSERT INTO login_events (id, tenant_id, customer_id, channel, success, occurred_at) VALUES (?1, ?2, NULL, ?3, ?4, ?5)"
         ).bind(&[
             event_id.into(),
-            payload.tenant_id.into(),
+            payload.tenant_id.clone().into(),
             "Web".into(),
             0.into(),
             now.into(),
         ]) {
             let _ = stmt.run().await;
         }
+
+        let _ = crate::lockout::record_attempt(&db, &payload.tenant_id, &phone, false).await;
 
         return crate::router::json_error("Customer not found", "NOT_FOUND", &request_id, 404);
     };
@@ -204,6 +212,8 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         let _ = stmt.run().await;
     }
 
+    let _ = crate::lockout::record_attempt(&db, &payload.tenant_id, &phone, true).await;
+
     let now_ts = usize::try_from(chrono::Utc::now().timestamp()).unwrap_or(0);
     let expires_in: usize = 86400 * 30; // 30 days for customers
     let exp = now_ts + expires_in;
@@ -216,6 +226,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         location_id: location_id.clone(),
         roles: vec!["Customer".to_string()],
         permissions: 0,
+        token_type: "customer".to_string(),
     };
 
     let header = Header::new(Algorithm::HS256);

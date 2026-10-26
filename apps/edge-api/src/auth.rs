@@ -16,6 +16,7 @@ pub struct JwtClaims {
     pub location_id: String,
     pub roles: Vec<String>,
     pub permissions: u32,
+    pub token_type: String,
 }
 
 #[must_use]
@@ -116,6 +117,10 @@ pub fn verify_context_from_headers(
         return Err("Insufficient permissions".to_string());
     }
 
+    if claims.token_type != "staff" {
+        return Err("Invalid token type".to_string());
+    }
+
     let tenant_id = TenantId::from(Uuid::parse_str(&claims.tenant_id).map_err(|_| "Invalid Tenant ID".to_string())?);
     let location_id = LocationId::from(Uuid::parse_str(&claims.location_id).map_err(|_| "Invalid Location ID".to_string())?);
     let staff_id = StaffMemberId::from(Uuid::parse_str(&claims.sub).map_err(|_| "Invalid Staff ID".to_string())?);
@@ -198,6 +203,7 @@ mod tests {
             location_id: uuid::Uuid::now_v7().to_string(),
             roles: vec!["Manager".to_string()],
             permissions: 0,
+            token_type: "staff".to_string(),
         }
     }
 
@@ -243,6 +249,7 @@ mod tests {
             location_id: location.to_string(),
             roles: vec!["Cashier".to_string()],
             permissions: perms,
+            token_type: "staff".to_string(),
         };
         jsonwebtoken::encode(
             &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
@@ -363,6 +370,7 @@ mod tests {
             location_id: location.clone(),
             roles: vec!["Cashier".to_string()],
             permissions: 0b11,
+            token_type: "staff".to_string(),
         };
         let token = jsonwebtoken::encode(
             &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),

@@ -298,15 +298,28 @@ pub async fn verify_pin<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
     };
 
     let db = ctx.env.d1("CELLAR_DB")?;
+
+    if let Ok(true) = crate::lockout::is_locked_out(&db, &tenant_ctx.tenant_id.to_string(), &staff_id_str).await {
+        worker::console_error!("Lockout enforced for staff_id: {}", staff_id_str);
+        let _ = crate::lockout::record_attempt(&db, &tenant_ctx.tenant_id.to_string(), &staff_id_str, false).await;
+        return Response::from_json(&PinVerifyResponse {
+            valid: false,
+            staff_id: StaffMemberId::from(uuid::Uuid::parse_str(&staff_id_str).unwrap_or_else(|_| uuid::Uuid::now_v7())),
+        });
+    }
+
     let stmt = db
         .prepare("SELECT pin_hash FROM staff_members WHERE id = ?1 AND tenant_id = ?2")
         .bind(&[staff_id_str.clone().into(), tenant_ctx.tenant_id.to_string().into()])?;
     let result = stmt.first::<serde_json::Value>(None).await?;
     let Some(row) = result else {
+        let _ = crate::lockout::record_attempt(&db, &tenant_ctx.tenant_id.to_string(), &staff_id_str, false).await;
         return crate::router::json_error("Staff not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
     };
     let pin_hash = row.get("pin_hash").and_then(|v| v.as_str()).unwrap_or("");
     let valid = verify_pin_hash(pin_hash, &payload.pin);
+
+    let _ = crate::lockout::record_attempt(&db, &tenant_ctx.tenant_id.to_string(), &staff_id_str, valid).await;
 
     let resp = PinVerifyResponse {
         valid,
