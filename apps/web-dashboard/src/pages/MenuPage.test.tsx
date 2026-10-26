@@ -1,6 +1,7 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { message } from "antd";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../providers/AuthProvider.js";
 import { MenuPage, DeleteConfirm } from "./MenuPage.js";
 
@@ -15,6 +16,12 @@ function renderPage(): void {
 }
 
 describe("MenuPage", () => {
+  // Toast timers outlive the test file's jsdom teardown; the pending notice
+  // fires into an unmounted tree and surfaces as an unhandled error.
+  afterEach(() => {
+    message.destroy();
+  });
+
   it("renders categories, items and counts", async () => {
     renderPage();
     expect(await screen.findByRole("button", { name: "All Items · 6" })).toBeDefined();
