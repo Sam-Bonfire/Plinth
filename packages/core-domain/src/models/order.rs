@@ -1,5 +1,5 @@
 use crate::enums::order_channel::OrderChannel;
-use crate::enums::order_status::OrderStatus;
+use crate::enums::order_status::{OrderStatus, OrderStatusError};
 use crate::enums::payment::{PaymentMethod, PaymentStatus};
 use crate::events::order::OrderEvent;
 use crate::ids::{FloorTableId, LocationId, MenuItemId, OrderId, OrderLineItemId, StaffMemberId, TenantId, TerminalId};
@@ -48,6 +48,12 @@ pub enum OrderError {
     /// A discount on the order is invalid (out of range, exceeds subtotal, currency mismatch)
     #[error("Invalid discount: {0}")]
     InvalidDiscount(#[from] crate::value_objects::discount::DiscountError),
+    /// The requested status change is not allowed by the order state machine
+    #[error("Invalid order status transition: {0}")]
+    InvalidStatusTransition(#[from] OrderStatusError),
+    /// The order already left the mutable part of its lifecycle
+    #[error("Order in status {0:?} can no longer be modified")]
+    NotModifiable(OrderStatus),
 }
 
 /// Item line in an order
@@ -207,6 +213,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if the order cannot be modified.
     pub fn add_item(&mut self, item: OrderLineItem) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let item_id = item.id;
         let menu_item_id = item.menu_item_id;
         let item_name = item.name.clone();
@@ -233,6 +240,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError::LineItemNotFound` if the line item is not in the order.
     pub fn remove_item(&mut self, line_item_id: OrderLineItemId, reason: Option<String>) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let initial_len = self.items.len();
         self.items.retain(|i| i.id != line_item_id);
         if self.items.len() == initial_len {
@@ -253,6 +261,7 @@ impl Order {
     /// Returns `OrderError::InvalidQuantity` if quantity is 0,
     /// or `OrderError::LineItemNotFound` if the line item does not exist.
     pub fn change_quantity(&mut self, line_item_id: OrderLineItemId, new_quantity: u32) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         if new_quantity == 0 {
             return Err(OrderError::InvalidQuantity(0));
         }
@@ -274,6 +283,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if the discount is invalid.
     pub fn apply_discount(&mut self, discount: Discount) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let percentage = match &discount.discount_type {
             crate::value_objects::discount::DiscountType::Percentage(p) => Some(p.to_string()),
             crate::value_objects::discount::DiscountType::FlatAmount(_) => None,
@@ -303,6 +313,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if discounts cannot be removed.
     pub fn remove_discount(&mut self, _reason: &str) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         self.discounts.clear();
         self.updated_at = Utc::now();
         Ok(OrderEvent::DiscountRemoved {
@@ -316,6 +327,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if charge cannot be added.
     pub fn add_charge(&mut self, charge: OrderCharge) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let charge_type = format!("{:?}", charge.charge_type);
         let amount_minor = charge.amount.to_minor_units();
         let taxable = true;
@@ -336,6 +348,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if payment cannot be recorded.
     pub fn record_payment(&mut self, method: PaymentMethod, amount: Money, reference: Option<String>, recorded_by: StaffMemberId) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let amount_minor = amount.to_minor_units();
         self.payments.push(PaymentEntry {
             method,
@@ -360,6 +373,7 @@ impl Order {
     /// # Errors
     /// Returns `OrderError` if tip cannot be added.
     pub fn add_tip(&mut self, tip: TipAmount) -> Result<OrderEvent, OrderError> {
+        self.ensure_modifiable()?;
         let amount_minor = tip.computed_amount.to_minor_units();
         self.tip = Some(tip);
         self.updated_at = Utc::now();
@@ -378,6 +392,7 @@ impl Order {
     /// `OrderError::LineItemNotFound` if item does not exist,
     /// or `OrderError::InvalidQuantity` if split quantity exceeds available quantity.
     pub fn split_bill(&mut self, items_to_move: Vec<(OrderLineItemId, u32)>, new_terminal_id: TerminalId, split_by: StaffMemberId) -> Result<(Order, OrderEvent), OrderError> {
+        self.ensure_modifiable()?;
         if items_to_move.is_empty() {
             return Err(OrderError::SplitEmpty);
         }
@@ -412,7 +427,8 @@ impl Order {
     ///
     /// # Errors
     /// Returns `OrderError::AlreadyVoided` if already voided,
-    /// or `OrderError::PermissionDenied` if not authorized by a supervisor.
+    /// `OrderError::PermissionDenied` if not authorized by a supervisor,
+    /// or `OrderError::InvalidStatusTransition` once the order is settled.
     pub fn void_order(&mut self, reason: String, voided_by: StaffMemberId, is_supervisor: bool) -> Result<OrderEvent, OrderError> {
         if self.status == OrderStatus::Voided {
             return Err(OrderError::AlreadyVoided);
@@ -420,7 +436,7 @@ impl Order {
         if !is_supervisor {
             return Err(OrderError::PermissionDenied);
         }
-        self.status = OrderStatus::Voided;
+        self.status = self.status.transition_to(OrderStatus::Voided)?;
         self.updated_at = Utc::now();
         Ok(OrderEvent::Voided {
             order_id: self.id,
@@ -436,7 +452,8 @@ impl Order {
     /// # Errors
     /// Returns `OrderError::AlreadySettled` if already settled,
     /// `OrderError::InvalidDiscount` if a discount fails validation,
-    /// or `OrderError::InsufficientPayment` if amount paid is less than grand total.
+    /// `OrderError::InsufficientPayment` if amount paid is less than grand total,
+    /// or `OrderError::InvalidStatusTransition` from a terminal status.
     pub fn settle(&mut self, applicability: &GstApplicability) -> Result<OrderEvent, OrderError> {
         if self.status == OrderStatus::Settled {
             return Err(OrderError::AlreadySettled);
@@ -446,7 +463,7 @@ impl Order {
         if paid < total {
             return Err(OrderError::InsufficientPayment { paid, total });
         }
-        self.status = OrderStatus::Settled;
+        self.status = self.status.transition_to(OrderStatus::Settled)?;
         self.updated_at = Utc::now();
         Ok(OrderEvent::Settled {
             order_id: self.id,
@@ -552,6 +569,14 @@ impl Order {
             item.mark_fired();
         }
     }
+
+    /// Rejects content edits once the order is settled or in a terminal status.
+    fn ensure_modifiable(&self) -> Result<(), OrderError> {
+        if self.status.is_terminal() || self.status == OrderStatus::Settled {
+            return Err(OrderError::NotModifiable(self.status));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -638,6 +663,13 @@ mod tests {
         ).unwrap();
         assert!(order.is_fully_paid(&GstApplicability::IntraState).unwrap());
 
+        // An order must leave Draft before it can be settled.
+        assert!(matches!(
+            order.settle(&GstApplicability::IntraState).unwrap_err(),
+            OrderError::InvalidStatusTransition(_)
+        ));
+        order.status = order.status.transition_to(OrderStatus::Confirmed).unwrap();
+
         let settle_evt = order.settle(&GstApplicability::IntraState).unwrap();
         assert_eq!(settle_evt.order_id(), order.id);
         assert_eq!(order.status, OrderStatus::Settled);
@@ -669,6 +701,61 @@ mod tests {
         // Supervisor void attempt succeeds
         assert!(order.void_order("Guest left".to_string(), staff_id, true).is_ok());
         assert_eq!(order.status, OrderStatus::Voided);
+    }
+
+    #[test]
+    fn test_order_status_machine_is_enforced() {
+        let staff_id = StaffMemberId::new();
+        let (mut order, _) = Order::new(
+            TenantId::new(),
+            LocationId::new(),
+            TerminalId::new(),
+            OrderChannel::Takeaway,
+            staff_id,
+            None,
+            None,
+        );
+
+        // Illegal skips fail closed and leave the status untouched.
+        assert!(order.status.transition_to(OrderStatus::Settled).is_err());
+        assert_eq!(order.status, OrderStatus::Draft);
+
+        // Draft -> Confirmed -> Settled.
+        order.status = order.status.transition_to(OrderStatus::Confirmed).unwrap();
+        assert!(order.settle(&GstApplicability::IntraState).is_ok());
+        assert_eq!(order.status, OrderStatus::Settled);
+
+        // A settled order cannot be settled twice, voided or edited.
+        assert!(matches!(
+            order.settle(&GstApplicability::IntraState),
+            Err(OrderError::AlreadySettled)
+        ));
+        assert!(matches!(
+            order.void_order("late void".to_string(), staff_id, true),
+            Err(OrderError::InvalidStatusTransition(_))
+        ));
+        assert!(matches!(
+            order.add_item(OrderLineItem {
+                id: OrderLineItemId::new(),
+                menu_item_id: MenuItemId::new(),
+                name: "Late addition".to_string(),
+                base_price: Money::zero(Currency::Inr),
+                modifier_selections: Vec::new(),
+                modifier_total: Money::zero(Currency::Inr),
+                unit_price: Money::zero(Currency::Inr),
+                quantity: 1,
+                fired_quantity: 0,
+                tax_rate: GstRate::FivePercent,
+                notes: None,
+                seat_number: None,
+            }),
+            Err(OrderError::NotModifiable(OrderStatus::Settled))
+        ));
+
+        // Settled -> Refunded is the only way out.
+        order.status = order.status.transition_to(OrderStatus::Refunded).unwrap();
+        assert_eq!(order.status, OrderStatus::Refunded);
+        assert!(order.status.transition_to(OrderStatus::Settled).is_err());
     }
 
     #[test]

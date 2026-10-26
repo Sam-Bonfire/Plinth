@@ -39,10 +39,10 @@ impl OrderStatus {
     pub fn can_transition_to(&self, target: &OrderStatus) -> bool {
         matches!(
             (self, target),
-            (Self::Draft, Self::Confirmed)
-                | (Self::Confirmed, Self::Preparing | Self::Voided)
-                | (Self::Preparing, Self::Ready | Self::Voided)
-                | (Self::Ready, Self::Served | Self::Voided)
+            (Self::Draft, Self::Confirmed | Self::Voided)
+                | (Self::Confirmed, Self::Preparing | Self::Settled | Self::Voided)
+                | (Self::Preparing, Self::Ready | Self::Settled | Self::Voided)
+                | (Self::Ready, Self::Served | Self::Settled | Self::Voided)
                 | (Self::Served, Self::Settled | Self::Voided)
                 | (Self::Settled, Self::Refunded)
         )
@@ -83,13 +83,21 @@ mod tests {
         assert!(OrderStatus::Served.can_transition_to(&OrderStatus::Settled));
         assert!(OrderStatus::Settled.can_transition_to(&OrderStatus::Refunded));
         assert!(OrderStatus::Confirmed.can_transition_to(&OrderStatus::Voided));
+        assert!(OrderStatus::Draft.can_transition_to(&OrderStatus::Voided));
+        // A guest may pay at any point before the order is settled.
+        assert!(OrderStatus::Confirmed.can_transition_to(&OrderStatus::Settled));
+        assert!(OrderStatus::Preparing.can_transition_to(&OrderStatus::Settled));
+        assert!(OrderStatus::Ready.can_transition_to(&OrderStatus::Settled));
     }
 
     #[test]
     fn test_invalid_transitions() {
         assert!(!OrderStatus::Draft.can_transition_to(&OrderStatus::Ready));
+        assert!(!OrderStatus::Draft.can_transition_to(&OrderStatus::Settled));
         assert!(!OrderStatus::Settled.can_transition_to(&OrderStatus::Draft));
+        assert!(!OrderStatus::Settled.can_transition_to(&OrderStatus::Voided));
         assert!(!OrderStatus::Voided.can_transition_to(&OrderStatus::Draft));
+        assert!(!OrderStatus::Refunded.can_transition_to(&OrderStatus::Settled));
     }
 
     #[test]
