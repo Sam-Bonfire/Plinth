@@ -1,16 +1,29 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
+import type { PlinthApiClient } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
+import { AuthContext } from "../providers/AuthProvider.js";
 import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  tenantId: "t1",
+  locationId: "l1",
+  login: async () => {},
+  logout: () => {},
+  client: { ingestAudit: async () => {} } as unknown as PlinthApiClient,
+};
 
 function renderPage(): void {
   render(
-    <PlinthThemeProvider>
-      <App>
-        <StaffPage />
-      </App>
-    </PlinthThemeProvider>,
+    <AuthContext.Provider value={mockAuthContext}>
+      <PlinthThemeProvider>
+        <App>
+          <StaffPage />
+        </App>
+      </PlinthThemeProvider>
+    </AuthContext.Provider>,
   );
 }
 
@@ -70,13 +83,14 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Role permissions saved.")).toBeDefined();
   }, 60000);
 
-  it("queues the matrix for terminal sync", async () => {
+  it("flushes the matrix to terminals and empties the queue", async () => {
     localStorage.clear();
     renderPage();
     await screen.findByText("Rajesh K");
     fireEvent.click(screen.getByRole("tab", { name: "Permissions" }));
     fireEvent.click(await screen.findByRole("button", { name: "Sync to Terminals" }));
-    expect(await screen.findByText(/queued for terminal sync \(1 pending\)/)).toBeDefined();
+    expect(await screen.findByText("Matrix synced to terminals.")).toBeDefined();
+    expect(localStorage.getItem("plinth-terminal-sync-queue")).toBe("[]");
     localStorage.clear();
   }, 60000);
 

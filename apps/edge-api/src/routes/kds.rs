@@ -53,6 +53,24 @@ struct RawTicketRow {
     items_json: Option<String>,
 }
 
+impl RawTicketRow {
+    /// Names the first timestamp that does not parse, so read routes can
+    /// answer 400 instead of surfacing an invented or missing date.
+    fn invalid_timestamp(&self) -> Option<&'static str> {
+        let parses = |s: &str| DateTime::parse_from_rfc3339(s).is_ok();
+        if !parses(&self.created_at) {
+            return Some("created_at");
+        }
+        if self.bumped_at.as_deref().is_some_and(|s| !parses(s)) {
+            return Some("bumped_at");
+        }
+        if self.cancelled_at.as_deref().is_some_and(|s| !parses(s)) {
+            return Some("cancelled_at");
+        }
+        None
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct RawLineItemJson {
     line_item_id: String,
@@ -125,22 +143,23 @@ impl TryFrom<RawTicketRow> for KitchenTicket {
         };
 
         let created_at = DateTime::parse_from_rfc3339(&row.created_at)
-            .map_or_else(
-                |_| Utc::now(),
-                |dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc),
-            );
+            .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
+            .map_err(|_| Error::RustError("Invalid ticket created_at".into()))?;
 
-        let bumped_at = row.bumped_at.and_then(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
-        });
+        // A stored timestamp that no longer parses is a data bug, not "now":
+        // inventing a timestamp hides clock skew behind a plausible SLA.
+        let parse_optional = |raw: Option<String>| -> Result<Option<DateTime<Utc>>> {
+            match raw {
+                None => Ok(None),
+                Some(s) => DateTime::parse_from_rfc3339(&s)
+                    .map(|dt: DateTime<chrono::FixedOffset>| Some(dt.with_timezone(&Utc)))
+                    .map_err(|_| Error::RustError("Invalid ticket timestamp".into())),
+            }
+        };
 
-        let cancelled_at = row.cancelled_at.and_then(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
-        });
+        let bumped_at = parse_optional(row.bumped_at)?;
+
+        let cancelled_at = parse_optional(row.cancelled_at)?;
 
         let bumped_by = row
             .bumped_by
@@ -267,6 +286,14 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
     let mut ticket_dtos = Vec::with_capacity(rows.len());
 
     for row in rows {
+        if let Some(field) = row.invalid_timestamp() {
+            return crate::router::json_error(
+                format!("Ticket has an invalid {field} timestamp"),
+                "INVALID_DATA",
+                &crate::router::get_request_id(&req),
+                400,
+            );
+        }
         let ticket = KitchenTicket::try_from(row)?;
         let sla_status = ticket.sla_status(now);
         ticket_dtos.push(KitchenTicketDto { ticket, sla_status });
@@ -526,6 +553,44 @@ mod tests {
 
         apply_action(&mut ticket, TicketAction::Bump, Some(StaffMemberId::new())).unwrap();
         assert_eq!(ticket.status, KitchenTicketStatus::Bumped);
+        assert!(ticket.bumped_at.is_some());
+    }
+
+    #[test]
+    fn test_bad_ticket_timestamps_fail_closed() {
+        let row = |created_at: &str, bumped_at: Option<&str>| RawTicketRow {
+            id: uuid::Uuid::now_v7().to_string(),
+            order_id: uuid::Uuid::now_v7().to_string(),
+            tenant_id: uuid::Uuid::now_v7().to_string(),
+            location_id: uuid::Uuid::now_v7().to_string(),
+            station: "Grill".to_string(),
+            kot_number: 1,
+            status: "Pending".to_string(),
+            sla_warning_sec: 300,
+            sla_late_sec: 600,
+            created_at: created_at.to_string(),
+            bumped_at: bumped_at.map(ToString::to_string),
+            bumped_by: None,
+            cancelled_at: None,
+            cancellation_reason: None,
+            items_json: None,
+        };
+
+        // A garbage created_at is reported, never replaced with "now".
+        let bad_created = row("not-a-date", None);
+        assert_eq!(bad_created.invalid_timestamp(), Some("created_at"));
+        assert!(KitchenTicket::try_from(bad_created).is_err());
+
+        // A row whose bumped_at no longer parses is rejected too.
+        let bad_bump = row("2026-10-27T10:00:00Z", Some("yesterday"));
+        assert_eq!(bad_bump.invalid_timestamp(), Some("bumped_at"));
+        assert!(KitchenTicket::try_from(bad_bump).is_err());
+
+        // A well-formed row carries through untouched.
+        let good = row("2026-10-27T10:00:00Z", Some("2026-10-27T10:05:00Z"));
+        assert_eq!(good.invalid_timestamp(), None);
+        let ticket = KitchenTicket::try_from(good).unwrap();
+        assert_eq!(ticket.created_at.to_rfc3339(), "2026-10-27T10:00:00+00:00");
         assert!(ticket.bumped_at.is_some());
     }
 

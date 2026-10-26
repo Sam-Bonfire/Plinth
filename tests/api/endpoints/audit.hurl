@@ -57,6 +57,35 @@ Content-Type: application/json
 }
 HTTP 401
 
+# Positive: Flush target for the terminal role-matrix sync queue
+# The dashboard flushes queued ops to this endpoint; proving the contract here
+# proves the flush has somewhere real to deliver and can empty its queue.
+POST {{base_url}}/api/v1/audit
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "action": "ROLE_MATRIX_SYNC",
+  "target_type": "role-matrix",
+  "target_id": "terminal-sync",
+  "payload_json": "{\"Apply discounts\":{\"Owner\":true,\"Manager\":true,\"Cashier\":false,\"Kitchen\":false}}",
+  "is_anomaly": false
+}
+HTTP 200
+[Asserts]
+jsonpath "$.success" == true
+
+# The flushed op is readable back from the audit trail
+GET {{base_url}}/api/v1/audit?limit=10
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$.events[?(@.action == 'ROLE_MATRIX_SYNC')]" isCollection
+jsonpath "$.events[?(@.action == 'ROLE_MATRIX_SYNC')].target_type" includes "role-matrix"
+
 # Positive: List audit events with explicit limit bound
 GET {{base_url}}/api/v1/audit?limit=2
 Authorization: Bearer {{token}}
