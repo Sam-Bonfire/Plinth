@@ -14,7 +14,6 @@ pub fn money(value: i64) -> worker::wasm_bindgen::JsValue {
     let bound = value as f64;
     bound.into()
 }
-
 pub mod migrations;
 pub mod session;
 

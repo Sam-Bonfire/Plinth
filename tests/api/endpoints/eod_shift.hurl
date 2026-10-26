@@ -74,7 +74,7 @@ Content-Type: application/json
 {}
 HTTP 400
 [Asserts]
-header "Content-Type" contains "Invalid"
+jsonpath "$.error" contains "Invalid"
 
 # Negative: Wrong tenant isolation (non-existent/mismatched UUID)
 POST {{base_url}}/api/v1/eod/close
