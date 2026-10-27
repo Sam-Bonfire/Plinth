@@ -15,10 +15,6 @@ pub use durable_objects::sync_room::LocationSyncRoom;
 use worker::{event, Request, Env, Result, Response, Method};
 use router::{build_router, apply_cors, json_error, get_request_id};
 use core_domain::enums::staff::Permissions;
-use std::sync::OnceLock;
-
-static RATE_LIMITER: OnceLock<middleware::rate_limit::RateLimiter> = OnceLock::new();
-
 /// Cloudflare Worker entry point
 ///
 /// # Errors
@@ -29,28 +25,47 @@ pub async fn fetch(
     env: Env,
     _ctx: worker::Context,
 ) -> Result<Response> {
+    let allowed_origins = env.var("ALLOWED_ORIGINS").map(|v| v.to_string()).ok();
+
     // Handle CORS preflight requests
     if req.method() == Method::Options {
-        return apply_cors(Response::empty()?);
+        return apply_cors(Response::empty()?, allowed_origins.as_deref());
     }
 
     let request_id = get_request_id(&req);
 
     let path = req.path();
 
-    if path.starts_with("/api/v1/auth")
-        || path.starts_with("/api/v1/public")
-        || path.starts_with("/api/v1/customer-auth")
+    if path.starts_with("/api/v1/auth/login")
+        || path.starts_with("/api/v1/customer-auth/login")
+        || path.starts_with("/api/v1/webhooks")
+        || path.starts_with("/api/v1/marketing/leads")
     {
-        let limiter = RATE_LIMITER.get_or_init(|| middleware::rate_limit::RateLimiter::new(100, 60));
+        let limiter = middleware::rate_limit::RateLimiter::new(100, 60);
 
         let ip = req.headers().get("cf-connecting-ip").ok().flatten().unwrap_or_else(|| "unknown".to_string());
 
         let now_secs = worker::Date::now().as_millis() / 1000;
 
-        if !limiter.allow(&ip, now_secs) {
-            let err_resp = json_error("Too Many Requests", "RATE_LIMITED", &request_id, 429)?;
-            return apply_cors(err_resp);
+        // Fail open if the D1 rate limiter database is unreachable.
+        // This ensures legitimate users can still log in and use the system even if the
+        // rate limiting infrastructure is temporarily degraded.
+        if let Ok(db) = env.d1("CELLAR_DB") {
+            let family = if path.starts_with("/api/v1/auth/login") || path.starts_with("/api/v1/customer-auth/login") {
+                "login"
+            } else if path.starts_with("/api/v1/webhooks") {
+                "webhooks"
+            } else {
+                "leads"
+            };
+            let key = format!("{family}:{ip}");
+
+            if let Ok(allowed) = limiter.allow(&db, &key, now_secs).await {
+                if !allowed {
+                    let err_resp = json_error("Too Many Requests", "RATE_LIMITED", &request_id, 429)?;
+                    return apply_cors(err_resp, allowed_origins.as_deref());
+                }
+            }
         }
     }
 
@@ -79,7 +94,7 @@ pub async fn fetch(
         };
         if secret.is_empty() {
             let err_resp = json_error("JWT secret not configured", "INTERNAL_ERROR", &request_id, 500)?;
-            return apply_cors(err_resp);
+            return apply_cors(err_resp, allowed_origins.as_deref());
         }
 
         // This is a global minimum requirement for /api/v1
@@ -94,7 +109,7 @@ pub async fn fetch(
                 let status = if is_forbidden { 403 } else { 401 };
                 let code = if is_forbidden { "FORBIDDEN" } else { "UNAUTHORIZED" };
                 let err_resp = json_error(e, code, &request_id, status)?;
-                return apply_cors(err_resp);
+                return apply_cors(err_resp, allowed_origins.as_deref());
             }
         }
     }
@@ -119,7 +134,7 @@ pub async fn fetch(
         resp.headers_mut().set("x-request-id", &request_id)?;
     }
 
-    apply_cors(resp)
+    apply_cors(resp, allowed_origins.as_deref())
 }
 
 #[cfg(test)]
@@ -322,7 +337,7 @@ mod wasm_tests {
         // Unfortunately, worker-rs Request/Response aren't fully mockable without Env
         // but we can check if apply_cors works on a basic response.
         let resp = Response::empty().unwrap();
-        let cors_resp = apply_cors(resp).unwrap();
+        let cors_resp = apply_cors(resp, None).unwrap();
         assert!(cors_resp.headers().has("Access-Control-Allow-Origin").unwrap());
     }
 

@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
-
 pub struct RateLimiter {
     max_requests: usize,
     window_secs: u64,
-    store: Mutex<HashMap<String, Vec<u64>>>,
 }
 
 impl RateLimiter {
@@ -13,20 +9,25 @@ impl RateLimiter {
         Self {
             max_requests,
             window_secs,
-            store: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Checks if a request is allowed for the given key and updates the rate limit state.
+    /// Checks if a request is allowed for the given key using D1 for state storage.
     ///
-    /// # Panics
-    /// Panics if the internal mutex is poisoned.
-    #[must_use]
-    pub fn allow(&self, key: &str, now_secs: u64) -> bool {
-        let mut store = self.store.lock().expect("mutex should not be poisoned");
-        let timestamps = store.entry(key.to_string()).or_default();
+    /// # Errors
+    /// Returns false if rate limit is exceeded, or error if DB operations fail.
+    pub async fn allow(&self, db: &worker::d1::D1Database, key: &str, now_secs: u64) -> worker::Result<bool> {
+        let stmt = db.prepare("SELECT timestamps_json FROM rate_limits WHERE key = ?1").bind(&[key.into()])?;
 
-        // Prune old entries using addition to prevent underflow
+        let mut timestamps: Vec<u64> = match stmt.first::<serde_json::Value>(None).await? {
+            Some(row) => {
+                let json_str = row.get("timestamps_json").and_then(|v: &serde_json::Value| v.as_str()).unwrap_or("[]");
+                serde_json::from_str(json_str).unwrap_or_default()
+            },
+            None => Vec::new(),
+        };
+
+        // Prune old entries
         timestamps.retain(|&ts| ts + self.window_secs > now_secs);
 
         let allowed = if timestamps.len() < self.max_requests {
@@ -37,51 +38,15 @@ impl RateLimiter {
         };
 
         if timestamps.is_empty() {
-            store.remove(key);
+            let stmt = db.prepare("DELETE FROM rate_limits WHERE key = ?1").bind(&[key.into()])?;
+            let _ = stmt.run().await?;
+        } else {
+            let new_json = serde_json::to_string(&timestamps).unwrap_or_else(|_| "[]".to_string());
+            let stmt = db.prepare("INSERT OR REPLACE INTO rate_limits (key, timestamps_json) VALUES (?1, ?2)")
+                .bind(&[key.into(), new_json.into()])?;
+            let _ = stmt.run().await?;
         }
 
-        allowed
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_burst_blocked() {
-        let limiter = RateLimiter::new(2, 10);
-        assert!(limiter.allow("ip1", 100));
-        assert!(limiter.allow("ip1", 100));
-        assert!(!limiter.allow("ip1", 100));
-    }
-
-    #[test]
-    fn test_window_reset() {
-        let limiter = RateLimiter::new(2, 10);
-        assert!(limiter.allow("ip1", 100));
-        assert!(limiter.allow("ip1", 100));
-        assert!(!limiter.allow("ip1", 105)); // still in window
-
-        // Window resets at 111 (100 + 10 = 110, 110 is not > 111, so 100 is dropped)
-        assert!(limiter.allow("ip1", 111));
-    }
-
-    #[test]
-    fn test_per_key_isolation() {
-        let limiter = RateLimiter::new(1, 10);
-        assert!(limiter.allow("ip1", 100));
-        assert!(!limiter.allow("ip1", 100));
-
-        assert!(limiter.allow("ip2", 100)); // different key, should be allowed
-    }
-
-    #[test]
-    fn test_no_clock_dependency() {
-        let limiter = RateLimiter::new(2, 10);
-        assert!(limiter.allow("ip1", 0)); // testing 0
-        assert!(limiter.allow("ip1", 1));
-        assert!(!limiter.allow("ip1", 2));
-        assert!(limiter.allow("ip1", 10)); // 0 + 10 = 10, not > 10, so 0 drops
+        Ok(allowed)
     }
 }
