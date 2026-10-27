@@ -5,7 +5,8 @@
 -- Canonical ids for hurl runs (export as needed):
 --   tenant_id   = 00000000-0000-0000-0000-000000000001
 --   location_id = 00000000-0000-0000-0000-000000000002
---   staff Owner   = 00000000-0000-0000-0000-000000000003 (permissions 1023)
+
+--   staff Owner   = 00000000-0000-0000-0000-000000000003 (permissions 5119)
 --   staff Cashier = 00000000-0000-0000-0000-000000000004 (permissions 513)
 --   staff Waiter  = 00000000-0000-0000-0000-000000000005 (permissions 1)
 --   menu item     = 00000000-0000-0000-0000-000000000010 (Paneer Tikka, 32000 minor)
@@ -18,7 +19,7 @@ VALUES ('00000000-0000-0000-0000-000000000001', 'plinth-dev', 'Plinth Dev', '202
 -- Argon2id hash of "1234" with a fixed dev salt. Dev simulator only.
 INSERT OR IGNORE INTO staff_members (id, tenant_id, location_id, name, role, permissions, pin_hash, is_active, created_at, updated_at, deleted_at)
 VALUES
-  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Owner', 'Owner', 1023, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL),
+  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Owner', 'Owner', 5119, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL),
   ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Cashier', 'Cashier', 513, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL),
   ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Waiter', 'Waiter', 1, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL);
 
@@ -34,7 +35,6 @@ VALUES ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-0000000
 -- Webhook endpoint for aggregator ingestion contract tests (secret: dev-webhook-secret).
 INSERT OR IGNORE INTO webhook_endpoints (id, tenant_id, url, events_json, secret, is_active, created_at)
 VALUES ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000001', 'http://localhost:8787/webhooks/swiggy', '["order.created"]', 'dev-webhook-secret', 1, '2026-01-01T00:00:00Z');
-
 -- Stock items and the Paneer Tikka recipe. OR REPLACE so a reseed restores the
 -- quantities the contract tests assert on. Paneer sits at 10.000 kg with a
 -- 9.900 reorder level so a single Paneer Tikka (0.200 kg + 10% wastage) crosses

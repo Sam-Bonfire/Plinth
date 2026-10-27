@@ -46,7 +46,7 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 /// # Errors
 /// Returns error if validation fails
 pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::MANAGE_MESS) {
         Ok(tenant_ctx) => tenant_ctx,
         Err(rejection) => return Ok(rejection),
     };
@@ -101,7 +101,7 @@ pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Respons
 /// # Errors
 /// Returns error if validation fails
 pub async fn pay<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::MANAGE_MESS) {
         Ok(tenant_ctx) => tenant_ctx,
         Err(rejection) => return Ok(rejection),
     };

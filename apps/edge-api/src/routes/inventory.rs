@@ -193,7 +193,7 @@ pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Resp
 /// Returns an error if database updates fail, JSON parsing fails, or context is invalid.
 #[allow(clippy::too_many_lines)]
 pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
-    let tenant_ctx = match crate::auth::authorize(&req, &ctx, core_domain::enums::staff::Permissions::empty()) {
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, core_domain::enums::staff::Permissions::MANAGE_INVENTORY) {
         Ok(tenant_ctx) => tenant_ctx,
         Err(rejection) => return Ok(rejection),
     };

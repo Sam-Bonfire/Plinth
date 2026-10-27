@@ -6,6 +6,7 @@ pub mod db;
 pub mod router;
 pub mod context;
 pub mod auth;
+pub mod lockout;
 pub mod dto;
 pub mod durable_objects;
 
@@ -155,6 +156,7 @@ mod tests {
             location_id: location_id.clone(),
             roles: vec!["Manager".to_string()],
             permissions: Permissions::TAKE_ORDER.bits(),
+            token_type: "staff".to_string(),
         };
 
         let token = create_test_token(&claims, secret);
@@ -187,6 +189,7 @@ mod tests {
             location_id: location_id.clone(),
             roles: vec!["Manager".to_string()],
             permissions: Permissions::TAKE_ORDER.bits(),
+            token_type: "staff".to_string(),
         };
 
         let token = create_test_token(&claims, secret);
@@ -219,6 +222,7 @@ mod tests {
             location_id: location_id.clone(),
             roles: vec!["Manager".to_string()],
             permissions: Permissions::TAKE_ORDER.bits(),
+            token_type: "staff".to_string(),
         };
 
         let token = create_test_token(&claims, secret);
@@ -250,6 +254,7 @@ mod tests {
             location_id: location_id.clone(),
             roles: vec!["Manager".to_string()],
             permissions: Permissions::TAKE_ORDER.bits(),
+            token_type: "staff".to_string(),
         };
 
         let token = create_test_token(&claims, secret);
@@ -281,6 +286,7 @@ mod tests {
             location_id: location_id.clone(),
             roles: vec!["Cashier".to_string()],
             permissions: Permissions::TAKE_ORDER.bits(),
+            token_type: "staff".to_string(),
         };
 
         let token = create_test_token(&claims, secret);
