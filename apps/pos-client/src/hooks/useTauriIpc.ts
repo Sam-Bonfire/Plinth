@@ -65,6 +65,7 @@ export interface ReceiptLineItem {
 }
 
 export interface PrintReceiptDocRequest {
+  target_address: string;
   header: string[];
   lines: ReceiptLineItem[];
   footer: string[];
@@ -182,6 +183,12 @@ export interface KitchenTicket {
   bumped_by: string | null;
 }
 
+export interface QueueState {
+  queued_count: number;
+  failed_count: number;
+  last_error: string | null;
+}
+
 interface UseTauriIpcReturn {
   isLoading: boolean;
   error: Error | null;
@@ -195,9 +202,10 @@ interface UseTauriIpcReturn {
   authenticatePin: (req: AuthenticatePinRequest) => Promise<AuthenticatePinResponse>;
   recordAuditEvent: (req: RecordAuditEventRequest) => Promise<void>;
   getSyncStatus: () => Promise<SyncStatusResponse>;
-  printReceipt: (payload: number[]) => Promise<string>;
+  printReceipt: (target_address: string, payload: number[]) => Promise<string>;
   printReceiptDoc: (req: PrintReceiptDocRequest) => Promise<string>;
-  printQueueDepth: () => Promise<number>;
+  getPrintQueueState: () => Promise<QueueState>;
+  reprintFailedJob: (job_id: string) => Promise<void>;
 }
 
 export function useTauriIpc(): UseTauriIpcReturn {
@@ -234,8 +242,9 @@ export function useTauriIpc(): UseTauriIpcReturn {
     authenticatePin: (req: AuthenticatePinRequest) => callInvoke<AuthenticatePinResponse>('authenticate_pin', { req }),
     recordAuditEvent: (req: RecordAuditEventRequest) => callInvoke<void>('record_audit_event', { req }),
     getSyncStatus: () => callInvoke<SyncStatusResponse>('get_sync_status'),
-    printReceipt: (payload: number[]) => callInvoke<string>('print_receipt', { payload }),
+    printReceipt: (target_address: string, payload: number[]) => callInvoke<string>('print_receipt', { target_address, payload }),
     printReceiptDoc: (req: PrintReceiptDocRequest) => callInvoke<string>('print_receipt_doc', { ...req }),
-    printQueueDepth: () => callInvoke<number>('print_queue_depth'),
+    getPrintQueueState: () => callInvoke<QueueState>('get_print_queue_state'),
+    reprintFailedJob: (job_id: string) => callInvoke<void>('reprint_failed_job', { job_id }),
   };
 }

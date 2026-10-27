@@ -14,7 +14,8 @@ pub mod window;
 pub mod backup;
 
 use crate::state::AppContext;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 /// Launches the Tauri POS application.
@@ -23,20 +24,30 @@ use tokio_util::sync::CancellationToken;
 ///
 /// Panics if the Tauri runtime fails to initialize or encounter fatal context generation errors.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(clippy::clone_on_ref_ptr)]
 pub fn run() {
+    let spooler = Arc::new(Mutex::new(printing::spooler::Spooler::new()));
+    let dispatcher = Arc::new(printing::tcp_dispatcher::TcpDispatcher::new(
+        Duration::from_secs(2),
+        Duration::from_secs(2),
+        3,
+        Duration::from_millis(500),
+    ));
+
     tauri::Builder::default()
         .manage(AppContext::default())
         .manage(Mutex::new(lock_daemon::IdleTracker::new(0, 0)))
         .manage(Mutex::new(diag_log::DiagLog::new(1000)))
-        .manage(std::sync::Mutex::new(window::WindowMachine::new()))
-        .manage(std::sync::Mutex::new(printing::spooler::Spooler::new()))
+        .manage(Mutex::new(window::WindowMachine::new()))
+        .manage(spooler.clone())
         .invoke_handler(tauri::generate_handler![
             lock_daemon::lock_report_activity,
             lock_daemon::lock_status,
             commands::orders::submit_order,
             commands::printing::print_receipt,
             commands::printing::print_receipt_doc,
-            commands::printing::print_queue_depth,
+            commands::printing::get_print_queue_state,
+            commands::printing::reprint_failed_job,
             commands::orders::get_active_orders,
             commands::orders::advance_order_status,
             commands::orders::void_order,
@@ -54,17 +65,16 @@ pub fn run() {
             window::toggle_fullscreen,
             backup::backup_now,
         ])
-        .setup(|_app| {
+        .setup(move |_app| {
             // Setup cancellation token for graceful shutdown of background services
-            let _shutdown_token = CancellationToken::new();
+            let shutdown_token = CancellationToken::new();
 
-            // Example of how to bootstrap the sync daemon:
-            // Since we need a concrete SyncQueueStore implementation, we would initialize
-            // the local SQLite store here and pass it down.
-            // For now, this wire-up fulfills the bootstrap lifecycle hook request.
-            // let store = Arc::new(MySqliteSyncQueueStore::new(...));
-            // let config = sync_daemon::outbound::OutboundSyncConfig { ... };
-            // tokio::spawn(sync_daemon::daemon::start_sync_daemon(store, config, shutdown_token.clone()));
+            // Spawn print daemon
+            tokio::spawn(printing::daemon::start_print_daemon(
+                spooler,
+                dispatcher,
+                shutdown_token.clone(),
+            ));
 
             Ok(())
         })

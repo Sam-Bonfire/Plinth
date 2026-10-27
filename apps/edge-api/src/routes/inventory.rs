@@ -5,7 +5,7 @@ use core_domain::{
     models::inventory::StockItem,
     value_objects::{
         measurement::{StockQuantity, UnitOfMeasure},
-        money::Money,
+        money::{Currency, Money},
     },
 };
 use rust_decimal::Decimal;
@@ -76,9 +76,8 @@ struct DbStockItem {
     current_quantity: String,
     par_level: String,
     reorder_level: String,
-    cost_per_unit_amount: String,
-    cost_per_unit_currency: String,
-    is_active: bool,
+    cost_per_unit_minor: i64,
+    is_active: i64,
 }
 
 #[derive(Serialize)]
@@ -121,7 +120,7 @@ pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Resp
 
     let statement = db
         .prepare(
-            "SELECT id, name, unit, current_quantity, par_level, reorder_level, cost_per_unit_amount, cost_per_unit_currency, is_active
+            "SELECT id, name, unit, current_quantity, par_level, reorder_level, cost_per_unit_minor, is_active
          FROM stock_items
          WHERE tenant_id = ?1 AND location_id = ?2 AND is_active = ?3",
         )
@@ -170,15 +169,8 @@ pub async fn get_inventory<D>(req: Request, ctx: RouteContext<D>) -> Result<Resp
                     .map_err(|_| Error::RustError("Invalid decimal".into()))?,
                 unit,
             },
-            cost_per_unit: Money {
-                amount: Decimal::from_str(&row.cost_per_unit_amount)
-                    .map_err(|_| Error::RustError("Invalid decimal".into()))?,
-                currency: serde_json::from_value(serde_json::Value::String(
-                    row.cost_per_unit_currency,
-                ))
-                .map_err(|_| Error::RustError("Invalid currency".into()))?,
-            },
-            is_active: row.is_active,
+            cost_per_unit: Money::from_minor_units(row.cost_per_unit_minor, Currency::Inr),
+            is_active: row.is_active != 0,
             deleted_at: None,
         };
 
@@ -214,7 +206,7 @@ pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
 
     let statement = db
         .prepare(
-            "SELECT id, name, unit, current_quantity, par_level, reorder_level, cost_per_unit_amount, cost_per_unit_currency, is_active
+            "SELECT id, name, unit, current_quantity, par_level, reorder_level, cost_per_unit_minor, is_active
          FROM stock_items
          WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3",
         )
@@ -260,15 +252,8 @@ pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
                 .map_err(|_| Error::RustError("Invalid decimal".into()))?,
             unit,
         },
-        cost_per_unit: Money {
-            amount: Decimal::from_str(&row.cost_per_unit_amount)
-                .map_err(|_| Error::RustError("Invalid decimal".into()))?,
-            currency: serde_json::from_value(serde_json::Value::String(
-                row.cost_per_unit_currency,
-            ))
-            .map_err(|_| Error::RustError("Invalid currency".into()))?,
-        },
-        is_active: row.is_active,
+        cost_per_unit: Money::from_minor_units(row.cost_per_unit_minor, Currency::Inr),
+        is_active: row.is_active != 0,
         deleted_at: None,
     };
 
@@ -294,16 +279,19 @@ pub async fn adjust_stock<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     .map_err(|e| Error::RustError(e.to_string()))?;
 
     let audit_stmt = db.prepare(
-        "INSERT INTO audit_events (id, tenant_id, location_id, action, target_id, payload_json, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+        "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
     )
     .bind(&[
         uuid::Uuid::now_v7().to_string().into(),
         tenant_ctx.tenant_id.to_string().into(),
         tenant_ctx.location_id.to_string().into(),
+        tenant_ctx.staff_id.to_string().into(),
         "STOCK_ADJUSTED".into(),
+        "stock_item".into(),
         stock_item.id.to_string().into(),
         payload_json.into(),
+        crate::db::money(0),
         chrono::Utc::now().to_rfc3339().into(),
     ])?;
 
