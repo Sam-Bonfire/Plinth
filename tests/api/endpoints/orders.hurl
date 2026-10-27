@@ -1,5 +1,6 @@
 # Endpoint: POST /api/v1/orders & GET /api/v1/orders
-# Verification: Order creation and listing with pagination
+# Verification: Order creation and listing with pagination, plus the inventory
+# deduction the submit performs. Needs `mise run db:seed:local` first.
 
 # Authenticate first
 POST {{base_url}}/api/v1/auth/login
@@ -59,6 +60,19 @@ jsonpath "$.data" isCollection
 jsonpath "$.page" == 1
 jsonpath "$.page_size" == 10
 jsonpath "$.total_records" isInteger
+
+# Positive: the submitted order deducted its recipe ingredient including wastage.
+# Paneer starts at 10.000 kg; one Paneer Tikka needs 0.200 kg + 10% wastage, so
+# 9.780 kg is left and the 9.900 reorder level is crossed.
+GET {{base_url}}/api/v1/inventory?below_reorder=true
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+HTTP 200
+[Asserts]
+jsonpath "$[?(@.id == '00000000-0000-0000-0000-000000000030')].name" == "Paneer"
+jsonpath "$[?(@.id == '00000000-0000-0000-0000-000000000030')].current_quantity" startsWith "9.78"
+jsonpath "$[?(@.id == '00000000-0000-0000-0000-000000000030')].is_below_reorder" == true
 
 # Negative: Create order with invalid payload
 POST {{base_url}}/api/v1/orders
