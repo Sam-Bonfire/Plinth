@@ -1,14 +1,18 @@
+import { PlinthApiClient } from '@plinth/ui-kit';
 import { Card, Flex, List, Tag, Typography, Steps } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { portalApi } from './api.js';
 import { inr } from './cart.js';
 import { loadOrders } from './session.js';
 
 const { Title, Text } = Typography;
 
-const apiBase = (): string => import.meta.env.VITE_API_BASE_URL || '';
+export interface OrdersProps {
+  client?: PlinthApiClient;
+}
 
-export const Orders = (): React.JSX.Element => {
+export const Orders = ({ client = portalApi }: OrdersProps = {}): React.JSX.Element => {
   const [orders] = useState(loadOrders);
   const [liveStatus, setLiveStatus] = useState<Record<string, string>>({});
 
@@ -31,9 +35,7 @@ export const Orders = (): React.JSX.Element => {
       const entries = await Promise.all(
         toFetch.map(async (o) => {
           try {
-            const res = await fetch(`${apiBase()}/api/v1/public/orders/${o.order_id}/status?tenant_id=${o.tenant_id}`);
-            if (!res.ok) return null;
-            const data = (await res.json()) as { status?: string };
+            const data = await client.getPublicOrderStatus(o.order_id, o.tenant_id);
             return typeof data.status === 'string' ? ([o.order_id, data.status] as const) : null;
           } catch {
             return null;
@@ -55,7 +57,7 @@ export const Orders = (): React.JSX.Element => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [orders, liveStatus]);
+  }, [client, orders, liveStatus]);
 
   if (orders.length === 0) {
     return (

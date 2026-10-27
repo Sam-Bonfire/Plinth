@@ -545,4 +545,207 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
       expect(apiErr.message).toBe("Cloudflare 502 Bad Gateway");
     }
   });
+
+  describe("Public Portal & Customer Auth Operations", () => {
+    it("fetches public tenants list from /api/v1/public/tenants", async () => {
+      const mockTenants = [
+        { id: "tenant-1", slug: "t-1", name: "Restaurant 1" },
+        { id: "tenant-2", slug: "t-2", name: "Restaurant 2" },
+      ];
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockTenants,
+        headers: new Headers(),
+      });
+
+      const res = await client.getPublicTenants();
+      expect(res).toEqual(mockTenants);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/public/tenants",
+        expect.objectContaining({ method: "GET" }),
+      );
+    });
+
+    it("fetches public menu with explicit tenant_id query param", async () => {
+      const mockCatalog = {
+        categories: [
+          {
+            id: "cat-1",
+            name: "Burgers",
+            items: [
+              {
+                id: "item-1",
+                name: "Classic",
+                description: "Beef burger",
+                price_minor: 1000,
+                is_veg: false,
+              },
+            ],
+          },
+        ],
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockCatalog,
+        headers: new Headers(),
+      });
+
+      const res = await client.getPublicMenu("tenant-custom");
+      expect(res).toEqual(mockCatalog);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/public/menu?tenant_id=tenant-custom",
+        expect.objectContaining({ method: "GET" }),
+      );
+    });
+
+    it("throws ApiError if getPublicMenu is called without tenant_id or config context", async () => {
+      const unconfiguredClient = new PlinthApiClient({ baseUrl: "https://api.plinth.local" });
+      await expect(unconfiguredClient.getPublicMenu()).rejects.toThrow(
+        "tenant_id is required to fetch public menu",
+      );
+    });
+
+    it("submits public order to /api/v1/public/orders", async () => {
+      const orderReq = {
+        tenant_id: "tenant-001",
+        location_id: "loc-99",
+        channel: "Takeaway",
+        customer_name: "Asha",
+        items: [
+          {
+            menu_item_id: "item-1",
+            name: "Classic",
+            unit_price_minor: 1000,
+            quantity: 2,
+          },
+        ],
+      };
+
+      const mockRes = {
+        success: true,
+        order_id: "ord-123",
+        ticket_id: "tkt-456",
+        total_minor: 2000,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: async () => mockRes,
+        headers: new Headers(),
+      });
+
+      const res = await client.createPublicOrder(orderReq);
+      expect(res).toEqual(mockRes);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/public/orders",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify(orderReq),
+        }),
+      );
+    });
+
+    it("fetches public order status with orderId and tenantId", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ order_id: "ord-123", status: "InKitchen" }),
+        headers: new Headers(),
+      });
+
+      const res = await client.getPublicOrderStatus("ord-123", "tenant-001");
+      expect(res).toEqual({ order_id: "ord-123", status: "InKitchen" });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/public/orders/ord-123/status?tenant_id=tenant-001",
+        expect.objectContaining({ method: "GET" }),
+      );
+    });
+
+    it("authenticates customer and normalizes profile response while updating client token", async () => {
+      const mockLoginResponse = {
+        token: "cust-jwt-token-abc",
+        customer: {
+          id: "cust-1",
+          tenant_id: "tenant-001",
+          location_id: "loc-99",
+          name: "Asha",
+          phone: "+919820012345",
+          email: null,
+          loyalty_points: 50,
+        },
+        expires_in: 2592000,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockLoginResponse,
+        headers: new Headers(),
+      });
+
+      const res = await client.customerLogin({
+        tenant_id: "tenant-001",
+        phone: "+919820012345",
+      });
+
+      expect(res.token).toBe("cust-jwt-token-abc");
+      expect(res.customer.name).toBe("Asha");
+      expect(res.customer.phone).toBe("+919820012345");
+
+      // Verify token was set on client
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: "ok" }),
+        headers: new Headers(),
+      });
+      await client.getHealth();
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer cust-jwt-token-abc",
+          }),
+        }),
+      );
+    });
+
+    it("registers new customer at /api/v1/customer-auth/register", async () => {
+      const regReq = {
+        tenant_id: "tenant-001",
+        location_id: "loc-99",
+        name: "Rahul",
+        phone: "+919811122233",
+        email: "rahul@example.com",
+      };
+
+      const mockCustomer = {
+        id: "cust-2",
+        ...regReq,
+        loyalty_points: 0,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: async () => mockCustomer,
+        headers: new Headers(),
+      });
+
+      const res = await client.customerRegister(regReq);
+      expect(res).toEqual(mockCustomer);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/customer-auth/register",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify(regReq),
+        }),
+      );
+    });
+  });
 });

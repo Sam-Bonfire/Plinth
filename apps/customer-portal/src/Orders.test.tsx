@@ -42,4 +42,22 @@ describe('Orders page', () => {
     expect(await screen.findByText('Preparing')).toBeDefined();
     localStorage.clear();
   });
+
+  it('accepts and polls using injected PlinthApiClient directly', async () => {
+    localStorage.clear();
+    saveOrder({ order_id: 'ORD-99', ticket_id: 'T-99', tenant_id: 't-1', total_minor: 1500, itemCount: 1, placedAt: new Date().toISOString() });
+    const mockClient = {
+      getPublicOrderStatus: vi.fn().mockResolvedValue({ order_id: 'ORD-99', status: 'Ready' }),
+    };
+
+    render(
+      <MemoryRouter>
+        <Orders client={mockClient as unknown as import('@plinth/ui-kit').PlinthApiClient} />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Ready')).toBeDefined();
+    expect(mockClient.getPublicOrderStatus).toHaveBeenCalledWith('ORD-99', 't-1');
+    localStorage.clear();
+  });
 });

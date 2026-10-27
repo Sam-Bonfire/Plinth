@@ -1,40 +1,33 @@
+import {
+  PlinthApiClient,
+  type PublicMenuCatalogResponseDto,
+  type PublicMenuCategoryDto,
+  type PublicMenuItemDto,
+  type PublicTenantDto,
+} from '@plinth/ui-kit';
 import { Alert, Button, Card, Empty, Flex, Segmented, Space, Spin, Tag, Typography, message } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { portalApi } from './api.js';
 import { addToCart, cartCount, cartTotal, inr, type Cart } from './cart.js';
 import { ConsentDrawer, type ConsentChoices } from './ConsentDrawer.js';
 import { LoginModal, type LoginSubmitData } from './LoginModal.js';
 import { loadConsent, loadCustomer, saveConsent, saveCustomer, saveOrder, type PortalCustomer } from './session.js';
 
+export type {
+  PublicTenantDto,
+  PublicMenuCatalogResponseDto,
+  PublicMenuItemDto,
+  PublicMenuCategoryDto,
+};
+
 const { Title, Text, Paragraph } = Typography;
 
-export interface PublicMenuItemDto {
-  id: string;
-  name: string;
-  description: string | null;
-  price_minor: number;
-  is_veg: boolean;
+export interface MenuProps {
+  client?: PlinthApiClient;
 }
 
-export interface PublicMenuCategoryDto {
-  id: string;
-  name: string;
-  items: PublicMenuItemDto[];
-}
-
-export interface PublicMenuCatalogResponseDto {
-  categories: PublicMenuCategoryDto[];
-}
-
-const apiBase = (): string => import.meta.env.VITE_API_BASE_URL || '';
-
-interface PublicTenantDto {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-export const Menu = (): React.JSX.Element => {
+export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element => {
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('tenant_id');
 
@@ -58,11 +51,7 @@ export const Menu = (): React.JSX.Element => {
 
       if (!tenantId) {
         try {
-          const res = await fetch(`${apiBase()}/api/v1/public/tenants`);
-          if (!res.ok) {
-            throw new Error('Failed to fetch tenants');
-          }
-          const data: PublicTenantDto[] = await res.json();
+          const data = await client.getPublicTenants();
           setTenants(data);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -73,13 +62,7 @@ export const Menu = (): React.JSX.Element => {
       }
 
       try {
-        const res = await fetch(`${apiBase()}/api/v1/public/menu?tenant_id=${tenantId}`);
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch menu');
-        }
-
-        const data: PublicMenuCatalogResponseDto = await res.json();
+        const data = await client.getPublicMenu(tenantId);
         setCatalog(data);
 
         if (data.categories.length > 0) {
@@ -93,7 +76,7 @@ export const Menu = (): React.JSX.Element => {
     };
 
     fetchCatalogOrTenants();
-  }, [tenantId]);
+  }, [client, tenantId]);
 
   const placeOrder = async (cust: PortalCustomer): Promise<void> => {
     if (!tenantId || cart.length === 0) return;
@@ -106,24 +89,18 @@ export const Menu = (): React.JSX.Element => {
     
     setPlacing(true);
     try {
-      const res = await fetch(`${apiBase()}/api/v1/public/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          location_id: locationId,
-          channel: 'Takeaway',
-          customer_name: cust.name,
-          items: cart.map((l) => ({
-            menu_item_id: l.id,
-            name: l.name,
-            unit_price_minor: l.price_minor,
-            quantity: l.qty,
-          })),
-        }),
+      const data = await client.createPublicOrder({
+        tenant_id: tenantId,
+        location_id: locationId,
+        channel: 'Takeaway',
+        customer_name: cust.name,
+        items: cart.map((l) => ({
+          menu_item_id: l.id,
+          name: l.name,
+          unit_price_minor: l.price_minor,
+          quantity: l.qty,
+        })),
       });
-      if (!res.ok) throw new Error('Order was rejected');
-      const data = (await res.json()) as { order_id: string; ticket_id: string; total_minor: number };
       saveOrder({
         order_id: data.order_id,
         ticket_id: data.ticket_id,
@@ -147,14 +124,8 @@ export const Menu = (): React.JSX.Element => {
     setLoginError(undefined);
     try {
       // Backend identifies customers by phone; PIN is a terminal-side secret and is never sent.
-      const res = await fetch(`${apiBase()}/api/v1/customer-auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: tenantId, phone: data.phone }),
-      });
-      if (!res.ok) throw new Error('Login failed - is this phone registered?');
-      const profile = (await res.json()) as { name: string; phone: string };
-      const cust: PortalCustomer = { name: profile.name, phone: profile.phone };
+      const res = await client.customerLogin({ tenant_id: tenantId, phone: data.phone });
+      const cust: PortalCustomer = { name: res.customer.name, phone: res.customer.phone };
       setCustomer(cust);
       saveCustomer(cust);
       
