@@ -28,3 +28,7 @@ INSERT OR IGNORE INTO menu_categories (id, tenant_id, location_id, name, display
 
 INSERT OR IGNORE INTO menu_items (id, tenant_id, location_id, primary_category_id, name, description, price_minor, tax_rate, is_veg, is_available, sku, kitchen_station, deleted_at)
 VALUES ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000009', 'Paneer Tikka', 'Dev seed item', 32000, 'FivePercent', 1, 1, 'SEED-010', 'Tandoor', NULL);
+
+-- Webhook endpoint for aggregator ingestion contract tests (secret: dev-webhook-secret).
+INSERT OR IGNORE INTO webhook_endpoints (id, tenant_id, url, events_json, secret, is_active, created_at)
+VALUES ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000001', 'http://localhost:8787/webhooks/swiggy', '["order.created"]', 'dev-webhook-secret', 1, '2026-01-01T00:00:00Z');
