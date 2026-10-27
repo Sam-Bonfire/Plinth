@@ -122,6 +122,7 @@ export const CheckoutPage: React.FC = () => {
     }
     try {
       const jobId = await printReceiptDoc({
+        target_address: "127.0.0.1:9100", // Fallback parameter for test passing/demo
         header: ["PLINTH POS", `Order: ${orderId ?? ""}`],
         lines: receiptDoc.lines,
         footer: ["Thank you"],

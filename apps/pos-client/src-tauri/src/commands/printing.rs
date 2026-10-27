@@ -1,10 +1,10 @@
 #![deny(unsafe_code)]
 
-use crate::printing::spooler::Spooler;
+use crate::printing::spooler::{QueueState, Spooler};
 use core_domain::services::esc_pos::{EscPosDoc, EscPosLine, receipt_bytes};
 use core_domain::value_objects::money::{Currency, Money};
 use serde::Deserialize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
@@ -18,18 +18,25 @@ fn now_ms() -> u64 {
 /// Enqueues a receipt payload for printing, returning the job id.
 ///
 /// # Errors
-/// Returns an error if the payload is empty.
+/// Returns an error if the payload is empty or target address is empty.
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
-pub fn print_receipt(spooler: State<'_, Mutex<Spooler>>, payload: Vec<u8>) -> Result<String, String> {
+pub fn print_receipt(
+    spooler: State<'_, Arc<Mutex<Spooler>>>,
+    target_address: String,
+    payload: Vec<u8>,
+) -> Result<String, String> {
     if payload.is_empty() {
         return Err("Receipt payload cannot be empty".to_string());
+    }
+    if target_address.is_empty() {
+        return Err("Target address cannot be empty".to_string());
     }
     let id = format!("print-{}", now_ms());
     spooler
         .lock()
         .map_err(|e| format!("Print queue unavailable: {e}"))?
-        .enqueue(id.clone(), payload, now_ms());
+        .enqueue(id.clone(), target_address, payload, now_ms());
     Ok(id)
 }
 
@@ -73,7 +80,8 @@ pub fn build_receipt_bytes(
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
 pub fn print_receipt_doc(
-    spooler: State<'_, Mutex<Spooler>>,
+    spooler: State<'_, Arc<Mutex<Spooler>>>,
+    target_address: String,
     header: Vec<String>,
     lines: Vec<ReceiptLineDto>,
     footer: Vec<String>,
@@ -82,26 +90,42 @@ pub fn print_receipt_doc(
     if lines.is_empty() {
         return Err("Receipt lines cannot be empty".to_string());
     }
+    if target_address.is_empty() {
+        return Err("Target address cannot be empty".to_string());
+    }
     let payload = build_receipt_bytes(&header, &lines, &footer, grand_total_minor);
     let id = format!("print-{}", now_ms());
     spooler
         .lock()
         .map_err(|e| format!("Print queue unavailable: {e}"))?
-        .enqueue(id.clone(), payload, now_ms());
+        .enqueue(id.clone(), target_address, payload, now_ms());
     Ok(id)
 }
 
-/// Returns the number of print jobs awaiting dispatch.
+/// Returns the print queue state.
 ///
 /// # Errors
 /// Returns an error if the queue lock is unavailable.
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
-pub fn print_queue_depth(spooler: State<'_, Mutex<Spooler>>) -> Result<usize, String> {
+pub fn get_print_queue_state(spooler: State<'_, Arc<Mutex<Spooler>>>) -> Result<QueueState, String> {
     spooler
         .lock()
-        .map(|s| s.pending_count())
+        .map(|s| s.get_queue_state())
         .map_err(|e| format!("Print queue unavailable: {e}"))
+}
+
+/// Reprints a failed job by moving it back to the queue.
+///
+/// # Errors
+/// Returns an error if the queue lock is unavailable or job not found.
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value, reason = "Tauri injects State by value")]
+pub fn reprint_failed_job(spooler: State<'_, Arc<Mutex<Spooler>>>, job_id: String) -> Result<(), String> {
+    spooler
+        .lock()
+        .map_err(|e| format!("Print queue unavailable: {e}"))?
+        .retry_job(&job_id, now_ms())
 }
 
 #[cfg(test)]
