@@ -4,14 +4,22 @@ use crate::dto::order::{
 };
 use core_domain::{
     enums::{order_status::OrderStatus, staff::Permissions},
-    ids::{AuditEventId, OrderId, OrderLineItemId},
-    models::order::{Order, OrderLineItem},
+    ids::{AuditEventId, MenuItemId, OrderId, OrderLineItemId, RecipeId, StockItemId},
+    models::{
+        inventory::{Recipe, RecipeIngredient},
+        order::{Order, OrderLineItem},
+    },
+    services::inventory_deduction::InventoryDeductionService,
     value_objects::{
+        measurement::{StockQuantity, UnitOfMeasure},
         money::{Currency, Money},
         tax::GstApplicability,
     },
 };
+use rust_decimal::Decimal;
+use std::collections::HashMap;
 use std::fmt::Write as _;
+use std::str::FromStr;
 use worker::{wasm_bindgen::JsValue, Request, Response, Result, RouteContext, Router};
 
 #[must_use]
@@ -20,6 +28,56 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
         .post_async("/api/v1/orders", create_order)
         .get_async("/api/v1/orders", list_orders)
         .get_async("/api/v1/orders/:id/status", get_order_status)
+}
+
+#[derive(serde::Deserialize)]
+struct RecipeRow {
+    id: String,
+    menu_item_id: String,
+    stock_item_id: String,
+    quantity: String,
+    unit: String,
+    wastage_percent: String,
+}
+
+/// Groups joined recipe/ingredient rows into one recipe per menu item.
+///
+/// # Errors
+/// Returns an error if a row carries a malformed identifier, unit or decimal.
+fn group_recipes(rows: Vec<RecipeRow>) -> std::result::Result<HashMap<MenuItemId, Recipe>, String> {
+    let mut recipes: HashMap<MenuItemId, Recipe> = HashMap::new();
+
+    for row in rows {
+        let menu_item_id = MenuItemId::from(
+            uuid::Uuid::parse_str(&row.menu_item_id).map_err(|e| e.to_string())?,
+        );
+        let unit: UnitOfMeasure = serde_json::from_value(serde_json::Value::String(row.unit))
+            .map_err(|e| e.to_string())?;
+
+        let ingredient = RecipeIngredient {
+            stock_item_id: StockItemId::from(
+                uuid::Uuid::parse_str(&row.stock_item_id).map_err(|e| e.to_string())?,
+            ),
+            quantity: StockQuantity {
+                value: Decimal::from_str(&row.quantity).map_err(|e| e.to_string())?,
+                unit,
+            },
+            wastage_percent: Decimal::from_str(&row.wastage_percent).map_err(|e| e.to_string())?,
+        };
+
+        recipes
+            .entry(menu_item_id)
+            .or_insert_with(|| Recipe {
+                id: RecipeId::from(uuid::Uuid::parse_str(&row.id).unwrap_or_default()),
+                menu_item_id,
+                ingredients: Vec::new(),
+                preparation_notes: None,
+            })
+            .ingredients
+            .push(ingredient);
+    }
+
+    Ok(recipes)
 }
 
 /// Ingests a new order into the database.
@@ -199,9 +257,86 @@ pub async fn create_order<D>(
             order_id.to_string().into(),
             JsValue::null(),
             crate::db::money(0),
-            created_at_str.into(),
+            created_at_str.clone().into(),
         ])?;
     batch.push(stmt_audit);
+
+    // Stock deductions ride in the same batch as the order, so an order never
+    // commits without its ingredient movements. Negative stock is allowed on
+    // purpose: a stale count must not stop service, and the item surfaces
+    // through below_reorder until someone recounts it.
+    let recipe_rows: Vec<RecipeRow> = db
+        .prepare(
+            "SELECT r.id, r.menu_item_id, ri.stock_item_id, ri.quantity, ri.unit, ri.wastage_percent
+             FROM recipes r JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+             WHERE r.tenant_id = ?1 AND r.location_id = ?2 AND r.deleted_at IS NULL",
+        )
+        .bind(&[tenant_id.to_string().into(), location_id.to_string().into()])?
+        .all()
+        .await?
+        .results()?;
+    let recipes = match group_recipes(recipe_rows) {
+        Ok(recipes) => recipes,
+        Err(e) => return crate::router::json_error(format!("Invalid recipe data: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+    };
+    let deductions = InventoryDeductionService::calculate_deductions(&order, &recipes);
+
+    for deduction in deductions {
+        let stock_id = deduction.stock_item_id.to_string();
+        let Some(row) = db
+            .prepare("SELECT current_quantity FROM stock_items WHERE id = ?1 AND tenant_id = ?2 AND location_id = ?3")
+            .bind(&[stock_id.clone().into(), tenant_id.to_string().into(), location_id.to_string().into()])?
+            .first::<serde_json::Value>(None)
+            .await?
+        else {
+            return crate::router::json_error(format!("Recipe references unknown stock item {stock_id}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
+        };
+        let old_qty_str = row.get("current_quantity").and_then(serde_json::Value::as_str).unwrap_or_default();
+        let old_qty = match Decimal::from_str(old_qty_str) {
+            Ok(q) => q,
+            Err(e) => return crate::router::json_error(format!("Invalid stock quantity: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        };
+        let new_qty = old_qty - deduction.quantity_to_deduct;
+
+        // shortcut: this compares the quantity we just read, so a concurrent
+        // write between the read and the batch makes the update a no-op instead
+        // of retrying. D1 serialises writers and one ingredient rarely moves
+        // twice in the same instant; upgrade to a retried transaction when the
+        // stock ledger grows beyond per-order deductions.
+        let stmt_stock = db
+            .prepare("UPDATE stock_items SET current_quantity = ?1 WHERE id = ?2 AND current_quantity = ?3")
+            .bind(&[
+                new_qty.to_string().into(),
+                stock_id.clone().into(),
+                old_qty_str.into(),
+            ])?;
+        batch.push(stmt_stock);
+
+        let payload = serde_json::json!({
+            "old_qty": old_qty.to_string(),
+            "new_qty": new_qty.to_string(),
+            "quantity_to_deduct": deduction.quantity_to_deduct.to_string(),
+            "order_id": order_id.to_string(),
+            "reason": deduction.reason,
+        });
+        let stmt_deducted = db
+            .prepare(
+                "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
+            )
+            .bind(&[
+                AuditEventId::new().to_string().into(),
+                tenant_id.to_string().into(),
+                location_id.to_string().into(),
+                staff_id.to_string().into(),
+                "STOCK_DEDUCTED".into(),
+                "stock_item".into(),
+                stock_id.into(),
+                payload.to_string().into(),
+                crate::db::money(0),
+                created_at_str.clone().into(),
+            ])?;
+        batch.push(stmt_deducted);
+    }
 
     if let Err(e) = db.batch(batch).await {
         return crate::router::json_error(format!("Database error: {e:?}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500);
@@ -536,4 +671,62 @@ mod tests {
         assert!(serialized.contains("Preparing"));
     }
 
+    #[test]
+    fn test_group_recipes_collects_ingredients_per_menu_item() {
+        let recipe_a = RecipeId::new();
+        let recipe_b = RecipeId::new();
+        let menu_item_a = MenuItemId::new();
+        let menu_item_b = MenuItemId::new();
+        let rows = vec![
+            RecipeRow {
+                id: recipe_a.to_string(),
+                menu_item_id: menu_item_a.to_string(),
+                stock_item_id: StockItemId::new().to_string(),
+                quantity: "0.200".to_string(),
+                unit: "Kilogram".to_string(),
+                wastage_percent: "10".to_string(),
+            },
+            RecipeRow {
+                id: recipe_a.to_string(),
+                menu_item_id: menu_item_a.to_string(),
+                stock_item_id: StockItemId::new().to_string(),
+                quantity: "2".to_string(),
+                unit: "Piece".to_string(),
+                wastage_percent: "0".to_string(),
+            },
+            RecipeRow {
+                id: recipe_b.to_string(),
+                menu_item_id: menu_item_b.to_string(),
+                stock_item_id: StockItemId::new().to_string(),
+                quantity: "0.050".to_string(),
+                unit: "Kilogram".to_string(),
+                wastage_percent: "0".to_string(),
+            },
+        ];
+
+        let recipes = group_recipes(rows).expect("rows are well formed");
+
+        assert_eq!(recipes.len(), 2);
+        assert_eq!(recipes[&menu_item_a].ingredients.len(), 2);
+        assert_eq!(recipes[&menu_item_a].id, recipe_a);
+        assert_eq!(
+            recipes[&menu_item_a].ingredients[0].wastage_percent,
+            Decimal::new(10, 0)
+        );
+        assert_eq!(recipes[&menu_item_b].ingredients.len(), 1);
+    }
+
+    #[test]
+    fn test_group_recipes_rejects_a_malformed_quantity() {
+        let rows = vec![RecipeRow {
+            id: RecipeId::new().to_string(),
+            menu_item_id: MenuItemId::new().to_string(),
+            stock_item_id: StockItemId::new().to_string(),
+            quantity: "not-a-number".to_string(),
+            unit: "Kilogram".to_string(),
+            wastage_percent: "0".to_string(),
+        }];
+
+        assert!(group_recipes(rows).is_err());
+    }
 }
