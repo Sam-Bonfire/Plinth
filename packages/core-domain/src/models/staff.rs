@@ -51,12 +51,6 @@ impl StaffMember {
     pub fn has_permission(&self, perm: Permissions) -> bool {
         self.permissions.contains(perm)
     }
-
-    /// Verifies the provided PIN against the stored hash
-    #[must_use]
-    pub fn verify_pin(&self, pin: &str) -> bool {
-        self.pin_hash == pin
-    }
 }
 
 #[cfg(test)]
@@ -79,8 +73,5 @@ mod tests {
         assert!(staff.has_permission(Permissions::TAKE_ORDER));
         assert!(staff.has_permission(Permissions::APPLY_DISCOUNT));
         assert!(!staff.has_permission(Permissions::MANAGE_STAFF));
-
-        assert!(staff.verify_pin("1234"));
-        assert!(!staff.verify_pin("0000"));
     }
 }

@@ -3,7 +3,7 @@ pub mod customers;
 /// Binds a minor-unit amount for D1.
 ///
 /// `i64::into(JsValue)` produces a JavaScript `bigint`, which D1 rejects with
-/// `D1_TYPE_ERROR`. A number is accepted, and SQLite's INTEGER affinity stores
+/// `D1_TYPE_ERROR`. A number is accepted, and `SQLite`'s INTEGER affinity stores
 /// an integral number back as INTEGER, so the column keeps its semantics.
 ///
 /// shortcut: amounts above 2^53 minor units lose precision; no restaurant

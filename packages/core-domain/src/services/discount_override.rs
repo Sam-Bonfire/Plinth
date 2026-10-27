@@ -54,13 +54,13 @@ fn requires_manager(discount: &Discount) -> bool {
 /// Returns [`OverrideError`] when any rule fails.
 pub fn authorize_override(
     approver: &StaffMember,
-    pin: &str,
+    is_pin_valid: bool,
     discount: Discount,
 ) -> Result<DiscountApproval, OverrideError> {
     if !approver.is_active {
         return Err(OverrideError::InactiveApprover);
     }
-    if !approver.verify_pin(pin) {
+    if !is_pin_valid {
         return Err(OverrideError::BadPin);
     }
     if !approver.has_permission(Permissions::APPLY_DISCOUNT) {
@@ -116,7 +116,7 @@ mod tests {
             "4321",
             true,
         );
-        let a = authorize_override(&m, "4321", pct(10)).unwrap();
+        let a = authorize_override(&m, true, pct(10)).unwrap();
         assert_eq!(a.approved_by, m.id);
     }
 
@@ -129,7 +129,7 @@ mod tests {
             true,
         );
         assert_eq!(
-            authorize_override(&m, "0000", pct(10)),
+            authorize_override(&m, false, pct(10)),
             Err(OverrideError::BadPin)
         );
     }
@@ -143,7 +143,7 @@ mod tests {
             false,
         );
         assert_eq!(
-            authorize_override(&m, "4321", pct(10)),
+            authorize_override(&m, true, pct(10)),
             Err(OverrideError::InactiveApprover)
         );
     }
@@ -152,7 +152,7 @@ mod tests {
     fn rejects_missing_permission() {
         let w = approver(StaffRole::Waiter, Permissions::empty(), "1111", true);
         assert_eq!(
-            authorize_override(&w, "1111", pct(5)),
+            authorize_override(&w, true, pct(5)),
             Err(OverrideError::Forbidden)
         );
     }
@@ -162,7 +162,7 @@ mod tests {
         let cashier_perms = Permissions::APPLY_DISCOUNT;
         let c = approver(StaffRole::Cashier, cashier_perms, "2222", true);
         assert_eq!(
-            authorize_override(&c, "2222", pct(50)),
+            authorize_override(&c, true, pct(50)),
             Err(OverrideError::ManagerRequired)
         );
         let m = approver(
@@ -171,7 +171,7 @@ mod tests {
             "4321",
             true,
         );
-        assert!(authorize_override(&m, "4321", pct(50)).is_ok());
+        assert!(authorize_override(&m, true, pct(50)).is_ok());
     }
 
     #[test]
@@ -185,6 +185,6 @@ mod tests {
             reason: DiscountReason::LoyaltyReward,
             authorized_by: None,
         };
-        assert!(authorize_override(&c, "2222", flat).is_ok());
+        assert!(authorize_override(&c, true, flat).is_ok());
     }
 }
