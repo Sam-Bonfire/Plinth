@@ -22,3 +22,4 @@ pub mod mess;
 pub mod health;
 pub mod leads;
 pub mod refunds;
+pub mod auth_tests;

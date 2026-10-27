@@ -1,4 +1,4 @@
-﻿-- Migration: 0011_auth_lockout.sql
+-- Migration: 0010_auth_lockout.sql
 -- Track authentication attempts to enforce lockouts
 
 CREATE TABLE IF NOT EXISTS auth_attempts (
