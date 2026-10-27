@@ -2,6 +2,7 @@ import { Typography } from "antd";
 import React from "react";
 import { createBrowserRouter, Link, Navigate, Outlet, useRouteError } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout.js";
+import { AuditLogPage } from "./pages/AuditLogPage.js";
 import { CustomersPage } from "./pages/CustomersPage.js";
 import { InventoryPage } from "./pages/InventoryPage.js";
 import { KitchenPage } from "./pages/KitchenPage.js";
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
           { path: "/inventory", element: <InventoryPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/staff", element: <StaffPage /> },
+          { path: "/audit", element: <AuditLogPage /> },
           { path: "/reports", element: <ReportsPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/onboarding", element: <OnboardingWizard /> },
@@ -64,7 +66,6 @@ export const router = createBrowserRouter([
           { path: "/recipes", element: <Navigate to="/inventory" replace /> },
           { path: "/vendors", element: <Navigate to="/inventory" replace /> },
           { path: "/floor", element: <Navigate to="/settings" replace /> },
-          { path: "/audit", element: <Navigate to="/staff" replace /> },
         ],
       },
     ],
