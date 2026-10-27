@@ -19,6 +19,26 @@ const isMatrix = (v: unknown): v is RoleMatrix => {
   );
 };
 
+const readQueue = (): SyncOp[] => {
+  try {
+    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SyncOp[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Persists the queue; storage failures fall back to the in-memory view. */
+const writeQueue = (queue: SyncOp[]): void => {
+  try {
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+  } catch {
+    // Storage unavailable: the queue only lives for this page load.
+  }
+};
+
 export const loadRoleMatrix = (fallback: RoleMatrix): RoleMatrix => {
   try {
     const raw = localStorage.getItem(MATRIX_KEY);
@@ -40,21 +60,26 @@ export const saveRoleMatrix = (matrix: RoleMatrix): void => {
 
 /** Queues the matrix for terminal sync; returns the queue depth after enqueue. */
 export const queueTerminalSync = (matrix: RoleMatrix): number => {
-  let queue: SyncOp[] = [];
-  try {
-    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
-    if (raw !== null) {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed)) queue = parsed as SyncOp[];
-    }
-  } catch {
-    queue = [];
-  }
+  const queue = readQueue();
   queue.push({ type: "role-matrix", matrix, queuedAt: new Date().toISOString() });
-  try {
-    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
-  } catch {
-    // Storage unavailable: report the in-memory depth.
-  }
+  writeQueue(queue);
   return queue.length;
+};
+
+/**
+ * Delivers every queued op with `send`. Ops that succeed are dropped, ops that
+ * fail stay queued for the next attempt.
+ * @returns how many ops are still pending
+ */
+export const flushTerminalSync = async (send: (op: SyncOp) => Promise<void>): Promise<number> => {
+  const stillPending: SyncOp[] = [];
+  for (const op of readQueue()) {
+    try {
+      await send(op);
+    } catch {
+      stillPending.push(op);
+    }
+  }
+  writeQueue(stillPending);
+  return stillPending.length;
 };

@@ -1,16 +1,29 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
+import type { PlinthApiClient } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { App } from "antd";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { AuthContext } from "../providers/AuthProvider.js";
 import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
+
+const mockAuthContext = {
+  isAuthenticated: true,
+  tenantId: "t1",
+  locationId: "l1",
+  login: async () => {},
+  logout: () => {},
+  client: { ingestAudit: async () => {} } as unknown as PlinthApiClient,
+};
 
 function renderPage(): void {
   render(
-    <PlinthThemeProvider>
-      <App>
-        <StaffPage />
-      </App>
-    </PlinthThemeProvider>,
+    <AuthContext.Provider value={mockAuthContext}>
+      <PlinthThemeProvider>
+        <App>
+          <StaffPage />
+        </App>
+      </PlinthThemeProvider>
+    </AuthContext.Provider>,
   );
 }
 
@@ -44,7 +57,6 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Rajesh K")).toBeDefined();
     expect(await screen.findByText("Manager")).toBeDefined();
     expect(await screen.findByRole("tab", { name: "Permissions" })).toBeDefined();
-    expect(await screen.findByRole("tab", { name: "Audit Log" })).toBeDefined();
   });
 
   it("adds a staff member through the modal", async () => {
@@ -70,26 +82,16 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Role permissions saved.")).toBeDefined();
   }, 60000);
 
-  it("queues the matrix for terminal sync", async () => {
+  it("flushes the matrix to terminals and empties the queue", async () => {
     localStorage.clear();
     renderPage();
     await screen.findByText("Rajesh K");
     fireEvent.click(screen.getByRole("tab", { name: "Permissions" }));
     fireEvent.click(await screen.findByRole("button", { name: "Sync to Terminals" }));
-    expect(await screen.findByText(/queued for terminal sync \(1 pending\)/)).toBeDefined();
+    expect(await screen.findByText("Matrix synced to terminals.")).toBeDefined();
+    expect(localStorage.getItem("plinth-terminal-sync-queue")).toBe("[]");
     localStorage.clear();
   }, 60000);
-
-  it("filters the audit log by action", async () => {
-    renderPage();
-    await screen.findByText("Rajesh K");
-    fireEvent.click(screen.getByRole("tab", { name: "Audit Log" }));
-    expect(await screen.findByText("Discount 10%")).toBeDefined();
-    fireEvent.mouseDown(screen.getByRole("combobox"));
-    fireEvent.click(await screen.findByText("Logins"));
-    expect(await screen.findByText("Login")).toBeDefined();
-    expect(screen.queryByText("Discount 10%")).toBeNull();
-  });
 
   it("submits and approves an escalation request", async () => {
     renderPage();
@@ -105,50 +107,6 @@ describe("StaffPage", () => {
     expect(await screen.findByText("Shift lead duties")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     expect(await screen.findByText("Approved")).toBeDefined();
-  });
-
-  it("exports filtered audit log to CSV", async () => {
-    const mockCreateObjectUrl = vi.fn().mockReturnValue("blob:test-url");
-    const mockRevokeObjectUrl = vi.fn();
-    const mockClick = vi.fn();
-    const originalCreateElement = document.createElement.bind(document);
-    const mockCreateElement = vi.spyOn(document, "createElement").mockImplementation((tag) => {
-      if (tag === "a") {
-        return {
-          href: "",
-          download: "",
-          click: mockClick,
-        } as unknown as HTMLAnchorElement;
-      }
-      return originalCreateElement(tag);
-    });
-
-    global.URL.createObjectURL = mockCreateObjectUrl;
-    global.URL.revokeObjectURL = mockRevokeObjectUrl;
-
-    renderPage();
-    await screen.findByText("Rajesh K");
-    fireEvent.click(screen.getByRole("tab", { name: "Audit Log" }));
-
-    // Filter to just Logins
-    fireEvent.mouseDown(screen.getByRole("combobox"));
-    fireEvent.click(await screen.findByText("Logins"));
-    expect(await screen.findByText("Login")).toBeDefined();
-
-    // Export
-    fireEvent.click(screen.getByRole("button", { name: "Export" }));
-
-    expect(mockCreateObjectUrl).toHaveBeenCalled();
-    expect(mockClick).toHaveBeenCalled();
-    expect(mockRevokeObjectUrl).toHaveBeenCalledWith("blob:test-url");
-
-    // Ensure Blob contains only Logins
-    const blobArg = mockCreateObjectUrl.mock.calls[0][0] as Blob;
-    const csvContent = await blobArg.text();
-    expect(csvContent).toContain("PIN"); // value from the login row
-    expect(csvContent).not.toContain("Discount 10%");
-
-    mockCreateElement.mockRestore();
   });
 
   it("handles clocking in and out via the Attendance tab", async () => {

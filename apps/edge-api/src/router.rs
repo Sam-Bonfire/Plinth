@@ -66,11 +66,20 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
 ///
 /// # Errors
 /// Returns an error if applying CORS fails
-pub fn apply_cors(resp: Response) -> Result<Response> {
-    let cors = Cors::new()
-        .with_origins(vec!["*"])
+pub fn apply_cors(resp: Response, allowed_origins: Option<&str>) -> Result<Response> {
+    let mut cors = Cors::new()
         .with_methods(vec![Method::Get, Method::Post, Method::Put, Method::Delete, Method::Options])
         .with_allowed_headers(vec!["Authorization", "Content-Type", "x-tenant-id", "x-location-id", "x-request-id"]);
+
+    let origins_str = allowed_origins.unwrap_or("http://127.0.0.1:8787,http://localhost:5173,http://localhost:5174");
+    let origins: Vec<&str> = origins_str.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+
+    if origins.is_empty() {
+        // Strict fallback block if empty string passed in env var
+        cors = cors.with_origins(vec!["https://no-origins-configured.invalid"]);
+    } else {
+        cors = cors.with_origins(origins).with_credentials(true);
+    }
 
     resp.with_cors(&cors)
 }

@@ -127,13 +127,10 @@ async fn apply_order_status(
             .void_order("remote sync void".to_string(), by, false)
             .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
     } else {
-        if !order.status.can_transition_to(&target) {
-            return Err(ApplyError::BadPayload(format!(
-                "illegal transition {:?} -> {target:?}",
-                order.status
-            )));
-        }
-        order.status = target;
+        order.status = order
+            .status
+            .transition_to(target)
+            .map_err(|e| ApplyError::BadPayload(e.to_string()))?;
     }
     stores.orders.save(&order).await?;
     Ok(ApplyOutcome::Applied)

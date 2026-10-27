@@ -20,8 +20,15 @@ VALUES
   ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Cashier', 'Cashier', 513, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL),
   ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Dev Waiter', 'Waiter', 1, '$argon2id$v=19$m=19456,t=2,p=1$cGxpbmRoZXYtc2VlZA$Lbse9knCfcsjM4b36R6GF46yNHQxd2fctC4RO8yERV0', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL);
 
-INSERT OR IGNORE INTO menu_categories (id, tenant_id, location_id, name, display_order, is_active, deleted_at)
-VALUES ('00000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Starters', 0, 1, NULL);
+-- Settled order used by the refund lifecycle contract (total 33600 minor).
+INSERT OR IGNORE INTO orders (id, tenant_id, location_id, terminal_id, channel, status, table_id, seat_number, subtotal_minor, discount_minor, tax_minor, total_minor, created_by, created_at, updated_at, deleted_at)
+VALUES ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'POS-01', 'DineIn', 'Settled', NULL, NULL, 32000, 0, 1600, 33600, '00000000-0000-0000-0000-000000000003', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL);
+
+INSERT OR IGNORE INTO menu_categories (id, tenant_id, location_id, name, display_order, is_active, deleted_at)VALUES ('00000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'Starters', 0, 1, NULL);
 
 INSERT OR IGNORE INTO menu_items (id, tenant_id, location_id, primary_category_id, name, description, price_minor, tax_rate, is_veg, is_available, sku, kitchen_station, deleted_at)
 VALUES ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000009', 'Paneer Tikka', 'Dev seed item', 32000, 'FivePercent', 1, 1, 'SEED-010', 'Tandoor', NULL);
+
+-- Webhook endpoint for aggregator ingestion contract tests (secret: dev-webhook-secret).
+INSERT OR IGNORE INTO webhook_endpoints (id, tenant_id, url, events_json, secret, is_active, created_at)
+VALUES ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000001', 'http://localhost:8787/webhooks/swiggy', '["order.created"]', 'dev-webhook-secret', 1, '2026-01-01T00:00:00Z');

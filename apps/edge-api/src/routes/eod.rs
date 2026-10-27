@@ -67,6 +67,34 @@ struct OrderTotalsRow {
     wallet_payments_minor: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+struct CashRefundRow {
+    cash_refunds_minor: Option<i64>,
+}
+
+#[allow(clippy::struct_field_names)]
+#[derive(Debug, Deserialize)]
+struct CashMovementRow {
+    cash_in_minor: Option<i64>,
+    cash_out_minor: Option<i64>,
+    safe_drop_minor: Option<i64>,
+}
+
+/// Expected drawer cash for a shift.
+///
+/// Float plus cash taken, minus cash refunded, adjusted by the shift's cash
+/// movements (`CashIn`, `CashOut`, `SafeDrop`).
+const fn expected_cash_minor(
+    opening_float: i64,
+    cash_sales: i64,
+    cash_refunds: i64,
+    cash_in: i64,
+    cash_out: i64,
+    safe_drops: i64,
+) -> i64 {
+    opening_float + cash_sales - cash_refunds + cash_in - cash_out - safe_drops
+}
+
 /// Request payload to open a shift
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct OpenShiftRequest {
@@ -147,7 +175,7 @@ pub async fn open_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
         terminal_id.into(),
         tenant_ctx.staff_id.to_string().into(),
         opened_at.clone().into(),
-        payload.opening_float_minor.into(),
+        crate::db::money(payload.opening_float_minor),
     ];
     let insert_stmt = db.prepare(insert_sql).bind(&insert_params)?;
     let _ = insert_stmt.run().await?;
@@ -199,25 +227,7 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
     };
 
-    // 1. Verify no active open orders exist for this location
-    let active_orders_query = "SELECT COUNT(*) as count FROM orders WHERE tenant_id = ? AND location_id = ? AND status IN ('Draft', 'Confirmed', 'Preparing', 'Ready', 'Served')";
-    let active_params: Vec<JsValue> = vec![
-        tenant_ctx.tenant_id.to_string().into(),
-        tenant_ctx.location_id.to_string().into(),
-    ];
-    let active_stmt = db.prepare(active_orders_query).bind(&active_params)?;
-    let active_res = active_stmt.all().await?;
-    let active_rows: Vec<ActiveOrderCountRow> = active_res.results()?;
-    let active_count = active_rows.first().map_or(0, |r| r.count);
-
-    if active_count > 0 {
-        return Response::error(
-            format!("Cannot close shift: {active_count} active orders are still open"),
-            409,
-        );
-    }
-
-    // 2. Fetch shift record
+    // 1. Fetch shift record
     let shift_query = "SELECT opened_at, opening_float_minor, is_closed FROM store_shifts WHERE id = ? AND tenant_id = ? AND location_id = ?";
     let shift_params: Vec<JsValue> = vec![
         payload.shift_id.to_string().into(),
@@ -236,11 +246,32 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         return crate::router::json_error("Shift is already closed", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
 
+    // 2. Refuse to close while orders are still open, after the shift itself
+    //    is known to exist: an unknown shift is a 404, not a 409.
+    let active_orders_query = "SELECT COUNT(*) as count FROM orders WHERE tenant_id = ? AND location_id = ? AND status IN ('Draft', 'Confirmed', 'Preparing', 'Ready', 'Served')";
+    let active_params: Vec<JsValue> = vec![
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+    ];
+    let active_stmt = db.prepare(active_orders_query).bind(&active_params)?;
+    let active_res = active_stmt.all().await?;
+    let active_rows: Vec<ActiveOrderCountRow> = active_res.results()?;
+    let active_count = active_rows.first().map_or(0, |r| r.count);
+
+    if active_count > 0 {
+        return crate::router::json_error(
+            format!("Cannot close shift: {active_count} active orders are still open"),
+            "CONFLICT",
+            &crate::router::get_request_id(&req),
+            409,
+        );
+    }
+
     // 3. Aggregate totals for settled orders in shift
     let totals_query = "SELECT
-            COALESCE(SUM(subtotal_minor + tax_minor + charges_minor - discounts_minor), 0) as gross_sales_minor,
+            COALESCE(SUM(subtotal_minor + tax_minor + charges_minor - discount_minor), 0) as gross_sales_minor,
             COALESCE(SUM(tax_minor), 0) as tax_minor,
-            COALESCE(SUM(discounts_minor), 0) as discount_minor,
+            COALESCE(SUM(discount_minor), 0) as discount_minor,
             COALESCE(SUM(charges_minor), 0) as charge_minor,
             COALESCE(SUM(CASE WHEN payment_method = 'Cash' THEN total_paid_minor ELSE 0 END), 0) as cash_payments_minor,
             COALESCE(SUM(CASE WHEN payment_method = 'Upi' THEN total_paid_minor ELSE 0 END), 0) as upi_payments_minor,
@@ -271,7 +302,50 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let card_payments = totals.and_then(|t| t.card_payments_minor).unwrap_or(0);
     let wallet_payments = totals.and_then(|t| t.wallet_payments_minor).unwrap_or(0);
 
-    let expected_cash = shift_record.opening_float_minor + cash_payments;
+    // Cash refunds for the shift: only refunds that actually moved money
+    // against a cash order count against the drawer.
+    let refund_query = "SELECT COALESCE(SUM(r.amount_minor), 0) as cash_refunds_minor
+        FROM refunds r
+        JOIN orders o ON o.id = r.order_id
+        WHERE r.tenant_id = ? AND r.location_id = ?
+          AND o.payment_method = 'Cash'
+          AND r.status IN ('Processed', 'Completed')
+          AND r.created_at >= ?";
+    let refund_params: Vec<JsValue> = vec![
+        tenant_ctx.tenant_id.to_string().into(),
+        tenant_ctx.location_id.to_string().into(),
+        shift_record.opened_at.clone().into(),
+    ];
+    let refund_stmt = db.prepare(refund_query).bind(&refund_params)?;
+    let refund_res = refund_stmt.all().await?;
+    let refund_rows: Vec<CashRefundRow> = refund_res.results()?;
+    let cash_refunds = refund_rows
+        .first()
+        .and_then(|row| row.cash_refunds_minor)
+        .unwrap_or(0);
+
+    let movement_query = "SELECT
+            COALESCE(SUM(CASE WHEN movement_type = 'CashIn' THEN amount_minor ELSE 0 END), 0) as cash_in_minor,
+            COALESCE(SUM(CASE WHEN movement_type = 'CashOut' THEN amount_minor ELSE 0 END), 0) as cash_out_minor,
+            COALESCE(SUM(CASE WHEN movement_type = 'SafeDrop' THEN amount_minor ELSE 0 END), 0) as safe_drop_minor
+        FROM shift_activities
+        WHERE shift_id = ?";
+    let movement_params: Vec<JsValue> = vec![payload.shift_id.to_string().into()];
+    let movement_stmt = db.prepare(movement_query).bind(&movement_params)?;
+    let movement_res = movement_stmt.all().await?;
+    let movement_rows: Vec<CashMovementRow> = movement_res.results()?;
+    let cash_in = movement_rows.first().and_then(|row| row.cash_in_minor).unwrap_or(0);
+    let cash_out = movement_rows.first().and_then(|row| row.cash_out_minor).unwrap_or(0);
+    let safe_drops = movement_rows.first().and_then(|row| row.safe_drop_minor).unwrap_or(0);
+
+    let expected_cash = expected_cash_minor(
+        shift_record.opening_float_minor,
+        cash_payments,
+        cash_refunds,
+        cash_in,
+        cash_out,
+        safe_drops,
+    );
     let physical_cash = payload.physical_cash_minor;
     let variance = physical_cash - expected_cash;
 
@@ -281,8 +355,8 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     let update_shift_sql = "UPDATE store_shifts SET is_closed = 1, closed_at = ?, closing_cash_minor = ?, expected_cash_minor = ? WHERE id = ? AND tenant_id = ? AND location_id = ?";
     let update_shift_params: Vec<JsValue> = vec![
         closed_at.clone().into(),
-        physical_cash.into(),
-        expected_cash.into(),
+        crate::db::money(physical_cash),
+        crate::db::money(expected_cash),
         payload.shift_id.to_string().into(),
         tenant_ctx.tenant_id.to_string().into(),
         tenant_ctx.location_id.to_string().into(),
@@ -293,7 +367,7 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     // 5. Insert audit log event
     let audit_sql = "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     let audit_id = AuditEventId::new();
-    let is_anomaly_int = i64::from(variance.abs() > 50_000); // flag > ₹500 variance as anomaly
+    let is_anomaly_int = i32::from(variance.abs() > 50_000); // flag > ₹500 variance as anomaly
     let audit_payload = serde_json::json!({
         "shift_id": payload.shift_id,
         "physical_cash_minor": physical_cash,
@@ -365,6 +439,21 @@ mod tests {
         let json = serde_json::to_string(&z).unwrap();
         assert!(json.contains("154000"));
         assert!(json.contains("variance"));
+    }
+
+    #[test]
+    fn test_expected_cash_includes_refunds_and_movements() {
+        // Pull-up float, cash sales, a cash refund, a cash-in, a cash-out and a safe drop.
+        assert_eq!(
+            expected_cash_minor(20_000, 50_000, 5_000, 1_000, 2_000, 10_000),
+            54_000
+        );
+
+        // No refunds or movements leaves float plus cash sales untouched.
+        assert_eq!(expected_cash_minor(20_000, 50_000, 0, 0, 0, 0), 70_000);
+
+        // Refunds and drops reduce the expectation instead of inflating variance.
+        assert_eq!(expected_cash_minor(20_000, 50_000, 50_000, 0, 0, 20_000), 0);
     }
 
     #[test]

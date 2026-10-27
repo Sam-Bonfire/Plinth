@@ -31,11 +31,11 @@ Content-Type: application/json
   "terminal_id": null
 }
 HTTP 200
+[Captures]
+shift_id: jsonpath "$.shift_id"
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.shift_id" exists
-[Captures]
-shift_id: jsonpath "$.shift_id"
 
 # Negative: Opening a second shift while one is open returns 409
 POST {{base_url}}/api/v1/eod/open
@@ -74,7 +74,7 @@ Content-Type: application/json
 {}
 HTTP 400
 [Asserts]
-header "Content-Type" contains "Invalid"
+jsonpath "$.error" contains "Invalid"
 
 # Negative: Wrong tenant isolation (non-existent/mismatched UUID)
 POST {{base_url}}/api/v1/eod/close

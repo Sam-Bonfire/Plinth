@@ -53,6 +53,24 @@ struct RawTicketRow {
     items_json: Option<String>,
 }
 
+impl RawTicketRow {
+    /// Names the first timestamp that does not parse, so read routes can
+    /// answer 400 instead of surfacing an invented or missing date.
+    fn invalid_timestamp(&self) -> Option<&'static str> {
+        let parses = |s: &str| DateTime::parse_from_rfc3339(s).is_ok();
+        if !parses(&self.created_at) {
+            return Some("created_at");
+        }
+        if self.bumped_at.as_deref().is_some_and(|s| !parses(s)) {
+            return Some("bumped_at");
+        }
+        if self.cancelled_at.as_deref().is_some_and(|s| !parses(s)) {
+            return Some("cancelled_at");
+        }
+        None
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct RawLineItemJson {
     line_item_id: String,
@@ -125,22 +143,23 @@ impl TryFrom<RawTicketRow> for KitchenTicket {
         };
 
         let created_at = DateTime::parse_from_rfc3339(&row.created_at)
-            .map_or_else(
-                |_| Utc::now(),
-                |dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc),
-            );
+            .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
+            .map_err(|_| Error::RustError("Invalid ticket created_at".into()))?;
 
-        let bumped_at = row.bumped_at.and_then(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
-        });
+        // A stored timestamp that no longer parses is a data bug, not "now":
+        // inventing a timestamp hides clock skew behind a plausible SLA.
+        let parse_optional = |raw: Option<String>| -> Result<Option<DateTime<Utc>>> {
+            match raw {
+                None => Ok(None),
+                Some(s) => DateTime::parse_from_rfc3339(&s)
+                    .map(|dt: DateTime<chrono::FixedOffset>| Some(dt.with_timezone(&Utc)))
+                    .map_err(|_| Error::RustError("Invalid ticket timestamp".into())),
+            }
+        };
 
-        let cancelled_at = row.cancelled_at.and_then(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt: DateTime<chrono::FixedOffset>| dt.with_timezone(&Utc))
-        });
+        let bumped_at = parse_optional(row.bumped_at)?;
+
+        let cancelled_at = parse_optional(row.cancelled_at)?;
 
         let bumped_by = row
             .bumped_by
@@ -186,6 +205,8 @@ impl TryFrom<RawTicketRow> for KitchenTicket {
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .get_async("/api/v1/kds/tickets", list_active_tickets)
+        .post_async("/api/v1/kds/tickets/:id/start-prep", start_prep_ticket)
+        .post_async("/api/v1/kds/tickets/:id/mark-ready", mark_ready_ticket)
         .post_async("/api/v1/kds/tickets/:id/bump", bump_ticket)
 }
 
@@ -265,6 +286,14 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
     let mut ticket_dtos = Vec::with_capacity(rows.len());
 
     for row in rows {
+        if let Some(field) = row.invalid_timestamp() {
+            return crate::router::json_error(
+                format!("Ticket has an invalid {field} timestamp"),
+                "INVALID_DATA",
+                &crate::router::get_request_id(&req),
+                400,
+            );
+        }
         let ticket = KitchenTicket::try_from(row)?;
         let sla_status = ticket.sla_status(now);
         ticket_dtos.push(KitchenTicketDto { ticket, sla_status });
@@ -273,11 +302,43 @@ pub async fn list_active_tickets<D>(req: Request, ctx: RouteContext<D>) -> Resul
     Response::from_json(&ticket_dtos)
 }
 
-/// Bumps a ticket to the next lifecycle state
-///
-/// # Errors
-/// Returns an error if the ticket is not found, state transition is invalid, or database update fails
-pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+/// Lifecycle action requested against a kitchen ticket.
+#[derive(Debug, Clone, Copy)]
+enum TicketAction {
+    StartPrep,
+    MarkReady,
+    Bump,
+}
+
+impl TicketAction {
+    const fn rejection(self) -> &'static str {
+        match self {
+            Self::StartPrep => "Ticket can only start prep while Pending",
+            Self::MarkReady => "Ticket can only be marked ready while InPrep",
+            Self::Bump => "Ticket cannot be bumped from its current status",
+        }
+    }
+}
+
+/// Applies the requested transition through the domain state machine.
+fn apply_action(
+    ticket: &mut KitchenTicket,
+    action: TicketAction,
+    bumped_by: Option<StaffMemberId>,
+) -> std::result::Result<(), core_domain::models::kitchen::KitchenError> {
+    match action {
+        TicketAction::StartPrep => ticket.start_prep().map(|_event| ()),
+        TicketAction::MarkReady => ticket.mark_ready().map(|_event| ()),
+        TicketAction::Bump => ticket.bump(bumped_by).map(|_event| ()),
+    }
+}
+
+/// Loads a ticket, applies one transition, and persists the resulting status.
+async fn advance_ticket<D>(
+    mut req: Request,
+    ctx: RouteContext<D>,
+    action: TicketAction,
+) -> Result<Response> {
     let tenant_ctx = match crate::auth::authorize(&req, &ctx,
         core_domain::enums::staff::Permissions::empty(),
     ) {
@@ -294,8 +355,14 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
         return crate::router::json_error("Missing ticket ID", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
 
-    let body_res = req.json::<BumpTicketRequest>().await;
-    let bumped_by = body_res.ok().and_then(|b| b.bumped_by);
+    let bumped_by = match action {
+        TicketAction::Bump => req
+            .json::<BumpTicketRequest>()
+            .await
+            .ok()
+            .and_then(|body| body.bumped_by),
+        TicketAction::StartPrep | TicketAction::MarkReady => None,
+    };
 
     let query = "SELECT
             t.id, t.order_id, t.tenant_id, t.location_id, t.station, t.kot_number,
@@ -337,8 +404,8 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
 
     let mut ticket = KitchenTicket::try_from(row)?;
 
-    if ticket.bump(bumped_by).is_err() {
-        return crate::router::json_error("Ticket cannot be bumped from its current status", "CONFLICT", &crate::router::get_request_id(&req), 409);
+    if apply_action(&mut ticket, action, bumped_by).is_err() {
+        return crate::router::json_error(action.rejection(), "CONFLICT", &crate::router::get_request_id(&req), 409);
     }
 
     let status_str = match ticket.status {
@@ -376,12 +443,36 @@ pub async fn bump_ticket<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     Response::from_json(&dto)
 }
 
+/// Starts preparation for a pending ticket (`Pending` → `InPrep`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn start_prep_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::StartPrep).await
+}
+
+/// Marks a ticket ready (`InPrep` → `Ready`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn mark_ready_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::MarkReady).await
+}
+
+/// Bumps a ready ticket off the board (`Ready` → `Bumped`)
+///
+/// # Errors
+/// Returns 404 when the ticket does not exist and 409 on an illegal transition
+pub async fn bump_ticket<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    advance_ticket(req, ctx, TicketAction::Bump).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use core_domain::{
         enums::kitchen::{KitchenTicketStatus, StationId},
-        ids::{LocationId, OrderId, TenantId},
+        ids::{LocationId, OrderId, StaffMemberId, TenantId},
         models::kitchen::KitchenTicket,
         value_objects::preparation::PreparationSla,
     };
@@ -432,6 +523,75 @@ mod tests {
 
         let result = ticket.bump(None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_apply_action_enforces_ticket_lifecycle() {
+        let sla = PreparationSla::default_restaurant();
+        let (mut ticket, _) = KitchenTicket::new(
+            OrderId::new(),
+            TenantId::new(),
+            LocationId::new(),
+            StationId::Grill,
+            7,
+            vec![],
+            sla,
+        );
+
+        // Illegal skips out of Pending fail closed.
+        assert!(apply_action(&mut ticket, TicketAction::MarkReady, None).is_err());
+        assert!(apply_action(&mut ticket, TicketAction::Bump, None).is_err());
+        assert_eq!(ticket.status, KitchenTicketStatus::Pending);
+
+        apply_action(&mut ticket, TicketAction::StartPrep, None).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::InPrep);
+        assert!(apply_action(&mut ticket, TicketAction::StartPrep, None).is_err());
+
+        apply_action(&mut ticket, TicketAction::MarkReady, None).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Ready);
+        assert!(apply_action(&mut ticket, TicketAction::MarkReady, None).is_err());
+
+        apply_action(&mut ticket, TicketAction::Bump, Some(StaffMemberId::new())).unwrap();
+        assert_eq!(ticket.status, KitchenTicketStatus::Bumped);
+        assert!(ticket.bumped_at.is_some());
+    }
+
+    #[test]
+    fn test_bad_ticket_timestamps_fail_closed() {
+        let row = |created_at: &str, bumped_at: Option<&str>| RawTicketRow {
+            id: uuid::Uuid::now_v7().to_string(),
+            order_id: uuid::Uuid::now_v7().to_string(),
+            tenant_id: uuid::Uuid::now_v7().to_string(),
+            location_id: uuid::Uuid::now_v7().to_string(),
+            station: "Grill".to_string(),
+            kot_number: 1,
+            status: "Pending".to_string(),
+            sla_warning_sec: 300,
+            sla_late_sec: 600,
+            created_at: created_at.to_string(),
+            bumped_at: bumped_at.map(ToString::to_string),
+            bumped_by: None,
+            cancelled_at: None,
+            cancellation_reason: None,
+            items_json: None,
+        };
+
+        // A garbage created_at is reported, never replaced with "now".
+        let bad_created = row("not-a-date", None);
+        assert_eq!(bad_created.invalid_timestamp(), Some("created_at"));
+        assert!(KitchenTicket::try_from(bad_created).is_err());
+
+        // A row whose bumped_at no longer parses is rejected too.
+        let bad_bump = row("2026-10-27T10:00:00Z", Some("yesterday"));
+        assert_eq!(bad_bump.invalid_timestamp(), Some("bumped_at"));
+        assert!(KitchenTicket::try_from(bad_bump).is_err());
+
+        // A well-formed row carries through untouched.
+        let good = row("2026-10-27T10:00:00Z", Some("2026-10-27T10:05:00Z"));
+        assert_eq!(good.invalid_timestamp(), None);
+        let ticket = KitchenTicket::try_from(good).unwrap();
+        assert_eq!(ticket.created_at.to_rfc3339(), "2026-10-27T10:00:00+00:00");
+        assert!(ticket.bumped_at.is_some());
     }
 
     #[test]

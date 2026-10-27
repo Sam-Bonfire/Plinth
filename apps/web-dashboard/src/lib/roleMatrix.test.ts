@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadRoleMatrix, queueTerminalSync, saveRoleMatrix, type RoleMatrix } from "./roleMatrix.js";
+import { flushTerminalSync, loadRoleMatrix, queueTerminalSync, saveRoleMatrix, type RoleMatrix, type SyncOp } from "./roleMatrix.js";
 
 const matrix: RoleMatrix = {
   "Apply discounts": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
@@ -29,5 +29,32 @@ describe("roleMatrix", () => {
     const queue = JSON.parse(raw) as { type: string }[];
     expect(queue).toHaveLength(2);
     expect(queue[0]?.type).toBe("role-matrix");
+  });
+
+  it("flushes queued ops and empties the queue", async () => {
+    localStorage.clear();
+    queueTerminalSync(matrix);
+    queueTerminalSync(matrix);
+
+    const sent: SyncOp[] = [];
+    const pending = await flushTerminalSync(async (op: SyncOp): Promise<void> => {
+      sent.push(op);
+    });
+
+    expect(sent).toHaveLength(2);
+    expect(pending).toBe(0);
+    expect(localStorage.getItem("plinth-terminal-sync-queue")).toBe("[]");
+  });
+
+  it("keeps ops that fail to send", async () => {
+    localStorage.clear();
+    queueTerminalSync(matrix);
+
+    const pending = await flushTerminalSync(async (): Promise<void> => {
+      throw new Error("offline");
+    });
+
+    expect(pending).toBe(1);
+    expect(JSON.parse(localStorage.getItem("plinth-terminal-sync-queue") ?? "[]")).toHaveLength(1);
   });
 });

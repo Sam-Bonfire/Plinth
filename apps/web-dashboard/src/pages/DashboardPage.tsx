@@ -33,34 +33,45 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      {!live && <Alert message="Showing cached sample entries - live analytics service unreachable." type="warning" showIcon style={{ marginBottom: 16 }} />}
+      {!live && (
+        <Alert
+          message="Live analytics unreachable - figures below are unavailable, not cached values."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Typography.Title level={2}>Dashboard</Typography.Title>
       <Row gutter={16}>
         <Col span={6}>
           <Link to="/reports">
             <Card hoverable>
-              <Statistic title="Today Sales" value={summary.grossSales} prefix="₹" />
+              <Statistic
+                title="Today Sales"
+                value={summary.grossSales ?? "—"}
+                prefix={summary.grossSales === null ? undefined : "₹"}
+              />
             </Card>
           </Link>
         </Col>
         <Col span={6}>
           <Link to="/orders">
             <Card hoverable>
-              <Statistic title="Orders" value={summary.orders} />
+              <Statistic title="Orders" value={summary.orders ?? "—"} />
             </Card>
           </Link>
         </Col>
         <Col span={6}>
           <Link to="/floor">
             <Card hoverable>
-              <Statistic title="Active Tables" value={summary.activeTables} />
+              <Statistic title="Active Tables (not reported)" value={summary.activeTables ?? "—"} />
             </Card>
           </Link>
         </Col>
         <Col span={6}>
           <Link to="/inventory">
             <Card hoverable>
-              <Statistic title="Low Stock" value={summary.lowStock} />
+              <Statistic title="Low Stock (not reported)" value={summary.lowStock ?? "—"} />
             </Card>
           </Link>
         </Col>

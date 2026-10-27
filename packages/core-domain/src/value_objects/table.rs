@@ -34,6 +34,12 @@ impl SeatNumber {
         }
         Ok(Self(n))
     }
+
+    /// Returns the numeric seat number.
+    #[must_use]
+    pub const fn value(self) -> u16 {
+        self.0
+    }
 }
 
 #[cfg(test)]

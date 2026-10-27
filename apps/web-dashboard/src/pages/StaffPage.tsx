@@ -1,7 +1,7 @@
 import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
-import React, { useMemo, useState } from "react";
-import { buildAuditCsv } from "../lib/auditExport.js";
-import { loadRoleMatrix, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
+import React, { useState } from "react";
+import { loadRoleMatrix, flushTerminalSync, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
 type StaffStatus = "Active" | "Off duty";
@@ -15,19 +15,6 @@ interface StaffMember {
   ordersToday: number;
   lastAction: string;
   status: StaffStatus;
-}
-
-interface AuditEntry {
-  key: string;
-  time: string;
-  actor: string;
-  role: Role;
-  action: string;
-  kind: string;
-  target: string;
-  value: string;
-  approvedBy: string;
-  flag: "OK" | "Review";
 }
 
 export interface AttendanceEntry {
@@ -98,14 +85,6 @@ const seedPerms = (): Record<string, Record<Role, boolean>> => ({
   "Bump KDS tickets": { Owner: true, Manager: true, Cashier: false, Kitchen: true },
 });
 
-const seedAudit = (): AuditEntry[] => [
-  { key: "A-01", time: "12:14", actor: "Rajesh K", role: "Manager", action: "Discount 10%", kind: "Discounts", target: "ORD-1098", value: "-₹61", approvedBy: "Self", flag: "OK" },
-  { key: "A-02", time: "12:02", actor: "Meera S", role: "Cashier", action: "Void item", kind: "Voids", target: "ORD-1101", value: "Gulab Jamun ×1", approvedBy: "Rajesh K", flag: "Review" },
-  { key: "A-03", time: "11:55", actor: "Meera S", role: "Cashier", action: "Refund", kind: "Refunds", target: "TXN-9002", value: "₹619.50", approvedBy: "Rajesh K", flag: "OK" },
-  { key: "A-04", time: "11:38", actor: "Divya R", role: "Cashier", action: "Login", kind: "Logins", target: "POS-02", value: "PIN", approvedBy: "—", flag: "OK" },
-  { key: "A-05", time: "10:20", actor: "Rajesh K", role: "Manager", action: "86 Gulab Jamun", kind: "Menu changes", target: "MI-006", value: "Unavailable", approvedBy: "Self", flag: "OK" },
-];
-
 const seedAttendance = (): AttendanceEntry[] => [
   { key: "ATT-01", staffKey: "ST-01", name: "Rajesh K", clockIn: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), clockOut: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }, // Normal completed shift (3 hours)
   { key: "ATT-02", staffKey: "ST-02", name: "Meera S", clockIn: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), clockOut: null }, // Missing-out shift (clocked in 2 hours ago)
@@ -115,9 +94,9 @@ const seedAttendance = (): AttendanceEntry[] => [
 const roleColor = (r: Role): string => (r === "Owner" ? "purple" : r === "Manager" ? "blue" : r === "Cashier" ? "green" : "orange");
 
 export const StaffPage: React.FC = () => {
+  const { client } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>(seedStaff);
   const [perms, setPerms] = useState<Record<string, Record<Role, boolean>>>(() => loadRoleMatrix(seedPerms()) as Record<string, Record<Role, boolean>>);
-  const [auditKind, setAuditKind] = useState<string>("all");
   const [editing, setEditing] = useState<StaffMember | "new" | null>(null);
   const [form] = Form.useForm<StaffFormValues>();
   const [escalations, setEscalations] = useState<EscalationRequest[]>([]);
@@ -153,11 +132,6 @@ export const StaffPage: React.FC = () => {
     void message.success(`${member.name} clocked out.`);
   };
 
-  const auditRows = useMemo(
-    (): AuditEntry[] => seedAudit().filter((a: AuditEntry): boolean => auditKind === "all" || a.kind === auditKind),
-    [auditKind],
-  );
-
   const openAdd = (): void => {
     form.setFieldsValue({ name: "", role: "Cashier", outlet: OUTLETS[0], shift: "Morning", status: "Active" });
     setEditing("new");
@@ -190,8 +164,24 @@ export const StaffPage: React.FC = () => {
   };
 
   const syncTerminals = (): void => {
-    const depth = queueTerminalSync(perms);
-    void message.success(`Matrix queued for terminal sync (${depth} pending).`);
+    queueTerminalSync(perms);
+    void flushTerminalSync((op) =>
+      client
+        .ingestAudit({
+          action: "ROLE_MATRIX_SYNC",
+          target_type: "role-matrix",
+          target_id: "terminal-sync",
+          payload_json: JSON.stringify(op.matrix),
+          is_anomaly: false,
+        })
+        .then(() => undefined),
+    ).then((pending: number): void => {
+      if (pending === 0) {
+        void message.success("Matrix synced to terminals.");
+      } else {
+        void message.warning(`Terminal sync blocked: ${pending} change(s) still queued.`);
+      }
+    });
   };
 
   const submitEscalation = (): void => {
@@ -225,19 +215,6 @@ export const StaffPage: React.FC = () => {
         );
       }
     }
-  };
-
-  const exportAudit = (): void => {
-    const csv = buildAuditCsv(auditRows);
-    if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "audit.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-    void message.success(`Exported ${auditRows.length} audit entries.`);
   };
 
   const staffColumns: TableColumnsType<StaffMember> = [
@@ -279,23 +256,6 @@ export const StaffPage: React.FC = () => {
         ),
       }),
     ),
-  ];
-
-  const auditColumns: TableColumnsType<AuditEntry> = [
-    { title: "Time", dataIndex: "time", key: "time", width: 70 },
-    { title: "Actor", dataIndex: "actor", key: "actor", width: 110 },
-    { title: "Role", dataIndex: "role", key: "role", width: 100, render: (r: Role): React.ReactNode => <Tag color={roleColor(r)}>{r}</Tag> },
-    { title: "Action", dataIndex: "action", key: "action" },
-    { title: "Target", dataIndex: "target", key: "target", width: 110 },
-    { title: "Value", dataIndex: "value", key: "value", width: 130 },
-    { title: "Approved By", dataIndex: "approvedBy", key: "approvedBy", width: 110 },
-    {
-      title: "Flag",
-      dataIndex: "flag",
-      key: "flag",
-      width: 100,
-      render: (f: "OK" | "Review"): React.ReactNode => <Tag color={f === "OK" ? "success" : "warning"}>{f}</Tag>,
-    },
   ];
 
   return (
@@ -480,30 +440,6 @@ export const StaffPage: React.FC = () => {
                 </Card>
               </Space>
             )
-          },
-          {
-            key: "audit",
-            label: "Audit Log",
-            children: (
-              <Card
-                title="Audit Log"
-                extra={
-                  <Space>
-                    <Select
-                      value={auditKind}
-                      onChange={(v): void => setAuditKind(v as string)}
-                      options={["all", "Discounts", "Voids", "Refunds", "Logins", "Menu changes"].map((k: string) => ({ label: k === "all" ? "All actions" : k, value: k }))}
-                      style={{ width: 150 }}
-                    />
-                    <Button size="small" onClick={exportAudit}>
-                      Export
-                    </Button>
-                  </Space>
-                }
-              >
-                <Table<AuditEntry> dataSource={auditRows} columns={auditColumns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No audit entries for this filter." }} />
-              </Card>
-            ),
           },
         ]}
       />

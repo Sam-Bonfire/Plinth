@@ -80,7 +80,7 @@ pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Respons
         entry_id.clone().into(),
         payload.account_id.into(),
         0.into(),
-        payload.amount_minor.into(),
+        crate::db::money(payload.amount_minor),
         payload.memo.map_or(JsValue::null(), std::convert::Into::into),
         now.into(),
     ];
@@ -148,7 +148,7 @@ pub async fn pay<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> 
     let params: Vec<JsValue> = vec![
         entry_id.clone().into(),
         payload.account_id.into(),
-        payload.amount_minor.into(),
+        crate::db::money(payload.amount_minor),
         0.into(),
         payload.memo.map_or(JsValue::null(), std::convert::Into::into),
         now.into(),
