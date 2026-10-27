@@ -1,16 +1,25 @@
-import { PlinthThemeProvider, type KitchenTicketDto } from "@plinth/ui-kit";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { PlinthThemeProvider, type KitchenTicketDto, type PlinthApiClient } from "@plinth/ui-kit";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "../providers/AuthProvider.js";
+import { AuthContext } from "../providers/AuthProvider.js";
 import { KitchenPage, mapDtoToView } from "./KitchenPage.js";
 
-function renderPage(): void {
+function renderPage(mockClient?: Partial<PlinthApiClient>): void {
   render(
-    <PlinthThemeProvider>
-      <AuthProvider>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: true,
+        tenantId: "t1",
+        locationId: "l1",
+        login: async (): Promise<void> => {},
+        logout: (): void => {},
+        client: (mockClient ?? {}) as unknown as PlinthApiClient,
+      }}
+    >
+      <PlinthThemeProvider>
         <KitchenPage />
-      </AuthProvider>
-    </PlinthThemeProvider>,
+      </PlinthThemeProvider>
+    </AuthContext.Provider>,
   );
 }
 
@@ -58,49 +67,41 @@ describe("mapDtoToView", () => {
 });
 
 describe("KitchenPage", () => {
-  it("renders station columns with seeded tickets", async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
-    renderPage();
-    expect(await screen.findByText(/Main Kitchen/)).toBeDefined();
-    expect(await screen.findByText("#42")).toBeDefined();
-    expect(await screen.findByText("14:00")).toBeDefined();
+  it("shows live tickets from the backend when reachable", async () => {
+    const mockClient = {
+      listKitchenTickets: vi.fn().mockResolvedValue([liveDto]),
+    };
+    renderPage(mockClient as unknown as Partial<PlinthApiClient>);
+
+    expect(await screen.findByText("#7")).toBeDefined();
+    expect(await screen.findByText(/Dal Makhani/)).toBeDefined();
+    expect(screen.queryByText(/live kitchen service unreachable/i)).toBeNull();
   });
 
   it("bumps a ticket off the board", async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
-    renderPage();
-    await screen.findByText("#42");
+    const mockClient = {
+      listKitchenTickets: vi.fn().mockResolvedValue([liveDto]),
+      bumpTicket: vi.fn().mockResolvedValue(liveDto),
+    };
+    renderPage(mockClient as unknown as Partial<PlinthApiClient>);
+
+    await screen.findByText("#7");
     const bumps = screen.getAllByRole("button", { name: "BUMP" });
     fireEvent.click(bumps[0] as HTMLElement);
+
     expect(await screen.findByText(/bumped/)).toBeDefined();
-    expect(screen.queryByText("#42")).toBeNull();
+    await waitFor((): void => {
+      expect(screen.queryByText("#7")).toBeNull();
+    });
   });
 
-  it("injects a test order onto the board", async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
-    renderPage();
-    await screen.findByText("#42");
-    fireEvent.click(await screen.findByRole("button", { name: /Inject Test Order/ }));
-    expect(await screen.findByText("#45")).toBeDefined();
-  });
+  it("falls back to empty state with a banner when offline", async () => {
+    const mockClient = {
+      listKitchenTickets: vi.fn().mockRejectedValue(new Error("offline")),
+    };
+    renderPage(mockClient as unknown as Partial<PlinthApiClient>);
 
-  it("shows live tickets from the backend when reachable", async () => {
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([liveDto]),
-      }),
-    ) as unknown as typeof fetch;
-    renderPage();
-    expect(await screen.findByText("#7")).toBeDefined();
-    expect(await screen.findByText(/Dal Makhani/)).toBeDefined();
-    expect(screen.queryByText(/live kitchen service unreachable/)).toBeNull();
-  });
-
-  it("falls back to cached samples with a banner when offline", async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
-    renderPage();
-    expect(await screen.findByText(/live kitchen service unreachable/)).toBeDefined();
-    expect(await screen.findByText("#42")).toBeDefined();
+    expect(await screen.findByText(/live kitchen service unreachable/i)).toBeDefined();
+    expect(await screen.findByText(/No Active Tickets/i)).toBeDefined();
   });
 });

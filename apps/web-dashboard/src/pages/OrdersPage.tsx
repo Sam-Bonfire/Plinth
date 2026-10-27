@@ -1,15 +1,12 @@
 import {
   OrderChannelBadge,
   OrderStatusBadge,
-  mockActiveDineInOrder,
-  mockAggregatorOrders,
-  mockTakeawayOrder,
   type OrderChannel,
   type OrderItem,
   type OrderStatus,
 } from "@plinth/ui-kit";
 import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Tabs, Typography, message, type TableColumnsType } from "antd";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
 import { RiderPickupModal } from "../components/RiderPickupModal.js";
 import { logAudit } from "../lib/auditTrail.js";
@@ -46,53 +43,40 @@ const CHANNEL_OPTIONS: { label: string; value: string }[] = [
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
 
-const seedOrders = (): OrderRow[] => [
-  {
-    key: mockActiveDineInOrder.id,
-    id: mockActiveDineInOrder.id,
-    channel: "DineIn",
-    channelRef: "Table T-04",
-    items: mockActiveDineInOrder.items,
-    status: "Preparing",
-    placedAt: "12:04",
-    total: mockActiveDineInOrder.total,
-    payment: "Unsettled",
-  },
-  {
-    key: mockTakeawayOrder.id,
-    id: mockTakeawayOrder.id,
-    channel: "Takeaway",
-    channelRef: "Counter",
-    items: mockTakeawayOrder.items,
-    status: "Settled",
-    placedAt: "11:47",
-    total: mockTakeawayOrder.total,
-    payment: "UPI",
-  },
-  ...mockAggregatorOrders.map(
-    (o, i): OrderRow => ({
-      key: o.id,
-      id: o.aggregatorId ?? o.id,
-      channel: o.aggregator === "Zomato" ? "Zomato" : "Swiggy",
-      channelRef: o.id,
-      items: o.items,
-      status: o.status === "InProgress" ? "Preparing" : "Settled",
-      placedAt: i === 0 ? "12:09" : "11:52",
-      total: o.total,
-      payment: "Aggregator",
-    }),
-  ),
-];
-
 export const OrdersPage: React.FC = () => {
   const { client } = useAuth();
-  const [orders, setOrders] = useState<OrderRow[]>(seedOrders);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
   const [viewed, setViewed] = useState<OrderRow | null>(null);
   const [pickupOrder, setPickupOrder] = useState<OrderRow | null>(null);
   const [previewOrder, setPreviewOrder] = useState<OrderProp | null>(null);
+
+  useEffect((): void => {
+    client
+      .listOrders()
+      .then((res): void => {
+        setOrders(
+          res.data.map((o): OrderRow => ({
+            key: o.id,
+            id: o.id,
+            channel: o.channel,
+            channelRef: o.table_id ?? o.terminal_id,
+            items: [],
+            status: o.status,
+            placedAt: new Date(o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            total: o.grand_total_minor / 100,
+            payment: "Paid",
+          })),
+        );
+      })
+      .catch((err: unknown): void => {
+        setOrders([]);
+        const msg = err instanceof Error ? err.message : "Failed to load orders";
+        void message.error(msg);
+      });
+  }, [client]);
 
   const rows = useMemo((): OrderRow[] => {
     const q = query.trim().toLowerCase();
