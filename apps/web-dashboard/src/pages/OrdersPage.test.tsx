@@ -1,22 +1,49 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
 import type { PlinthApiClient } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../providers/AuthProvider.js";
 import { OrdersPage } from "./OrdersPage.js";
 
-const mockAuthContext = {
+const getMockAuthContext = (mockClientArgs?: Partial<PlinthApiClient>) => ({
   isAuthenticated: true,
   tenantId: "t1",
   locationId: "l1",
-  login: async () => {},
-  logout: () => {},
-  client: { ingestAudit: async () => {} } as unknown as PlinthApiClient,
-};
+  login: async (): Promise<void> => {},
+  logout: (): void => {},
+  client: {
+    ingestAudit: vi.fn().mockResolvedValue({}),
+    listOrders: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "ORD-1098",
+          status: "Preparing",
+          channel: "DineIn",
+          terminal_id: "t1",
+          table_id: null,
+          grand_total_minor: 1000,
+          balance_due_minor: 0,
+          created_at: "2023-01-01T00:00:00Z",
+        },
+        {
+          id: "SW-9921",
+          status: "Preparing",
+          channel: "Swiggy",
+          terminal_id: "t2",
+          table_id: null,
+          grand_total_minor: 1500,
+          balance_due_minor: 0,
+          created_at: "2023-01-01T00:00:00Z",
+        },
+      ],
+    }),
+    ...mockClientArgs,
+  } as unknown as PlinthApiClient,
+});
 
-function renderPage(): void {
+function renderPage(mockClientArgs?: Partial<PlinthApiClient>): void {
   render(
-    <AuthContext.Provider value={mockAuthContext}>
+    <AuthContext.Provider value={getMockAuthContext(mockClientArgs)}>
       <PlinthThemeProvider>
         <OrdersPage />
       </PlinthThemeProvider>
@@ -25,7 +52,7 @@ function renderPage(): void {
 }
 
 describe("OrdersPage", () => {
-  it("renders seeded orders with channel and status badges", async () => {
+  it("renders orders from backend with channel and status badges", async () => {
     renderPage();
     expect(await screen.findByText("ORD-1098")).toBeDefined();
     expect(await screen.findByText("SW-9921")).toBeDefined();
@@ -66,7 +93,7 @@ describe("OrdersPage", () => {
     await screen.findByText("ORD-1098");
     const views = screen.getAllByRole("button", { name: "View" });
     fireEvent.click(views[0] as HTMLElement);
-    expect(await screen.findByText("Butter Chicken")).toBeDefined();
+    expect(await screen.findByText("Order ORD-1098")).toBeDefined();
   });
 
   it("exposes live tracking as a tab", async () => {
@@ -74,5 +101,13 @@ describe("OrdersPage", () => {
     await screen.findByText("ORD-1098");
     fireEvent.click(screen.getByRole("tab", { name: "Live Tracking" }));
     expect(await screen.findByText("Track Your Order")).toBeDefined();
+  });
+
+  it("shows empty state on failure", async () => {
+    renderPage({
+      listOrders: vi.fn().mockRejectedValue(new Error("API Error")),
+    });
+
+    expect(await screen.findByText("No orders match the current filters.")).toBeDefined();
   });
 });

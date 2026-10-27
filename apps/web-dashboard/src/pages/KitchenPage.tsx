@@ -1,11 +1,9 @@
-import { KDSTicketCard, PlinthEmptyState, mockKitchenTickets, type KDSTicketItem, type KitchenTicketDto, type KitchenTicketItem } from "@plinth/ui-kit";
+import { KDSTicketCard, PlinthEmptyState, type KDSTicketItem, type KitchenTicketDto } from "@plinth/ui-kit";
 import { Alert, Button, Card, Col, List, Row, Space, Statistic, Typography, message } from "antd";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { buildReprintJob, type ReprintJob, type TicketView } from "../helpers/reprint.js";
 import { useKdsTick } from "../hooks/useKdsTick.js";
 import { useAuth } from "../providers/AuthProvider.js";
-
-const SLA_MAP: Record<string, TicketView["sla"]> = { "On-Time": "OnTime", Warning: "Warning", Late: "Late" };
 
 const STATION_LABELS: Record<string, string> = { MainKitchen: "Main Kitchen", ColdStation: "Cold Station" };
 
@@ -35,38 +33,10 @@ export const mapDtoToView = (dto: KitchenTicketDto, nowMs: number = Date.now()):
   };
 };
 
-const toView = (t: { id: string; kotNumber: string; stationName: string; channel: string; tableName: string; elapsedMinutes: number; timeStatus: string; items: KitchenTicketItem[] }): TicketView => ({
-  id: t.id,
-  kot: Number(t.kotNumber.replace("KOT-", "")),
-  kotLabel: t.kotNumber,
-  station: t.stationName,
-  channel: t.channel,
-  tableName: t.tableName,
-  elapsedSeconds: t.elapsedMinutes * 60,
-  sla: SLA_MAP[t.timeStatus] ?? "OnTime",
-  items: t.items.map((item: KitchenTicketItem, i: number): KDSTicketItem => ({
-    id: `${t.id}-LI-${i}`,
-    name: item.name,
-    quantity: item.quantity,
-    modifiers: item.modifiers,
-  })),
-});
-
-const seedTickets = (): TicketView[] => mockKitchenTickets.map(toView);
-
-const INJECT_TEMPLATES: { station: string; channel: string; tableName: string; name: string; quantity: number }[] = [
-  { station: "Main Kitchen", channel: "Dine-in", tableName: "T-12", name: "Paneer Tikka Masala", quantity: 1 },
-  { station: "Tandoor", channel: "Zomato", tableName: "ZM-4410", name: "Tandoori Roti", quantity: 4 },
-  { station: "Beverages", channel: "Takeaway", tableName: "Counter", name: "Mango Lassi", quantity: 2 },
-];
-
 export const KitchenPage: React.FC = () => {
   const { client } = useAuth();
-  const [tickets, setTickets] = useState<TicketView[]>(seedTickets);
-  const [live, setLive] = useState<boolean>(false);
-  const [bumpedToday, setBumpedToday] = useState<number>(389);
-  const [kotSeq, setKotSeq] = useState<number>(45);
-  const [injectIdx, setInjectIdx] = useState<number>(0);
+  const [tickets, setTickets] = useState<TicketView[]>([]);
+  const [live, setLive] = useState<boolean>(true);
   const [reprintLog, setReprintLog] = useState<ReprintJob[]>([]);
 
   const applyTick = useCallback((step: (prev: TicketView[]) => TicketView[]): void => {
@@ -80,16 +50,11 @@ export const KitchenPage: React.FC = () => {
       .then((dtos): void => {
         if (!Array.isArray(dtos)) throw new Error("Unexpected KDS payload");
         const nowMs = Date.now();
-        setTickets((prev: TicketView[]): TicketView[] => [
-          ...prev.filter((t: TicketView): boolean => t.id.startsWith("KT-INJ-")),
-          ...dtos.map((dto): TicketView => mapDtoToView(dto, nowMs)),
-        ]);
+        setTickets(dtos.map((dto): TicketView => mapDtoToView(dto, nowMs)));
         setLive(true);
       })
       .catch((): void => {
-        setTickets((prev: TicketView[]): TicketView[] =>
-          prev.length > 0 ? prev : seedTickets(),
-        );
+        setTickets([]);
         setLive(false);
       });
   }, [client]);
@@ -110,34 +75,22 @@ export const KitchenPage: React.FC = () => {
   const avgMinutes = openCount === 0 ? 0 : tickets.reduce((s: number, t: TicketView): number => s + t.elapsedSeconds, 0) / openCount / 60;
 
   const bump = (ticket: TicketView): void => {
-    setTickets((prev: TicketView[]): TicketView[] => prev.filter((t: TicketView): boolean => t.id !== ticket.id));
-    setBumpedToday((n: number): number => n + 1);
-    void message.success(`${ticket.kotLabel} bumped.`);
+    client
+      .bumpTicket(ticket.id)
+      .then((): void => {
+        setTickets((prev: TicketView[]): TicketView[] => prev.filter((t: TicketView): boolean => t.id !== ticket.id));
+        void message.success(`${ticket.kotLabel} bumped.`);
+      })
+      .catch((err: unknown): void => {
+        const msg = err instanceof Error ? err.message : "Bump failed";
+        void message.error(msg);
+      });
   };
 
   const reprint = (ticket: TicketView): void => {
     const job = buildReprintJob(ticket);
     setReprintLog((prev: ReprintJob[]): ReprintJob[] => [job, ...prev].slice(0, 5));
     void message.success(`${ticket.kotLabel} re-queued for printing.`);
-  };
-
-  const inject = (): void => {
-    const tpl = INJECT_TEMPLATES[injectIdx % INJECT_TEMPLATES.length];
-    const ticket: TicketView = {
-      id: `KT-INJ-${kotSeq}`,
-      kot: kotSeq,
-      kotLabel: `KOT-0${kotSeq}`,
-      station: tpl.station,
-      channel: tpl.channel,
-      tableName: tpl.tableName,
-      elapsedSeconds: 0,
-      sla: "OnTime",
-      items: [{ id: `KT-INJ-${kotSeq}-LI-0`, name: tpl.name, quantity: tpl.quantity }],
-    };
-    setTickets((prev: TicketView[]): TicketView[] => [...prev, ticket]);
-    setKotSeq((n: number): number => n + 1);
-    setInjectIdx((n: number): number => n + 1);
-    void message.info(`Test order ${ticket.kotLabel} injected.`);
   };
 
   const refresh = (): void => {
@@ -149,7 +102,7 @@ export const KitchenPage: React.FC = () => {
     <div>
       {!live && (
         <Alert
-          message="Showing cached sample entries - live kitchen service unreachable."
+          message="Live kitchen service unreachable."
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -162,12 +115,10 @@ export const KitchenPage: React.FC = () => {
               <Statistic title="Open" value={openCount} />
               <Statistic title="Late" value={lateCount} valueStyle={lateCount > 0 ? { color: "var(--r)" } : undefined} />
               <Statistic title="Avg prep" value={`${avgMinutes.toFixed(0)}m`} />
-              <Statistic title="Bumped today" value={bumpedToday} valueStyle={{ color: "var(--g)" }} />
             </Space>
           </Col>
           <Col>
             <Space>
-              <Button onClick={inject}>+ Inject Test Order</Button>
               <Button onClick={refresh}>Refresh</Button>
             </Space>
           </Col>

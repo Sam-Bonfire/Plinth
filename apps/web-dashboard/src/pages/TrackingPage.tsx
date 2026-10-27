@@ -1,6 +1,8 @@
-import { mockActiveDineInOrder, mockAggregatorOrders, mockTakeawayOrder, type OrderStatus } from "@plinth/ui-kit";
+import { type OrderStatus } from "@plinth/ui-kit";
 import { Button, Card, Empty, Input, Space, Steps, Typography, message } from "antd";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useTrackingTick } from "../hooks/useTrackingTick.js";
+import { AuthContext } from "../providers/AuthProvider.js";
 
 export function statusToStep(status: OrderStatus): number {
   switch (status) {
@@ -24,27 +26,14 @@ interface TrackedOrder {
   status: OrderStatus;
 }
 
-const seedOrders = (): TrackedOrder[] => [
-  { id: mockActiveDineInOrder.id, status: "Preparing" },
-  { id: mockTakeawayOrder.id, status: "Settled" },
-  ...mockAggregatorOrders.map((o) => ({
-    id: o.aggregatorId ?? o.id,
-    status: (o.status === "InProgress" ? "Preparing" : "Settled") as OrderStatus,
-  })),
-];
-
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   Preparing: "Ready",
   Ready: "Served",
   Served: "Settled",
 };
 
-import { useContext } from "react";
-import { useTrackingTick } from "../hooks/useTrackingTick.js";
-import { AuthContext } from "../providers/AuthProvider.js";
-
 export const TrackingPage: React.FC = () => {
-  const [orders, setOrders] = useState<TrackedOrder[]>(seedOrders);
+  const [orders, setOrders] = useState<TrackedOrder[]>([]);
   const [searchId, setSearchId] = useState<string>("");
   const [searchedId, setSearchedId] = useState<string>("");
   const [searched, setSearched] = useState<boolean>(false);
@@ -64,30 +53,21 @@ export const TrackingPage: React.FC = () => {
     if (!q) return;
     setSearched(true);
 
-    if (client) {
+    if (client && authCtx?.tenantId) {
       try {
-        const res = await client.getOrderStatus(q);
+        const res = await client.getPublicOrderStatus(q, authCtx.tenantId);
         setOrders((prev) => {
           const others = prev.filter((o) => o.id !== q);
-          return [...others, { id: q, status: res.status }];
+          return [...others, { id: q, status: res.status as OrderStatus }];
         });
         setSearchedId(q);
-      } catch (err) {
-        // Fallback to local seed search
-        if (orders.some((o) => o.id === q)) {
-          setSearchedId(q);
-        } else {
-          message.error("Invalid Order ID or unreachable. Please check and try again.");
-          setSearchedId("");
-        }
+      } catch {
+        void message.error("Invalid Order ID or unreachable. Please check and try again.");
+        setSearchedId("");
       }
     } else {
-       if (orders.some((o) => o.id === q)) {
-          setSearchedId(q);
-       } else {
-          message.error("Invalid Order ID or unreachable. Please check and try again.");
-          setSearchedId("");
-       }
+      void message.error("Invalid Order ID or unreachable. Please check and try again.");
+      setSearchedId("");
     }
   };
 
