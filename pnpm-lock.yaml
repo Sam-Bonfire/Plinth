@@ -31,14 +31,14 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@18.3.1)
       '@lingui/core':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@lingui/macro':
         specifier: ^5.9.5
         version: 5.9.5(react@18.3.1)
       '@lingui/react':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -49,21 +49,21 @@ importers:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
+        specifier: ^5.0.16
+        version: 5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
     devDependencies:
       '@ant-design/icons':
         specifier: ^6.3.4
         version: 6.3.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@lingui/conf':
-        specifier: ^6.10.0
-        version: 6.10.0
+        specifier: ^6.10.1
+        version: 6.10.1
       '@lingui/format-po':
-        specifier: ^6.10.0
-        version: 6.10.0
+        specifier: ^6.10.1
+        version: 6.10.1
       '@lingui/vite-plugin':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(esbuild@0.28.2)(supports-color@10.2.2)(vite@6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(esbuild@0.28.2)(supports-color@10.2.2)(vite@6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15))
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -146,14 +146,14 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@18.3.1)
       '@lingui/core':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@lingui/macro':
         specifier: ^5.9.5
         version: 5.9.5(react@18.3.1)
       '@lingui/react':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
       '@plinth/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -173,8 +173,8 @@ importers:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
+        specifier: ^5.0.16
+        version: 5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^7.0.1
@@ -201,11 +201,11 @@ importers:
   apps/edge-api:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^5.20261021.1
-        version: 5.20261021.1
+        specifier: ^5.20261023.1
+        version: 5.20261023.1
       wrangler:
-        specifier: ^4.151.3
-        version: 4.151.3(@cloudflare/workers-types@5.20261021.1)(@types/node@26.6.5)
+        specifier: ^4.152.0
+        version: 4.152.0(@cloudflare/workers-types@5.20261023.1)(@types/node@26.6.5)
 
   apps/marketing-site:
     dependencies:
@@ -241,8 +241,8 @@ importers:
         specifier: ^6.4.5
         version: 6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15)
       wrangler:
-        specifier: ^4.151.3
-        version: 4.151.3(@cloudflare/workers-types@5.20261021.1)(@types/node@26.6.5)
+        specifier: ^4.152.0
+        version: 4.152.0(@cloudflare/workers-types@5.20261023.1)(@types/node@26.6.5)
 
   apps/pos-client:
     dependencies:
@@ -256,14 +256,14 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@18.3.1)
       '@lingui/core':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@lingui/macro':
         specifier: ^5.9.5
         version: 5.9.5(react@18.3.1)
       '@lingui/react':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
       '@plinth/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -283,12 +283,12 @@ importers:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
+        specifier: ^5.0.16
+        version: 5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
     devDependencies:
       '@tauri-apps/cli':
-        specifier: ^2.12.3
-        version: 2.12.3
+        specifier: ^2.12.4
+        version: 2.12.4
       '@types/react':
         specifier: ^18.3.3
         version: 18.3.31
@@ -323,14 +323,14 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@18.3.1)
       '@lingui/core':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@lingui/macro':
         specifier: ^5.9.5
         version: 5.9.5(react@18.3.1)
       '@lingui/react':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
       '@plinth/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -350,8 +350,8 @@ importers:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
+        specifier: ^5.0.16
+        version: 5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
     devDependencies:
       '@types/react':
         specifier: ^18.3.3
@@ -389,14 +389,14 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@18.3.1)
       '@lingui/core':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       '@lingui/macro':
         specifier: ^5.9.5
         version: 5.9.5(react@18.3.1)
       '@lingui/react':
-        specifier: ^6.10.0
-        version: 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
+        specifier: ^6.10.1
+        version: 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)
       antd:
         specifier: ^5.20.0
         version: 5.29.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -410,8 +410,8 @@ importers:
         specifier: ^7.18.4
         version: 7.18.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
+        specifier: ^5.0.16
+        version: 5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1))
     devDependencies:
       '@types/react':
         specifier: ^18.3.3
@@ -736,8 +736,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@cloudflare/workers-types@5.20261021.1':
-    resolution: {integrity: sha512-HLu/pEx2488dO13gQoLaLmMMTcah/NqEn/c/6c/sJV9nyBY/CVQAI9Zj+YugKacrxENDmIVPU0HKIK+mU7WKzA==}
+  '@cloudflare/workers-types@5.20261023.1':
+    resolution: {integrity: sha512-jRaMsWUF/08dd0dWnX3zPGPOjakkkA2JPnK5vLsCQFmYC40kbMPZ02fvOPO8kqjqgljoMZrKsRiXpR1u1Lp0Qg==}
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -1361,12 +1361,12 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@lingui/babel-plugin-extract-messages@6.10.0':
-    resolution: {integrity: sha512-CGA6MdExnxm+QWI0Ebi6GhSSrD9hofVrYFdh6GxRZ2h3FMV06OJmmjoMm8D8EdH7T6N2wRISM14RI4InvbV5RA==}
+  '@lingui/babel-plugin-extract-messages@6.10.1':
+    resolution: {integrity: sha512-geg2chO+ahysUT7RdPdOMHNVb2hpM7jDrQpro+IyZKG6NwZ6BlsroxXpJKC27k/Jw1g7uvMBrkw7zOPeGCfi5A==}
     engines: {node: '>=22.19.0'}
 
-  '@lingui/babel-plugin-lingui-macro@6.10.0':
-    resolution: {integrity: sha512-g9COw73hIICzmu4glu0CpwPWymEmcYCVZAOX6EyvtRLGQRCtNAuP/33ClcqW0c1NsE7wwKL/TYy3g5kCGrYdUg==}
+  '@lingui/babel-plugin-lingui-macro@6.10.1':
+    resolution: {integrity: sha512-AQs7UsweJS+JMb1ySzETHFktdgwmdQaJM7B9WWVvuhJv0BtiI/S/XJcl2Nyh93mvWD3HArIFRWECKnZ0y5lIeQ==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
       '@babel/core': ^7.20.12 || ^8.0.0
@@ -1374,8 +1374,8 @@ packages:
       '@babel/core':
         optional: true
 
-  '@lingui/cli@6.10.0':
-    resolution: {integrity: sha512-h8fk9GkASZDW5s1ZGSeIz0CCA6v9pm8zr9hJEuWtsrjT+YJKxHPVyLuSlAavZzsi4l2DypkQeJHqbBW1POAZaA==}
+  '@lingui/cli@6.10.1':
+    resolution: {integrity: sha512-C80aWjnGutoPFkw7F995yt3APK32+7X5d36DdyL5MKSrAHf8irBOG2wjy2nhm6gjDWOS0+s6zCTh8HX2HDC+CQ==}
     engines: {node: '>=22.19.0'}
     hasBin: true
     peerDependencies:
@@ -1387,8 +1387,8 @@ packages:
       rolldown:
         optional: true
 
-  '@lingui/conf@6.10.0':
-    resolution: {integrity: sha512-eyaJH0q9w/jRokuuozk54n23CPKxw0bGRECTzdIjrebeLXn96dK408cuNjjf/d6FNL6iM8ciZuW8YuGLvGneaA==}
+  '@lingui/conf@6.10.1':
+    resolution: {integrity: sha512-utgrZY0AUj08dLi/9jSrR0chwBlvPKjGGDCPHR1UHCVZb/EIxskbITiCVITUfVuxp5+FMSPMm0V1lzF1Q86qlg==}
     engines: {node: '>=22.19.0'}
 
   '@lingui/core@5.9.5':
@@ -1403,8 +1403,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  '@lingui/core@6.10.0':
-    resolution: {integrity: sha512-A6phbNlbpsShJMYiOZMrVSubeb71FWeuOuEktBfbSmPpKqLIzf16Mod/t7mmG6m3ei4HCVUPKE8RuknHirrNjA==}
+  '@lingui/core@6.10.1':
+    resolution: {integrity: sha512-s2b2yyXBwNFdKz5r3S9zaGLlJpSTH3+k+q0RGQr/TbjoTDsuTCMbHHT6stTWj377/4p/E3UTOrIy7r7J5jTGUA==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
       babel-plugin-macros: 2 || 3
@@ -1412,8 +1412,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  '@lingui/format-po@6.10.0':
-    resolution: {integrity: sha512-6LfRGmgu2jadzbweaBtp9/CISvRMHymGvV1GGd6OBWdeQsSPw9g1pisfqsfZMhWFuok5yiLpHairWbUTus/CRA==}
+  '@lingui/format-po@6.10.1':
+    resolution: {integrity: sha512-C+PjhCV4ERBCTFFymcIpBNfZaQfMcwh97+YENvmqgaUNQ95WcMVV9dk+qV+V+QG4g82a6ZCNbce1zSAxoy7rdw==}
     engines: {node: '>=22.19.0'}
 
   '@lingui/macro@5.9.5':
@@ -1432,8 +1432,8 @@ packages:
     resolution: {integrity: sha512-t3dNbjb1dWkvcpXGMXIEyBDO3l4B8J2ColZXi0NTG1ioAj+sDfFxFB8fepVgd3JAk+AwARlOLvF14oS0mAdgpw==}
     engines: {node: '>=20.0.0'}
 
-  '@lingui/message-utils@6.10.0':
-    resolution: {integrity: sha512-Mc5eL3TPP/yDCa05IK3UQH3/Xy2Yzpz9KMCkKeJ+Q8nDb+xaW/CnOpkOMsBbgdbLxP0cXV8CER3F1PE/F29g0Q==}
+  '@lingui/message-utils@6.10.1':
+    resolution: {integrity: sha512-IzCtKG+wtC0uMFs7pONVAFscHzQN0FjW6RG7DULVJcHaLmH/hOGc7QpGX7Jzm7d8QguDfUM0QmSwFwLkYDmNvQ==}
     engines: {node: '>=22.19.0'}
 
   '@lingui/native-tools-android-arm64@0.1.6':
@@ -1513,8 +1513,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  '@lingui/react@6.10.0':
-    resolution: {integrity: sha512-W0V66a9mc5sRZ3dMS/HJjhqOLxKsO93bOsA925mDULFICRZ1i5Wxtu0TR/jgen+4cJw8qErWEJ9IL76NmcGYfg==}
+  '@lingui/react@6.10.1':
+    resolution: {integrity: sha512-r0e4T7WpkeKeVxT+qt56u7i8z1ykRIotpsCXaA6Vm2K0iVkE0SebcWpBaEFpBX8FyHEzXSA5nshSH6dm50pL1Q==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
       babel-plugin-macros: 2 || 3
@@ -1523,8 +1523,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  '@lingui/vite-plugin@6.10.0':
-    resolution: {integrity: sha512-tp1sVK0X0Ff5mSBdDY2urqer0S21yZqRE4i8o9GZoCmoaOn9GbXsY4xEv/ZdBHkHWqBtMheZYkc66ZFECRGBEA==}
+  '@lingui/vite-plugin@6.10.1':
+    resolution: {integrity: sha512-AmpTUCMQaw9Eg9Un5R5008E9+O9B/x4zcOuxYe3r/s1ry/OXemuigJStmBGgxsF6fxmUClIKY27JkpWL/GE0LA==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
       '@babel/core': ^7.29.0 || ^8.0.0
@@ -1808,79 +1808,79 @@ packages:
   '@tauri-apps/api@2.12.4':
     resolution: {integrity: sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg==}
 
-  '@tauri-apps/cli-darwin-arm64@2.12.3':
-    resolution: {integrity: sha512-xmVNoJOOKzKLj7GLHXmXLimRby9M42aBIJa0sB80N7o24eKV5JiVmToKTRLVH9yhL05GZ/B6rSSOmbzNFJwBAA==}
+  '@tauri-apps/cli-darwin-arm64@2.12.4':
+    resolution: {integrity: sha512-OxqKSckIkoJ6vX2AjifIJpTasFC0Hbdoo7gEiCmAjauABO3U8m2MRsLWe+QTiBwDx1mIrvgA+rvI7tvDnbnHVg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@tauri-apps/cli-darwin-x64@2.12.3':
-    resolution: {integrity: sha512-URd+0usfmUQQyb5kNPiKt2OT8gp7oGU7QR+qOppB6e35mpVBFFVNhWc9oWb3p0u71fDJ09DpF4T6m9xYxoIB8g==}
+  '@tauri-apps/cli-darwin-x64@2.12.4':
+    resolution: {integrity: sha512-fz76/77wMMJOaaUN6n3CybRG0P/MTEjjqYk81mGPyhi9m6Ue5T+LWBnJP/AkPooNatBPI2vtulGqomyMJ44lCQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.3':
-    resolution: {integrity: sha512-0kwUVx2LbmOoTRlwF1oDww7th4/NSluv4ZBQ6KRZsFKg4g0TlTcIiJ0VehqkQYUeC9xIT1Mk6XtF52mI155VSQ==}
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.4':
+    resolution: {integrity: sha512-K0w8Bof6Lt8QKLAYhRy0yy36ZH5iA/35VuSOvnxyjvCUZ+A3JKsUTlALviH/sVgAlisaPzzmeJSH8XOn4Q2HBA==}
     engines: {node: '>= 10'}
     cpu: [arm]
     os: [linux]
 
-  '@tauri-apps/cli-linux-arm64-gnu@2.12.3':
-    resolution: {integrity: sha512-gKSGDx6fx+HBLQmG6guChFdisbrCSdx9Yli+j5teOa64gm1CeM+C6NLru5Pj3ZkkEep05BmCFjxvX+cjqAycZQ==}
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.4':
+    resolution: {integrity: sha512-j5rOnjmRUwWrm1oosf0zBYl4D+fqydgUROFCk0hvKZxvbTT8SOERes0QB7rBV/XWNy+kM6pCKzb3oSm2sRglzg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@tauri-apps/cli-linux-arm64-musl@2.12.3':
-    resolution: {integrity: sha512-Yr59qMy/gcvAfBuFdCGlAmGiLsYWMFDbsP4bAI6iNBzcJTGrYWZGeiQhGDo29MQwfF/NUBqyM2qljXu5tZ6wjQ==}
+  '@tauri-apps/cli-linux-arm64-musl@2.12.4':
+    resolution: {integrity: sha512-aOue3Fy6Jb7+oWcfAVUsVHfeTybSCt2CZoU06aO4jv4d2Ks/KnaTPwMAK3CLEduGOvBLY1lbBBrIyomqLLH5Sg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@tauri-apps/cli-linux-riscv64-gnu@2.12.3':
-    resolution: {integrity: sha512-jKr0/REBMnLKC0OwPQZkyge0mKDaNZ0b/AbfGwVyCgFfwS730EVLfVDo3nt7MUu6jJaytRq08+xSj5qfy+U1+Q==}
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.4':
+    resolution: {integrity: sha512-Fx6GShY/RvST+t6LMlTHAwd66+1tEaAAGrnU7cysVfaiRP1BKng5Vl6rVmO6rSLOA1Sp1dRzNYM4f0OWQGb7qA==}
     engines: {node: '>= 10'}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
-  '@tauri-apps/cli-linux-x64-gnu@2.12.3':
-    resolution: {integrity: sha512-gTkEqJAGCMROGanxHnzaJzQ+/rXl39HWVg0/hDODS1wDWBGqoceqGC6Qm1+mQbyT11xnsB8mKu/gyVID/YpFIw==}
+  '@tauri-apps/cli-linux-x64-gnu@2.12.4':
+    resolution: {integrity: sha512-tNzZSa79Z1nRpHxEpQ38lsAFpKlFlYvoXzjTV+lRRn/zSf3wrdUC3wnLcq2XEadchPu4ttK0zivhYzr+XGD19Q==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@tauri-apps/cli-linux-x64-musl@2.12.3':
-    resolution: {integrity: sha512-T2dTxL1svRym71fZtaW4pZYXbthbfFsEJr1NeOUg/p7laWXZbUt/8DMSZf8recu9f7+1F/Lv00HtzsEu6vDO9w==}
+  '@tauri-apps/cli-linux-x64-musl@2.12.4':
+    resolution: {integrity: sha512-jmZ1pr0xEqUhuEusWtt9Yt+GF6lCnGHUmIL+KIknpbjK/XQ2qkhDBhaxK/JMHM2A8dAacVXCxXJk2EXpwhQUfA==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@tauri-apps/cli-win32-arm64-msvc@2.12.3':
-    resolution: {integrity: sha512-eoiQwpEZWbpsVHcM9BAzqqe4TCHszvr3rsM7pUQ4ofLK0lF1i1d/jX0Qo5DYMqcrUtwQuDdDuOCbcT0Izf1VwQ==}
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.4':
+    resolution: {integrity: sha512-fGo8pgEHZxdSYgZ/J98m1usJ7NHKmKbq7k6uT0x1rpOq6Bg2YVzzpaAblWk710f5LHYBJIL5QIFS5IrD+4gmTg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
 
-  '@tauri-apps/cli-win32-ia32-msvc@2.12.3':
-    resolution: {integrity: sha512-kE+KUg6Dbbkgvcw0m99wJVIToFQzJqpMBAXah74WqxaLzssNwSTUccrHp6+QVzMhjQP330tvekFmnQF+0NbE6Q==}
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.4':
+    resolution: {integrity: sha512-ezl8sQIcjYsye3TUnTH5VcWmWzccZASlQm7hlZt0dYyj1XD0qpVW47u2xYVrIKui0F8uQv/7QGZixdWiClBsbg==}
     engines: {node: '>= 10'}
     cpu: [ia32]
     os: [win32]
 
-  '@tauri-apps/cli-win32-x64-msvc@2.12.3':
-    resolution: {integrity: sha512-L7wndWAgX2mLW7alswpL3d1R0P9FN2WYBgHaQkAYEBxHHGkY4vFX9CjcRQ1LAxDAMIJxrY7/aDziFJeChS84NQ==}
+  '@tauri-apps/cli-win32-x64-msvc@2.12.4':
+    resolution: {integrity: sha512-DJhDeCqjLDNMWYFy7ZS8cfeAHX2RK0RbQMLiA3bMVVkXRDJ4NBYiHriGqsUhsr9iG41aTb+dJGkFPmPw1gWwVw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@tauri-apps/cli@2.12.3':
-    resolution: {integrity: sha512-f7/LsY74SVb1ChmOPw1ajOpxii0GSzDAgmWHRci8JUYuuai04rXsSbFobpmB0sP2DdlvMD/B5ZotEn8GOGMRUg==}
+  '@tauri-apps/cli@2.12.4':
+    resolution: {integrity: sha512-JI9bHfudSRJikGOrjbXEm6RjzzvmKuLc+JixB1NE8hNzQkNlCCIC3pTES3uypkR9lxHrsbxzcnSwhI2IxBQphw==}
     engines: {node: '>= 10'}
     hasBin: true
 
@@ -3172,8 +3172,8 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
-  miniflare@5.20261019.1-beta:
-    resolution: {integrity: sha512-1n7MN2UqZnPniyYAqNuV1YEAaja66ozKGVCc5ZTmYQhTubnoAwGLccwb+ZWYLOajuw3pOaJ70u//bZMuURlRew==}
+  miniflare@5.20261019.2-beta:
+    resolution: {integrity: sha512-QNgCA/axizZ7kv7RV3nwbRoz+w4watBlwIsyXjwgYHw4eSw5BrR1F2152s3Kz+Bzy/YxjKFHrZl3LzBRbPgYoQ==}
     engines: {node: '>=22.0.0'}
 
   minimatch@3.1.5:
@@ -4169,8 +4169,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  wrangler@4.151.3:
-    resolution: {integrity: sha512-mzPQLmkAhZUV7CdiAhE+hiIAJlS9xPL6vZe1B8oQFuWxFu7nmQnvHAVjcAcabwSGkXFXH9uspzXwHOFrfbQmqQ==}
+  wrangler@4.152.0:
+    resolution: {integrity: sha512-lmXTF1sCDEqBaEMpreGczvg/x3AIh1d/qxc4BN7utQ4jEDwdA4YG0L6kr3ev0TtVLHRb6QLySNAOAunwn+dHeA==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -4230,8 +4230,8 @@ packages:
   youch@4.1.0-beta.10:
     resolution: {integrity: sha512-rLfVLB4FgQneDr0dv1oddCVZmKjcJ6yX6mS4pU82Mq/Dt9a3cLZQ62pDBL4AUO+uVrCvtWz3ZFUL2HFAFJ/BXQ==}
 
-  zustand@5.0.15:
-    resolution: {integrity: sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==}
+  zustand@5.0.16:
+    resolution: {integrity: sha512-Uv7e327ihlCfayfja3hDc0M64Upev1LWBKpRobdK4NyovDDPeeX4imWXc/wzC1yc6fkYPoAY/ncKVPAs2jrtQw==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@types/react': '>=18.0.0'
@@ -4734,7 +4734,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20261019.1':
     optional: true
 
-  '@cloudflare/workers-types@5.20261021.1': {}
+  '@cloudflare/workers-types@5.20261023.1': {}
 
   '@colors/colors@1.5.0':
     optional: true
@@ -5143,30 +5143,30 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@lingui/babel-plugin-extract-messages@6.10.0':
+  '@lingui/babel-plugin-extract-messages@6.10.1':
     dependencies:
-      '@lingui/conf': 6.10.0
+      '@lingui/conf': 6.10.1
 
-  '@lingui/babel-plugin-lingui-macro@6.10.0(@babel/core@7.29.7(supports-color@10.2.2))':
+  '@lingui/babel-plugin-lingui-macro@6.10.1(@babel/core@7.29.7(supports-color@10.2.2))':
     dependencies:
-      '@lingui/conf': 6.10.0
-      '@lingui/message-utils': 6.10.0
+      '@lingui/conf': 6.10.1
+      '@lingui/message-utils': 6.10.1
     optionalDependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
 
-  '@lingui/cli@6.10.0(esbuild@0.28.2)(supports-color@10.2.2)':
+  '@lingui/cli@6.10.1(esbuild@0.28.2)(supports-color@10.2.2)':
     dependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
       '@babel/generator': 7.29.8
       '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
-      '@lingui/babel-plugin-extract-messages': 6.10.0
-      '@lingui/babel-plugin-lingui-macro': 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
-      '@lingui/conf': 6.10.0
-      '@lingui/core': 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
-      '@lingui/format-po': 6.10.0
-      '@lingui/message-utils': 6.10.0
-      '@lingui/native-tools': 0.1.6(@lingui/conf@6.10.0)
+      '@lingui/babel-plugin-extract-messages': 6.10.1
+      '@lingui/babel-plugin-lingui-macro': 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
+      '@lingui/conf': 6.10.1
+      '@lingui/core': 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
+      '@lingui/format-po': 6.10.1
+      '@lingui/message-utils': 6.10.1
+      '@lingui/native-tools': 0.1.6(@lingui/conf@6.10.1)
       chokidar: 5.0.0
       cli-table3: 0.6.5
       commander: 14.0.3
@@ -5184,7 +5184,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  '@lingui/conf@6.10.0':
+  '@lingui/conf@6.10.1':
     dependencies:
       jest-validate: 29.7.0
       jiti: 2.7.0
@@ -5196,17 +5196,17 @@ snapshots:
       '@babel/runtime': 7.29.10
       '@lingui/message-utils': 5.9.5
 
-  '@lingui/core@6.10.0(@babel/core@7.29.7(supports-color@10.2.2))':
+  '@lingui/core@6.10.1(@babel/core@7.29.7(supports-color@10.2.2))':
     dependencies:
-      '@lingui/babel-plugin-lingui-macro': 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
-      '@lingui/message-utils': 6.10.0
+      '@lingui/babel-plugin-lingui-macro': 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
+      '@lingui/message-utils': 6.10.1
     transitivePeerDependencies:
       - '@babel/core'
 
-  '@lingui/format-po@6.10.0':
+  '@lingui/format-po@6.10.1':
     dependencies:
-      '@lingui/conf': 6.10.0
-      '@lingui/message-utils': 6.10.0
+      '@lingui/conf': 6.10.1
+      '@lingui/message-utils': 6.10.1
       pofile-ts: 4.0.3
 
   '@lingui/macro@5.9.5(react@18.3.1)':
@@ -5221,7 +5221,7 @@ snapshots:
       '@messageformat/parser': 5.1.1
       js-sha256: 0.10.1
 
-  '@lingui/message-utils@6.10.0':
+  '@lingui/message-utils@6.10.1':
     dependencies:
       '@messageformat/date-skeleton': 1.1.0
       '@messageformat/parser': 5.2.0
@@ -5254,9 +5254,9 @@ snapshots:
   '@lingui/native-tools-win32-x64-msvc@0.1.6':
     optional: true
 
-  '@lingui/native-tools@0.1.6(@lingui/conf@6.10.0)':
+  '@lingui/native-tools@0.1.6(@lingui/conf@6.10.1)':
     dependencies:
-      '@lingui/conf': 6.10.0
+      '@lingui/conf': 6.10.1
       '@swc/types': 0.1.28
     optionalDependencies:
       '@lingui/native-tools-android-arm64': 0.1.6
@@ -5275,20 +5275,20 @@ snapshots:
       '@lingui/core': 5.9.5
       react: 18.3.1
 
-  '@lingui/react@6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)':
+  '@lingui/react@6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(react@18.3.1)':
     dependencies:
-      '@lingui/babel-plugin-lingui-macro': 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
-      '@lingui/core': 6.10.0(@babel/core@7.29.7(supports-color@10.2.2))
+      '@lingui/babel-plugin-lingui-macro': 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
+      '@lingui/core': 6.10.1(@babel/core@7.29.7(supports-color@10.2.2))
       react: 18.3.1
       use-sync-external-store: 1.7.0(react@18.3.1)
     transitivePeerDependencies:
       - '@babel/core'
 
-  '@lingui/vite-plugin@6.10.0(@babel/core@7.29.7(supports-color@10.2.2))(esbuild@0.28.2)(supports-color@10.2.2)(vite@6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15))':
+  '@lingui/vite-plugin@6.10.1(@babel/core@7.29.7(supports-color@10.2.2))(esbuild@0.28.2)(supports-color@10.2.2)(vite@6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15))':
     dependencies:
-      '@lingui/cli': 6.10.0(esbuild@0.28.2)(supports-color@10.2.2)
-      '@lingui/conf': 6.10.0
-      '@lingui/native-tools': 0.1.6(@lingui/conf@6.10.0)
+      '@lingui/cli': 6.10.1(esbuild@0.28.2)(supports-color@10.2.2)
+      '@lingui/conf': 6.10.1
+      '@lingui/native-tools': 0.1.6(@lingui/conf@6.10.1)
       vite: 6.4.5(@types/node@26.6.5)(jiti@2.7.0)(tsx@4.23.15)
     optionalDependencies:
       '@babel/core': 7.29.7(supports-color@10.2.2)
@@ -5505,52 +5505,52 @@ snapshots:
 
   '@tauri-apps/api@2.12.4': {}
 
-  '@tauri-apps/cli-darwin-arm64@2.12.3':
+  '@tauri-apps/cli-darwin-arm64@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-darwin-x64@2.12.3':
+  '@tauri-apps/cli-darwin-x64@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.3':
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-arm64-gnu@2.12.3':
+  '@tauri-apps/cli-linux-arm64-gnu@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-arm64-musl@2.12.3':
+  '@tauri-apps/cli-linux-arm64-musl@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-riscv64-gnu@2.12.3':
+  '@tauri-apps/cli-linux-riscv64-gnu@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-x64-gnu@2.12.3':
+  '@tauri-apps/cli-linux-x64-gnu@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-linux-x64-musl@2.12.3':
+  '@tauri-apps/cli-linux-x64-musl@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-win32-arm64-msvc@2.12.3':
+  '@tauri-apps/cli-win32-arm64-msvc@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-win32-ia32-msvc@2.12.3':
+  '@tauri-apps/cli-win32-ia32-msvc@2.12.4':
     optional: true
 
-  '@tauri-apps/cli-win32-x64-msvc@2.12.3':
+  '@tauri-apps/cli-win32-x64-msvc@2.12.4':
     optional: true
 
-  '@tauri-apps/cli@2.12.3':
+  '@tauri-apps/cli@2.12.4':
     optionalDependencies:
-      '@tauri-apps/cli-darwin-arm64': 2.12.3
-      '@tauri-apps/cli-darwin-x64': 2.12.3
-      '@tauri-apps/cli-linux-arm-gnueabihf': 2.12.3
-      '@tauri-apps/cli-linux-arm64-gnu': 2.12.3
-      '@tauri-apps/cli-linux-arm64-musl': 2.12.3
-      '@tauri-apps/cli-linux-riscv64-gnu': 2.12.3
-      '@tauri-apps/cli-linux-x64-gnu': 2.12.3
-      '@tauri-apps/cli-linux-x64-musl': 2.12.3
-      '@tauri-apps/cli-win32-arm64-msvc': 2.12.3
-      '@tauri-apps/cli-win32-ia32-msvc': 2.12.3
-      '@tauri-apps/cli-win32-x64-msvc': 2.12.3
+      '@tauri-apps/cli-darwin-arm64': 2.12.4
+      '@tauri-apps/cli-darwin-x64': 2.12.4
+      '@tauri-apps/cli-linux-arm-gnueabihf': 2.12.4
+      '@tauri-apps/cli-linux-arm64-gnu': 2.12.4
+      '@tauri-apps/cli-linux-arm64-musl': 2.12.4
+      '@tauri-apps/cli-linux-riscv64-gnu': 2.12.4
+      '@tauri-apps/cli-linux-x64-gnu': 2.12.4
+      '@tauri-apps/cli-linux-x64-musl': 2.12.4
+      '@tauri-apps/cli-win32-arm64-msvc': 2.12.4
+      '@tauri-apps/cli-win32-ia32-msvc': 2.12.4
+      '@tauri-apps/cli-win32-x64-msvc': 2.12.4
 
   '@testing-library/dom@10.4.2':
     dependencies:
@@ -7056,7 +7056,7 @@ snapshots:
 
   min-indent@1.0.1: {}
 
-  miniflare@5.20261019.1-beta(@types/node@26.6.5):
+  miniflare@5.20261019.2-beta(@types/node@26.6.5):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.5)
@@ -8191,18 +8191,18 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20261019.1
       '@cloudflare/workerd-windows-64': 1.20261019.1
 
-  wrangler@4.151.3(@cloudflare/workers-types@5.20261021.1)(@types/node@26.6.5):
+  wrangler@4.152.0(@cloudflare/workers-types@5.20261023.1)(@types/node@26.6.5):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261019.1)
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261019.1-beta(@types/node@26.6.5)
+      miniflare: 5.20261019.2-beta(@types/node@26.6.5)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20261019.1
     optionalDependencies:
-      '@cloudflare/workers-types': 5.20261021.1
+      '@cloudflare/workers-types': 5.20261023.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - '@types/node'
@@ -8238,7 +8238,7 @@ snapshots:
       cookie: 1.1.1
       youch-core: 0.3.3
 
-  zustand@5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1)):
+  zustand@5.0.16(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.7.0(react@18.3.1)):
     optionalDependencies:
       '@types/react': 18.3.31
       react: 18.3.1
