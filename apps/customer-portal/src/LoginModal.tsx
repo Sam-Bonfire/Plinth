@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 
 export interface LoginSubmitData {
   phone: string;
-  pin: string;
 }
 
 export interface LoginModalProps {
@@ -68,13 +67,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           rules={[{ required: true, message: 'Please input your phone number!' }]}
         >
           <Input placeholder="Enter your phone number" />
-        </Form.Item>
-        <Form.Item
-          label="PIN"
-          name="pin"
-          rules={[{ required: true, message: 'Please input your PIN!' }]}
-        >
-          <Input.Password placeholder="Enter your PIN" />
         </Form.Item>
       </Form>
     </Modal>

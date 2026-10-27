@@ -42,8 +42,48 @@ struct RawMenuItemRow {
     is_veg: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct PublicTenantDto {
+    pub id: String,
+    pub slug: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTenantRow {
+    id: String,
+    slug: String,
+    name: String,
+}
+
 pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
-    router.get_async("/api/v1/public/menu", get_public_menu)
+    let r = router.get_async("/api/v1/public/menu", get_public_menu);
+    r.get_async("/api/v1/public/tenants", get_public_tenants)
+}
+
+/// Retrieves the list of active tenants.
+///
+/// # Errors
+/// Returns an error if the database query fails or JSON serialization fails.
+pub async fn get_public_tenants<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let db = match ctx.env.d1("CELLAR_DB") {
+        Ok(db) => db,
+        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+    };
+    
+    let query = "SELECT id, slug, name FROM tenants WHERE deleted_at IS NULL ORDER BY name ASC";
+    let stmt = db.prepare(query);
+    let res = stmt.all().await?;
+    
+    let raw_tenants: Vec<RawTenantRow> = res.results()?;
+    
+    let tenants: Vec<PublicTenantDto> = raw_tenants.into_iter().map(|row| PublicTenantDto {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+    }).collect();
+    
+    Response::from_json(&tenants)
 }
 
 /// Retrieves the public menu catalog.

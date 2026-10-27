@@ -45,7 +45,14 @@ describe('Menu', () => {
     expect(screen.queryByText('Digital Menu')).toBeNull();
   });
 
-  it('renders error if missing tenant_id', async () => {
+  it('renders picker if missing tenant_id', async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([{ id: 'tenant-1', slug: 't-1', name: 'Restaurant 1' }]),
+      })
+    ) as unknown as typeof fetch;
+
     render(
       <MemoryRouter initialEntries={['/']}>
         <Menu />
@@ -53,8 +60,9 @@ describe('Menu', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Missing tenant_id in URL')).toBeDefined();
+      expect(screen.getByText('Select a Restaurant')).toBeDefined();
     });
+    expect(screen.getByText('Restaurant 1')).toBeDefined();
   });
 
   it('renders error on fetch failure', async () => {
@@ -79,7 +87,7 @@ describe('Menu', () => {
     ) as unknown as typeof fetch;
 
     render(
-      <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
+      <MemoryRouter initialEntries={['/?tenant_id=test-tenant&location_id=loc-1']}>
         <Menu />
       </MemoryRouter>
     );
@@ -134,6 +142,7 @@ describe('Menu', () => {
 
   it('gates checkout on consent after login, then places the order', async () => {
     localStorage.clear();
+    let orderPosted = false;
     global.fetch = vi.fn((url: unknown) => {
       const u = String(url);
       if (u.includes('/public/menu')) {
@@ -142,8 +151,57 @@ describe('Menu', () => {
       if (u.includes('/customer-auth/login')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: 'Asha', phone: '+919820012345' }) });
       }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-7', ticket_id: 'T-7', total_minor: 2000 }) });
+      if (u.includes('/public/orders')) {
+        orderPosted = true;
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ order_id: 'ORD-7', ticket_id: 'T-7', total_minor: 2000 }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     }) as unknown as typeof fetch;
+
+    render(
+      <MemoryRouter initialEntries={['/?tenant_id=test-tenant&location_id=loc-1']}>
+        <Menu />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Classic Burger')).toBeDefined();
+    });
+
+    const adds = screen.getAllByRole('button', { name: 'Add' });
+    fireEvent.click(adds[0] as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Login & Order' }));
+    fireEvent.change(await screen.findByPlaceholderText('Enter your phone number'), { target: { value: '+919820012345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+    expect(await screen.findByText('Decline All')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Decline All' }));
+    
+    expect(await screen.findByText('Order placed: ORD-7')).toBeDefined();
+    expect(orderPosted).toBe(true);
+    
+    const consent = JSON.parse(localStorage.getItem('plinth-portal-consent') || '{}');
+    expect(consent.sms).toBe(false);
+    expect(consent.email).toBe(false);
+    expect(consent.whatsapp).toBe(false);
+    expect(consent.decidedAt).toBeDefined();
+
+    localStorage.clear();
+  });
+
+  it('blocks checkout and shows error if location_id is missing', async () => {
+    localStorage.clear();
+    localStorage.setItem('plinth-portal-customer', JSON.stringify({ name: 'Asha', phone: '+919820012345' }));
+    localStorage.setItem(
+      'plinth-portal-consent',
+      JSON.stringify({ sms: false, email: false, whatsapp: false, decidedAt: new Date().toISOString() })
+    );
+    
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockCatalog),
+      })
+    ) as unknown as typeof fetch;
 
     render(
       <MemoryRouter initialEntries={['/?tenant_id=test-tenant']}>
@@ -157,13 +215,12 @@ describe('Menu', () => {
 
     const adds = screen.getAllByRole('button', { name: 'Add' });
     fireEvent.click(adds[0] as HTMLElement);
-    fireEvent.click(screen.getByRole('button', { name: 'Login & Order' }));
-    fireEvent.change(await screen.findByPlaceholderText('Enter your phone number'), { target: { value: '+919820012345' } });
-    fireEvent.change(screen.getByPlaceholderText('Enter your PIN'), { target: { value: '1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
-    expect(await screen.findByText('Decline All')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Decline All' }));
-    expect(await screen.findByText('Order placed: ORD-7')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Order as Asha' }));
+    
+    // Check if error message is shown (antd message renders outside the component tree sometimes, 
+    // but vitest usually captures it in body if we use getByText)
+    expect(await screen.findByText('Scan the outlet QR to order')).toBeDefined();
+    
     localStorage.clear();
   });
 });

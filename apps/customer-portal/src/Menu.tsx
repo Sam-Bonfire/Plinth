@@ -28,12 +28,19 @@ export interface PublicMenuCatalogResponseDto {
 
 const apiBase = (): string => import.meta.env.VITE_API_BASE_URL || '';
 
+interface PublicTenantDto {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 export const Menu = (): React.JSX.Element => {
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('tenant_id');
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<PublicTenantDto[]>([]);
   const [catalog, setCatalog] = useState<PublicMenuCatalogResponseDto | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart>([]);
@@ -45,15 +52,25 @@ export const Menu = (): React.JSX.Element => {
   const [consentOpen, setConsentOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchCatalog = async () => {
-      if (!tenantId) {
-        setError('Missing tenant_id in URL');
-        setLoading(false);
-        return;
-      }
-
+    const fetchCatalogOrTenants = async () => {
       setLoading(true);
       setError(null);
+
+      if (!tenantId) {
+        try {
+          const res = await fetch(`${apiBase()}/api/v1/public/tenants`);
+          if (!res.ok) {
+            throw new Error('Failed to fetch tenants');
+          }
+          const data: PublicTenantDto[] = await res.json();
+          setTenants(data);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
         const res = await fetch(`${apiBase()}/api/v1/public/menu?tenant_id=${tenantId}`);
@@ -75,15 +92,20 @@ export const Menu = (): React.JSX.Element => {
       }
     };
 
-    fetchCatalog();
+    fetchCatalogOrTenants();
   }, [tenantId]);
 
   const placeOrder = async (cust: PortalCustomer): Promise<void> => {
     if (!tenantId || cart.length === 0) return;
+    
+    const locationId = searchParams.get('location_id');
+    if (!locationId) {
+      void message.error('Scan the outlet QR to order');
+      return;
+    }
+    
     setPlacing(true);
     try {
-      // location_id is unknown to the portal; tenant scope is the routing key.
-      const locationId = searchParams.get('location_id') ?? tenantId;
       const res = await fetch(`${apiBase()}/api/v1/public/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,6 +157,8 @@ export const Menu = (): React.JSX.Element => {
       const cust: PortalCustomer = { name: profile.name, phone: profile.phone };
       setCustomer(cust);
       saveCustomer(cust);
+      
+      // Check consent immediately after login
       if (loadConsent() === null) {
         setLoginOpen(false);
         setConsentOpen(true);
@@ -157,6 +181,10 @@ export const Menu = (): React.JSX.Element => {
   const checkout = (): void => {
     if (cart.length === 0) return;
     if (customer) {
+      if (loadConsent() === null) {
+        setConsentOpen(true);
+        return;
+      }
       void placeOrder(customer);
     } else {
       setLoginOpen(true);
@@ -176,6 +204,26 @@ export const Menu = (): React.JSX.Element => {
       <Flex justify="center" align="center" style={{ minHeight: '100vh', padding: '16px' }}>
         <Alert message="Error" description={error} type="error" showIcon />
       </Flex>
+    );
+  }
+
+  if (!tenantId) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px' }}>
+        <Title level={1} style={{ textAlign: 'center', marginBottom: '24px', fontSize: 24 }}>
+          Select a Restaurant
+        </Title>
+        <Flex vertical gap="middle">
+          {tenants.map(t => (
+            <Link key={t.id} to={`/?tenant_id=${t.id}`} style={{ display: 'block' }}>
+              <Button block size="large">{t.name}</Button>
+            </Link>
+          ))}
+          {tenants.length === 0 && (
+            <Empty description="No restaurants available" />
+          )}
+        </Flex>
+      </div>
     );
   }
 
