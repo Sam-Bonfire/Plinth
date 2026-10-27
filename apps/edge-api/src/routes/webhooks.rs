@@ -60,8 +60,9 @@ pub fn is_valid_razorpay_payload(payload: &serde_json::Value) -> bool {
 /// Ingests an aggregator webhook delivery.
 ///
 /// Flow: tenant header required, body must be valid JSON, endpoint secret
-/// must match, delivery recorded, 202 accepted. Order materialization from
-/// deliveries is a separate task; this endpoint only captures.
+/// must match, delivery recorded, 202 accepted. Swiggy and Zomato deliveries
+/// also materialize a POS order plus kitchen ticket; a replay carrying an
+/// already-seen idempotency key returns the original ids with 200.
 ///
 /// # Errors
 /// Returns an error if request reading or database access fails
@@ -98,17 +99,17 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
         return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     };
 
-    let idempotency_key = req.headers().get("x-idempotency-key").ok().flatten();
-    let Some(idempotency_key) = idempotency_key else {
-        return crate::router::json_error("Missing x-idempotency-key header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
-    };
-
     let provided_sig = req.headers().get("x-webhook-signature").ok().flatten();
     let accepted = verify_signature(provided_sig.as_deref(), &endpoint.secret, &raw);
 
     if !accepted {
         return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &crate::router::get_request_id(&req), 401);
     }
+
+    let idempotency_key = req.headers().get("x-idempotency-key").ok().flatten();
+    let Some(idempotency_key) = idempotency_key else {
+        return crate::router::json_error("Missing x-idempotency-key header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
+    };
 
     let existing = db
         .prepare("SELECT id, order_id FROM webhook_deliveries WHERE endpoint_id = ?1 AND idempotency_key = ?2 LIMIT 1")
@@ -131,6 +132,10 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
     let now = chrono::Utc::now().to_rfc3339();
 
     if provider == "swiggy" || provider == "zomato" {
+        let Some(location_id) = req.headers().get("x-location-id").ok().flatten().filter(|id| !id.is_empty()) else {
+            return crate::router::json_error("Missing x-location-id header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
+        };
+
         let oid = uuid::Uuid::now_v7().to_string();
         order_id = Some(oid.clone());
         let channel = if provider == "swiggy" { "Swiggy" } else { "Zomato" };
@@ -140,12 +145,12 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
         ).bind(&[
             oid.clone().into(),
             tenant_id.clone().into(),
-            "00000000-0000-0000-0000-000000000000".into(), // default location
+            location_id.clone().into(),
             "webhook".into(),
             channel.into(),
             "Confirmed".into(),
-            0.into(),
-            0.into(),
+            crate::db::money(0),
+            crate::db::money(0),
             "webhook".into(),
             now.clone().into(),
             now.clone().into(),
@@ -162,12 +167,12 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
             ticket_id.into(),
             oid.clone().into(),
             tenant_id.into(),
-            "00000000-0000-0000-0000-000000000000".into(),
+            location_id.into(),
             "MainKitchen".into(),
-            kot_number.into(),
+            crate::db::money(kot_number),
             "Pending".into(),
-            240.into(),
-            480.into(),
+            crate::db::money(240),
+            crate::db::money(480),
             now.clone().into(),
         ])?;
         batch.push(stmt_ticket);
@@ -179,7 +184,7 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
         endpoint.id.into(),
         raw.into(),
         "received".into(),
-        202.into(),
+        crate::db::money(202),
         now.into(),
         idempotency_key.into(),
         order_id.clone().map_or(JsValue::null(), Into::into),

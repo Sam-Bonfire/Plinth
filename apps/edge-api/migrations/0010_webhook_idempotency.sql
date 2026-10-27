@@ -1,5 +1,5 @@
--- Migration: 0009_webhook_idempotency.sql
--- Adds idempotency tracking for webhooks
+-- Migration: 0010_webhook_idempotency.sql
+-- Adds idempotency tracking and materialized order linkage for webhooks
 
 ALTER TABLE webhook_deliveries ADD COLUMN idempotency_key TEXT;
 ALTER TABLE webhook_deliveries ADD COLUMN order_id TEXT;
