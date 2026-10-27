@@ -19,7 +19,6 @@ describe('LoginModal', () => {
 
     expect(screen.getAllByText('Login')[0]).toBeInTheDocument();
     expect(screen.getByLabelText('Phone Number')).toBeInTheDocument();
-    expect(screen.getByLabelText('PIN')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
@@ -74,7 +73,6 @@ describe('LoginModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Please input your phone number!')).toBeInTheDocument();
-      expect(screen.getByText('Please input your PIN!')).toBeInTheDocument();
     });
 
     expect(handleSubmit).not.toHaveBeenCalled();
@@ -94,13 +92,11 @@ describe('LoginModal', () => {
     );
 
     await user.type(screen.getByLabelText('Phone Number'), '1234567890');
-    await user.type(screen.getByLabelText('PIN'), '1234');
     await user.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
       expect(handleSubmit).toHaveBeenCalledWith({
         phone: '1234567890',
-        pin: '1234',
       });
     });
   });

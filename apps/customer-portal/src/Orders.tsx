@@ -1,4 +1,4 @@
-import { Card, Flex, List, Tag, Typography } from 'antd';
+import { Card, Flex, List, Tag, Typography, Steps } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { inr } from './cart.js';
@@ -14,9 +14,22 @@ export const Orders = (): React.JSX.Element => {
 
   useEffect(() => {
     let cancelled = false;
+    const TERMINAL_STATUSES = ['Served', 'Settled', 'Voided', 'Refunded'];
+    
     const refresh = async (): Promise<void> => {
+      // Create a mutable copy to avoid updating state if nothing changed, 
+      // but simpler to just fetch non-terminal ones and merge.
+      
+      const toFetch = orders.filter(o => {
+        // liveStatus holds previous states, if it's already terminal, don't poll
+        const current = liveStatus[o.order_id];
+        return !current || !TERMINAL_STATUSES.includes(current);
+      });
+      
+      if (toFetch.length === 0) return;
+
       const entries = await Promise.all(
-        orders.map(async (o) => {
+        toFetch.map(async (o) => {
           try {
             const res = await fetch(`${apiBase()}/api/v1/public/orders/${o.order_id}/status?tenant_id=${o.tenant_id}`);
             if (!res.ok) return null;
@@ -28,14 +41,21 @@ export const Orders = (): React.JSX.Element => {
         }),
       );
       if (!cancelled) {
-        setLiveStatus(Object.fromEntries(entries.filter((e): e is readonly [string, string] => e !== null)));
+        setLiveStatus(prev => {
+          const updates = Object.fromEntries(entries.filter((e): e is readonly [string, string] => e !== null));
+          if (Object.keys(updates).length === 0) return prev;
+          return { ...prev, ...updates };
+        });
       }
     };
+    
     void refresh();
+    const timer = setInterval(() => { void refresh(); }, 5000);
     return (): void => {
       cancelled = true;
+      clearInterval(timer);
     };
-  }, [orders]);
+  }, [orders, liveStatus]);
 
   if (orders.length === 0) {
     return (
@@ -56,22 +76,44 @@ export const Orders = (): React.JSX.Element => {
       </Title>
       <List
         dataSource={orders}
-        renderItem={(o) => (
-          <List.Item key={o.order_id}>
-            <Card size="small" style={{ width: '100%' }}>
-              <Flex justify="space-between" align="center">
-                <div>
-                  <Text strong>{o.order_id}</Text>
-                  <br />
-                  <Text type="secondary">
-                    {o.itemCount} items · {inr(o.total_minor)} · Ticket {o.ticket_id}
-                  </Text>
-                </div>
-                <Tag color={liveStatus[o.order_id] ? 'success' : 'processing'}>{liveStatus[o.order_id] ?? 'Placed'}</Tag>
-              </Flex>
-            </Card>
-          </List.Item>
-        )}
+        renderItem={(o) => {
+          const status = liveStatus[o.order_id] ?? 'Draft';
+          const isError = status === 'Voided' || status === 'Refunded';
+          
+          let currentStep = 0;
+          if (status === 'Preparing') currentStep = 1;
+          else if (status === 'Ready') currentStep = 2;
+          else if (status === 'Served' || status === 'Settled') currentStep = 3;
+
+          return (
+            <List.Item key={o.order_id}>
+              <Card size="small" style={{ width: '100%' }}>
+                <Flex justify="space-between" align="flex-start" style={{ marginBottom: isError ? 0 : 16 }}>
+                  <div>
+                    <Text strong>{o.order_id}</Text>
+                    <br />
+                    <Text type="secondary">
+                      {o.itemCount} items · {inr(o.total_minor)} · Ticket {o.ticket_id}
+                    </Text>
+                  </div>
+                  {isError && <Tag color="error">{status}</Tag>}
+                </Flex>
+                {!isError && (
+                  <Steps
+                    size="small"
+                    current={currentStep}
+                    items={[
+                      { title: 'Confirmed' },
+                      { title: 'Preparing' },
+                      { title: 'Ready' },
+                      { title: 'Served' },
+                    ]}
+                  />
+                )}
+              </Card>
+            </List.Item>
+          );
+        }}
       />
     </div>
   );
