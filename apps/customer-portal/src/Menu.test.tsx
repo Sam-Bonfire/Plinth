@@ -223,4 +223,24 @@ describe('Menu', () => {
     
     localStorage.clear();
   });
+
+  it('accepts and calls injected PlinthApiClient directly', async () => {
+    const mockClient = {
+      getPublicMenu: vi.fn().mockResolvedValue(mockCatalog),
+      getPublicTenants: vi.fn().mockResolvedValue([]),
+      createPublicOrder: vi.fn(),
+      customerLogin: vi.fn(),
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/?tenant_id=injected-tenant']}>
+        <Menu client={mockClient as unknown as import('@plinth/ui-kit').PlinthApiClient} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(mockClient.getPublicMenu).toHaveBeenCalledWith('injected-tenant');
+      expect(screen.getByText('Classic Burger')).toBeDefined();
+    });
+  });
 });

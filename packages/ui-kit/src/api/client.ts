@@ -106,6 +106,88 @@ export interface MenuSyncResponse {
   runs: MenuSyncRun[];
 }
 
+export interface PublicTenantDto {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export interface PublicMenuItemDto {
+  id: string;
+  name: string;
+  description: string | null;
+  price_minor: number;
+  is_veg: boolean;
+}
+
+export interface PublicMenuCategoryDto {
+  id: string;
+  name: string;
+  items: PublicMenuItemDto[];
+}
+
+export interface PublicMenuCatalogResponseDto {
+  categories: PublicMenuCategoryDto[];
+}
+
+export interface PublicOrderItemDto {
+  menu_item_id: string;
+  name: string;
+  unit_price_minor: number;
+  quantity: number;
+  tax_rate?: string | null;
+  notes?: string | null;
+}
+
+export interface CreatePublicOrderRequest {
+  tenant_id: string;
+  location_id: string;
+  channel: string;
+  customer_name?: string | null;
+  items: PublicOrderItemDto[];
+}
+
+export interface PublicOrderResponseDto {
+  success: boolean;
+  order_id: string;
+  ticket_id: string;
+  total_minor: number;
+}
+
+export interface PublicOrderStatusResponseDto {
+  order_id: string;
+  status: string;
+}
+
+export interface CustomerLoginRequest {
+  tenant_id: string;
+  phone: string;
+}
+
+export interface CustomerProfileDto {
+  id?: string;
+  tenant_id?: string;
+  location_id?: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  loyalty_points?: number;
+}
+
+export interface CustomerLoginResponseDto {
+  token?: string;
+  customer: CustomerProfileDto;
+  expires_in?: number;
+}
+
+export interface CustomerRegisterRequest {
+  tenant_id: string;
+  location_id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+}
+
 /**
  * Strongly-typed HTTP Client for PlinthOS API.
  */
@@ -403,5 +485,79 @@ export class PlinthApiClient {
 
   public async verifyStaffPin(staffId: string, req: PinVerifyRequest): Promise<PinVerifyResponse> {
     return this.request<PinVerifyResponse>(`/api/v1/staff/${encodeURIComponent(staffId)}/pin-verify`, "POST", req);
+  }
+
+  // --- Public Portal Endpoints ---
+  public async getPublicTenants(): Promise<PublicTenantDto[]> {
+    return this.request<PublicTenantDto[]>("/api/v1/public/tenants", "GET");
+  }
+
+  public async getPublicMenu(tenantId?: string | null): Promise<PublicMenuCatalogResponseDto> {
+    const effectiveTenantId = tenantId ?? this.config.tenantId;
+    if (!effectiveTenantId) {
+      throw new ApiError("tenant_id is required to fetch public menu", 400, "INVALID_REQUEST");
+    }
+    return this.request<PublicMenuCatalogResponseDto>(
+      "/api/v1/public/menu",
+      "GET",
+      undefined,
+      { tenant_id: effectiveTenantId },
+    );
+  }
+
+  public async createPublicOrder(req: CreatePublicOrderRequest): Promise<PublicOrderResponseDto> {
+    return this.request<PublicOrderResponseDto>("/api/v1/public/orders", "POST", req);
+  }
+
+  public async getPublicOrderStatus(
+    orderId: string,
+    tenantId?: string | null,
+  ): Promise<PublicOrderStatusResponseDto> {
+    const effectiveTenantId = tenantId ?? this.config.tenantId;
+    if (!effectiveTenantId) {
+      throw new ApiError("tenant_id is required to fetch public order status", 400, "INVALID_REQUEST");
+    }
+    return this.request<PublicOrderStatusResponseDto>(
+      `/api/v1/public/orders/${encodeURIComponent(orderId)}/status`,
+      "GET",
+      undefined,
+      { tenant_id: effectiveTenantId },
+    );
+  }
+
+  // --- Customer Auth Endpoints ---
+  public async customerLogin(req: CustomerLoginRequest): Promise<CustomerLoginResponseDto> {
+    const raw = await this.request<{
+      token?: string;
+      expires_in?: number;
+      customer?: CustomerProfileDto;
+      name?: string;
+      phone?: string;
+      id?: string;
+      email?: string | null;
+      loyalty_points?: number;
+    }>("/api/v1/customer-auth/login", "POST", req);
+
+    const customer: CustomerProfileDto = raw.customer ?? {
+      id: raw.id,
+      name: raw.name ?? "",
+      phone: raw.phone ?? req.phone,
+      email: raw.email,
+      loyalty_points: raw.loyalty_points,
+    };
+
+    if (raw.token) {
+      this.setToken(raw.token);
+    }
+
+    return {
+      token: raw.token,
+      expires_in: raw.expires_in,
+      customer,
+    };
+  }
+
+  public async customerRegister(req: CustomerRegisterRequest): Promise<CustomerProfileDto> {
+    return this.request<CustomerProfileDto>("/api/v1/customer-auth/register", "POST", req);
   }
 }
