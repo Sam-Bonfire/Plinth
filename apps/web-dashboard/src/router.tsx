@@ -18,7 +18,10 @@ import { StaffPage } from "./pages/StaffPage.js";
 import { useAuth } from "./providers/AuthProvider.js";
 
 const ProtectedRoute: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isRestoring } = useAuth();
+  if (isRestoring) {
+    return null;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

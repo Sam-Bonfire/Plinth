@@ -7,6 +7,7 @@ import { OrdersPage } from "./OrdersPage.js";
 
 const getMockAuthContext = (mockClientArgs?: Partial<PlinthApiClient>) => ({
   isAuthenticated: true,
+  isRestoring: false,
   tenantId: "t1",
   locationId: "l1",
   login: async (): Promise<void> => {},

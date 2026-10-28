@@ -7,6 +7,7 @@ pub mod router;
 pub mod context;
 pub mod auth;
 pub mod lockout;
+pub mod session;
 pub mod dto;
 pub mod durable_objects;
 
@@ -99,6 +100,19 @@ pub async fn fetch(
 
         // This is a global minimum requirement for /api/v1
         let required_perms = Permissions::empty();
+
+        // Cookie-auth mutations need a same-origin check: browsers attach the
+        // HttpOnly cookie to cross-site form posts, so an allowlisted Origin is
+        // mandatory whenever the access cookie (not a bearer header) is used.
+        let cookie_authenticated = req.headers().get("Authorization").ok().flatten().is_none()
+            && session::read_cookie(&req, session::ACCESS_COOKIE).is_some();
+        if cookie_authenticated && req.method() != Method::Get && req.method() != Method::Head {
+            let origin = req.headers().get("Origin").ok().flatten();
+            if !router::origin_allowed(origin.as_deref(), allowed_origins.as_deref()) {
+                let err_resp = json_error("Cross-origin request rejected", "FORBIDDEN", &request_id, 403)?;
+                return apply_cors(err_resp, allowed_origins.as_deref());
+            }
+        }
 
         match auth::extract_and_verify_context(&req, &secret, required_perms) {
             Ok(ctx) => {

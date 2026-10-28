@@ -425,9 +425,10 @@ export type LocationId = string
 export type LoginRequest = { staff_id: StaffMemberId; pin: string }
 
 /**
- * Response returned upon successful authentication
+ * Session state returned to browser clients. It deliberately carries no
+ * credential: tokens only ever travel in `HttpOnly` cookies.
  */
-export type LoginResponse = { token: string; staff_id: StaffMemberId; role: StaffRole; permissions: number; expires_in: number }
+export type LoginResponse = { staff_id: StaffMemberId; role: StaffRole; permissions: number; expires_in: number }
 
 /**
  * Full menu catalog response
@@ -973,9 +974,9 @@ export type RefundReason =
 export type RefundRequest = { order_id: string; amount_minor: number; reason: string }
 
 /**
- * Response after recording a refund
+ * Response for a refund request or lifecycle step
  */
-export type RefundResponse = { refund_id: string }
+export type RefundResponse = { refund_id: string; status: string }
 
 /**
  * Status of a refund

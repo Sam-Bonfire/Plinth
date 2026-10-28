@@ -8,6 +8,7 @@ import { StaffPage, shiftHours, type AttendanceEntry } from "./StaffPage.js";
 
 const mockAuthContext = {
   isAuthenticated: true,
+  isRestoring: false,
   tenantId: "t1",
   locationId: "l1",
   login: async () => {},

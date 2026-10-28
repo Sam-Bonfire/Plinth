@@ -43,7 +43,7 @@ Content-Type: application/json
 }
 HTTP 200
 [Asserts]
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 jsonpath "$.customer.name" == "Asha Rao"
 jsonpath "$.customer.phone" == "+919820012345"
 jsonpath "$.expires_in" isInteger

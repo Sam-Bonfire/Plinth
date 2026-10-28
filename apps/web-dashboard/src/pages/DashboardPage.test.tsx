@@ -9,7 +9,7 @@ import { DashboardPage } from "./DashboardPage.js";
 const renderPage = (client: PlinthApiClient): void => {
   render(
     <AuthContext.Provider
-      value={{ isAuthenticated: true, tenantId: "t1", locationId: "l1", login: async () => {}, logout: () => {}, client }}
+      value={{ isAuthenticated: true, isRestoring: false, tenantId: "t1", locationId: "l1", login: async () => {}, logout: () => {}, client }}
     >
       <PlinthThemeProvider>
         <MemoryRouter>

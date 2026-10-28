@@ -24,10 +24,13 @@ pub fn extract_token_from_header(auth_header: Option<&String>) -> Option<String>
     auth_header.and_then(|h| h.strip_prefix("Bearer ").map(std::string::ToString::to_string))
 }
 
+/// Extracts the access token from the `Authorization` header, falling back to
+/// the `HttpOnly` access cookie so browser clients never handle token strings.
 #[must_use]
 pub fn extract_token(req: &Request) -> Option<String> {
     let header = req.headers().get("Authorization").ok().flatten();
     extract_token_from_header(header.as_ref())
+        .or_else(|| crate::session::read_cookie(req, crate::session::ACCESS_COOKIE))
 }
 
 /// Resolves the canonical JWT secret (`JWT_SECRET`, legacy `JWT_PUBLIC_KEY`
@@ -112,6 +115,17 @@ pub fn verify_context_from_headers(
         return Err("Location ID mismatch".to_string());
     }
 
+    context_from_claims(&claims, required_permissions)
+}
+
+/// Turns verified staff claims into the tenant context a route needs.
+///
+/// # Errors
+/// Returns an error when the token is not a staff token or lacks `required`.
+pub fn context_from_claims(
+    claims: &JwtClaims,
+    required_permissions: Permissions,
+) -> std::result::Result<TenantContext, String> {
     let claims_permissions = Permissions::from_bits_truncate(claims.permissions);
     if !claims_permissions.contains(required_permissions) {
         return Err("Insufficient permissions".to_string());
@@ -170,6 +184,10 @@ pub fn authorize<D>(
 
 /// Extracts and verifies context from a request
 ///
+/// Browser clients authenticate with the `HttpOnly` access cookie, so the tenant
+/// and location context is taken from the verified claims instead of headers.
+/// Native clients keep working through the `Authorization` header path.
+///
 /// # Errors
 /// Returns an error if the context cannot be verified from the request
 pub fn extract_and_verify_context(
@@ -181,13 +199,22 @@ pub fn extract_and_verify_context(
     let header_location_id = req.headers().get("x-location-id").ok().flatten();
     let auth_header = req.headers().get("Authorization").ok().flatten();
 
-    verify_context_from_headers(
-        header_tenant_id,
-        header_location_id,
-        auth_header.as_ref(),
-        secret,
-        required_permissions
-    )
+    if extract_token_from_header(auth_header.as_ref()).is_some() {
+        return verify_context_from_headers(
+            header_tenant_id,
+            header_location_id,
+            auth_header.as_ref(),
+            secret,
+            required_permissions,
+        );
+    }
+
+    if let Some(token) = crate::session::read_cookie(req, crate::session::ACCESS_COOKIE) {
+        let claims = verify_token(&token, secret)?;
+        return context_from_claims(&claims, required_permissions);
+    }
+
+    Err("Missing Authorization header".to_string())
 }
 
 #[cfg(test)]
@@ -290,6 +317,16 @@ mod tests {
         .unwrap();
         assert_eq!(ctx.tenant_id.to_string(), tenant);
         assert_eq!(ctx.staff_id.to_string(), staff);
+    }
+
+    #[test]
+    fn rejects_customer_token_on_staff_routes() {
+        let mut claims = test_claims();
+        claims.token_type = "customer".to_string();
+        assert_eq!(
+            context_from_claims(&claims, Permissions::empty()).unwrap_err(),
+            "Invalid token type".to_string()
+        );
     }
 
     #[test]

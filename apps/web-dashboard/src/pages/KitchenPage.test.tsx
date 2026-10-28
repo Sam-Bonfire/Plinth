@@ -9,6 +9,7 @@ function renderPage(mockClient?: Partial<PlinthApiClient>): void {
     <AuthContext.Provider
       value={{
         isAuthenticated: true,
+        isRestoring: false,
         tenantId: "t1",
         locationId: "l1",
         login: async (): Promise<void> => {},

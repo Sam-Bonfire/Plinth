@@ -13,9 +13,9 @@ Content-Type: application/json
 }
 HTTP 200
 [Asserts]
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 [Captures]
-token_admin: jsonpath "$.token"
+token_admin: cookie "plinth_access"
 
 # Query all inventory items
 GET {{base_url}}/api/v1/inventory
