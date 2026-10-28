@@ -68,7 +68,7 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
 pub async fn get_public_tenants<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
     
     let query = "SELECT id, slug, name FROM tenants WHERE deleted_at IS NULL ORDER BY name ASC";
@@ -104,7 +104,7 @@ pub async fn get_public_menu<D>(req: Request, ctx: RouteContext<D>) -> Result<Re
     
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
     
     let cat_query = "SELECT id, name FROM menu_categories WHERE tenant_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY display_order ASC";

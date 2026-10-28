@@ -49,11 +49,11 @@ pub async fn health_check<D>(req: Request, ctx: RouteContext<D>) -> Result<Respo
     match Response::from_json(&res_dto) {
         Ok(mut resp) => {
             if let Err(e) = resp.headers_mut().set("x-request-id", &request_id) {
-                return crate::router::json_error(format!("Failed to set header: {e}"), "INTERNAL_ERROR", &request_id, 500);
+                return crate::router::internal_error(&req, format!("Failed to set header: {e}"));
             }
             Ok(resp)
         },
-        Err(e) => crate::router::json_error(format!("JSON error: {e}"), "INTERNAL_ERROR", &request_id, 500),
+        Err(e) => crate::router::internal_error(&req, format!("JSON error: {e}")),
     }
 }
 

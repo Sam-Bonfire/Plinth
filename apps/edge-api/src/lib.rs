@@ -125,7 +125,10 @@ pub async fn fetch(
             if err_str == "Route not found" {
                  json_error("Not Found", "NOT_FOUND", &request_id, 404)?
             } else {
-                 json_error(err_str, "INTERNAL_ERROR", &request_id, 500)?
+                // Anything a handler propagated with `?` may carry internals;
+                // the caller gets the generic message and the log keeps the cause.
+                worker::console_error!("[{request_id}] {err_str}");
+                json_error(router::INTERNAL_ERROR_MESSAGE, "INTERNAL_ERROR", &request_id, 500)?
             }
         }
     };

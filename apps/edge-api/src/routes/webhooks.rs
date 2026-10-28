@@ -86,7 +86,7 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     let tenant_param: JsValue = tenant_id.clone().into();

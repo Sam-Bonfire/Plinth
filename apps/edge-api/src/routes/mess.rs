@@ -61,7 +61,7 @@ pub async fn top_up<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Respons
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // Verify account belongs to tenant
@@ -116,7 +116,7 @@ pub async fn pay<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> 
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // Verify account belongs to tenant
@@ -182,7 +182,7 @@ pub async fn get_balance<D>(req: Request, ctx: RouteContext<D>) -> Result<Respon
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // Verify account belongs to tenant

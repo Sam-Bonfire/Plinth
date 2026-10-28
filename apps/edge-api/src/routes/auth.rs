@@ -180,7 +180,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
-        Err(e) => return crate::router::json_error(format!("Failed to sign token: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Failed to sign token: {e}")),
     };
 
     let response_body = LoginResponse {

@@ -89,12 +89,12 @@ pub async fn submit_lead<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     };
 
     if let Err(e) = stmt.run().await {
-        return crate::router::json_error(format!("Failed to store lead: {e}"), "INTERNAL_ERROR", &request_id, 500);
+        return crate::router::internal_error(&req, format!("Failed to store lead: {e}"));
     }
 
     match Response::from_json(&LeadResponse { lead_id }) {
         Ok(resp) => Ok(resp.with_status(202)),
-        Err(e) => crate::router::json_error(format!("JSON error: {e}"), "INTERNAL_ERROR", &request_id, 500),
+        Err(e) => crate::router::internal_error(&req, format!("JSON error: {e}")),
     }
 }
 

@@ -126,7 +126,10 @@ impl DurableObject for HearthRoom {
 
         let db = match self.env.d1("CELLAR_DB") {
             Ok(db) => db,
-            Err(e) => return Response::error(format!("Database error in alarm: {e}"), 500),
+            Err(e) => {
+                worker::console_error!("alarm database unavailable: {e}");
+                return Response::error(crate::router::INTERNAL_ERROR_MESSAGE, 500);
+            }
         };
 
         let mutations = std::mem::take(&mut *self.unflushed.borrow_mut());

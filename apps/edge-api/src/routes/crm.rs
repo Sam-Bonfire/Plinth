@@ -66,7 +66,7 @@ pub async fn search_customers<D>(req: Request, ctx: RouteContext<D>) -> Result<R
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     let like = format!("%{query}%");

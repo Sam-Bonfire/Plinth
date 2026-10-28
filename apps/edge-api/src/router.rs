@@ -35,6 +35,19 @@ pub fn json_error(error: impl Into<String>, code: impl Into<String>, request_id:
     Ok(resp)
 }
 
+/// Caller-facing text for any 5xx. The real cause never leaves the server.
+pub const INTERNAL_ERROR_MESSAGE: &str = "Internal server error";
+
+/// Logs the real cause against the request id and returns a generic 500.
+///
+/// # Errors
+/// Returns an error if JSON serialization fails
+pub fn internal_error(req: &Request, detail: impl std::fmt::Display) -> Result<Response> {
+    let request_id = get_request_id(req);
+    worker::console_error!("[{request_id}] {detail}");
+    json_error(INTERNAL_ERROR_MESSAGE, "INTERNAL_ERROR", &request_id, 500)
+}
+
 #[allow(clippy::cast_possible_wrap)]
 #[must_use]
 pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Option<TenantContext>> {
