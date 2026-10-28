@@ -1,4 +1,6 @@
 use crate::auth::JwtClaims;
+use crate::db::refresh_tokens;
+use crate::session::{self, RotationError, SessionPolicy};
 use jsonwebtoken::{Algorithm, Header};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -49,11 +51,20 @@ pub struct CustomerProfile {
     pub loyalty_points: i64,
 }
 
-/// Response returned upon successful authentication
+/// Session state returned to portal clients. No credential is included:
+/// tokens only ever travel in `HttpOnly` cookies.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct LoginResponse {
-    pub token: String,
     pub customer: CustomerProfile,
+    pub expires_in: usize,
+}
+
+/// Current customer session without credential material.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct SessionResponse {
+    pub customer_id: String,
+    pub tenant_id: String,
+    pub location_id: String,
     pub expires_in: usize,
 }
 
@@ -63,6 +74,9 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .post_async("/api/v1/customer-auth/register", register_customer)
         .post_async("/api/v1/customer-auth/login", login)
+        .get_async("/api/v1/customer-auth/session", current_session)
+        .post_async("/api/v1/customer-auth/refresh", refresh)
+        .post_async("/api/v1/customer-auth/logout", logout)
 }
 
 /// Registers a new customer
@@ -214,30 +228,33 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
 
     let _ = crate::lockout::record_attempt(&db, &payload.tenant_id, &phone, true).await;
 
-    let now_ts = usize::try_from(chrono::Utc::now().timestamp()).unwrap_or(0);
-    let expires_in: usize = 86400 * 30; // 30 days for customers
-    let exp = now_ts + expires_in;
+    let policy = SessionPolicy::customer(&ctx);
+    let expires_in = usize::try_from(policy.access_ttl_secs).unwrap_or(0);
+    let claims = customer_claims(&customer_id, &payload.tenant_id, &location_id, policy.access_ttl_secs);
 
-    let claims = JwtClaims {
-        sub: customer_id.clone(),
-        iss: "plinth-auth".to_string(),
-        exp,
-        tenant_id: payload.tenant_id.clone(),
-        location_id: location_id.clone(),
-        roles: vec!["Customer".to_string()],
-        permissions: 0,
-        token_type: "customer".to_string(),
-    };
-
-    let header = Header::new(Algorithm::HS256);
     let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
         return crate::router::json_error("JWT secret not configured", "INTERNAL_ERROR", &request_id, 500);
     };
-    let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
-    let token = match jsonwebtoken::encode(&header, &claims, &key) {
+    let access_token = match sign_claims(&claims, &secret) {
         Ok(t) => t,
         Err(e) => return crate::router::internal_error(&req, format!("Failed to sign token: {e}")),
     };
+
+    let refresh_token = session::new_refresh_token();
+    if let Err(e) = refresh_tokens::insert(
+        &db,
+        &claims.tenant_id,
+        &claims.location_id,
+        "customer",
+        &claims.sub,
+        &session::hash_token(&refresh_token),
+        &policy.refresh_expiry().to_rfc3339(),
+        &Utc::now().to_rfc3339(),
+    )
+    .await
+    {
+        return crate::router::json_error(format!("Failed to start session: {e}"), "INTERNAL_ERROR", &request_id, 500);
+    }
 
     let profile = CustomerProfile {
         id: customer_id,
@@ -249,13 +266,190 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
         loyalty_points,
     };
 
-    let response_body = LoginResponse {
-        token,
+    let resp = Response::from_json(&LoginResponse {
         customer: profile,
         expires_in,
+    })?;
+    let resp = session::set_cookie(
+        resp,
+        &session::session_cookie(session::ACCESS_COOKIE, &access_token, policy.access_ttl_secs),
+    )?;
+    session::set_cookie(
+        resp,
+        &session::session_cookie(session::REFRESH_COOKIE, &refresh_token, policy.refresh_ttl_secs),
+    )
+}
+
+/// Reads the current customer session from the access cookie.
+///
+/// # Errors
+/// Returns `UNAUTHORIZED` when the cookie is missing, invalid or not a
+/// customer token.
+pub async fn current_session<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let request_id = crate::router::get_request_id(&req);
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return crate::router::json_error("JWT secret not configured", "INTERNAL_ERROR", &request_id, 500);
+    };
+    let Some(token) = session::read_cookie(&req, session::ACCESS_COOKIE) else {
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &request_id, 401);
+    };
+    let Ok(claims) = crate::auth::verify_token(&token, &secret) else {
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &request_id, 401);
+    };
+    if claims.token_type != "customer" {
+        return crate::router::json_error("Unauthorized", "UNAUTHORIZED", &request_id, 401);
+    }
+
+    Response::from_json(&SessionResponse {
+        customer_id: claims.sub,
+        tenant_id: claims.tenant_id,
+        location_id: claims.location_id,
+        expires_in: usize::try_from(SessionPolicy::customer(&ctx).access_ttl_secs).unwrap_or(0),
+    })
+}
+
+/// Rotates the customer refresh cookie and re-issues the profile.
+///
+/// # Errors
+/// Returns `SESSION_REQUIRED`, `SESSION_INVALID`, `SESSION_EXPIRED` or
+/// `SESSION_REVOKED` distinctly.
+pub async fn refresh<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let request_id = crate::router::get_request_id(&req);
+    let Some(presented) = session::read_cookie(&req, session::REFRESH_COOKIE) else {
+        return crate::router::json_error("No refresh token", "SESSION_REQUIRED", &request_id, 401);
+    };
+    let Ok(db) = ctx.env.d1("CELLAR_DB") else {
+        return crate::router::json_error("Authentication unavailable", "INTERNAL_ERROR", &request_id, 500);
+    };
+    let stored = match refresh_tokens::find_by_hash(&db, &session::hash_token(&presented)).await {
+        Ok(row) => row,
+        Err(e) => return crate::router::json_error(format!("Session lookup failed: {e}"), "INTERNAL_ERROR", &request_id, 500),
+    };
+    let now = Utc::now();
+    if let Err(err) = session::check_rotation(stored.as_ref(), now) {
+        if err == RotationError::Revoked {
+            if let Some(row) = &stored {
+                let _ = refresh_tokens::revoke_all_for_subject(&db, &row.tenant_id, &row.subject_type, &row.subject_id, &now.to_rfc3339()).await;
+            }
+        }
+        return reject_rotation(err, &request_id);
+    }
+    let Some(stored) = stored else {
+        return reject_rotation(RotationError::Invalid, &request_id);
+    };
+    if stored.subject_type != "customer" {
+        return reject_rotation(RotationError::Invalid, &request_id);
+    }
+
+    let Ok(Some(profile)) = load_customer(&db, &stored.tenant_id, &stored.subject_id).await else {
+        let _ = refresh_tokens::revoke_all_for_subject(&db, &stored.tenant_id, "customer", &stored.subject_id, &now.to_rfc3339()).await;
+        return reject_rotation(RotationError::Invalid, &request_id);
     };
 
-    Response::from_json(&response_body)
+    let policy = SessionPolicy::customer(&ctx);
+    let expires_in = usize::try_from(policy.access_ttl_secs).unwrap_or(0);
+    let claims = customer_claims(&stored.subject_id, &stored.tenant_id, &stored.location_id, policy.access_ttl_secs);
+    let Some(secret) = crate::auth::resolve_jwt_secret(&ctx) else {
+        return crate::router::json_error("JWT secret not configured", "INTERNAL_ERROR", &request_id, 500);
+    };
+    let Ok(access_token) = sign_claims(&claims, &secret) else {
+        return crate::router::json_error("Failed to sign token", "INTERNAL_ERROR", &request_id, 500);
+    };
+    let refresh_token = session::new_refresh_token();
+    if let Err(e) = refresh_tokens::insert(
+        &db,
+        &stored.tenant_id,
+        &stored.location_id,
+        "customer",
+        &stored.subject_id,
+        &session::hash_token(&refresh_token),
+        &policy.refresh_expiry().to_rfc3339(),
+        &now.to_rfc3339(),
+    )
+    .await
+    {
+        return crate::router::json_error(format!("Failed to rotate session: {e}"), "INTERNAL_ERROR", &request_id, 500);
+    }
+    let _ = refresh_tokens::revoke(&db, &session::hash_token(&presented), &now.to_rfc3339()).await;
+
+    let resp = Response::from_json(&LoginResponse { customer: profile, expires_in })?;
+    let resp = session::set_cookie(
+        resp,
+        &session::session_cookie(session::ACCESS_COOKIE, &access_token, policy.access_ttl_secs),
+    )?;
+    session::set_cookie(
+        resp,
+        &session::session_cookie(session::REFRESH_COOKIE, &refresh_token, policy.refresh_ttl_secs),
+    )
+}
+
+/// Revokes the presented customer refresh session and clears both cookies.
+///
+/// # Errors
+/// Returns an error only if the response envelope cannot be built.
+pub async fn logout<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    if let Some(presented) = session::read_cookie(&req, session::REFRESH_COOKIE) {
+        if let Ok(db) = ctx.env.d1("CELLAR_DB") {
+            let _ = refresh_tokens::revoke(&db, &session::hash_token(&presented), &Utc::now().to_rfc3339()).await;
+        }
+    }
+    let resp = session::set_cookie(
+        Response::from_json(&serde_json::json!({ "success": true }))?,
+        &session::cleared_cookie(session::ACCESS_COOKIE),
+    )?;
+    session::set_cookie(resp, &session::cleared_cookie(session::REFRESH_COOKIE))
+}
+
+fn customer_claims(sub: &str, tenant_id: &str, location_id: &str, access_ttl_secs: i64) -> JwtClaims {
+    let now_ts = usize::try_from(Utc::now().timestamp()).unwrap_or(0);
+    let ttl = usize::try_from(access_ttl_secs).unwrap_or(0);
+    JwtClaims {
+        sub: sub.to_string(),
+        iss: "plinth-auth".to_string(),
+        exp: now_ts + ttl,
+        tenant_id: tenant_id.to_string(),
+        location_id: location_id.to_string(),
+        roles: vec!["Customer".to_string()],
+        permissions: 0,
+        token_type: "customer".to_string(),
+    }
+}
+
+fn sign_claims(claims: &JwtClaims, secret: &str) -> std::result::Result<String, jsonwebtoken::errors::Error> {
+    jsonwebtoken::encode(
+        &Header::new(Algorithm::HS256),
+        claims,
+        &jsonwebtoken::EncodingKey::from_secret(secret.as_bytes()),
+    )
+}
+
+async fn load_customer(
+    db: &worker::d1::D1Database,
+    tenant_id: &str,
+    customer_id: &str,
+) -> worker::Result<Option<CustomerProfile>> {
+    let row = db
+        .prepare(
+            "SELECT id, location_id, name, phone, email, loyalty_points FROM customers WHERE id = ?1 AND tenant_id = ?2 AND deleted_at IS NULL",
+        )
+        .bind(&[customer_id.into(), tenant_id.into()])?
+        .first::<serde_json::Value>(None)
+        .await?;
+    Ok(row.as_ref().map(|row| CustomerProfile {
+        id: row.get("id").and_then(serde_json::Value::as_str).unwrap_or_default().to_string(),
+        tenant_id: tenant_id.to_string(),
+        location_id: row.get("location_id").and_then(serde_json::Value::as_str).unwrap_or_default().to_string(),
+        name: row.get("name").and_then(serde_json::Value::as_str).unwrap_or_default().to_string(),
+        phone: row.get("phone").and_then(serde_json::Value::as_str).unwrap_or_default().to_string(),
+        email: row.get("email").and_then(serde_json::Value::as_str).map(ToString::to_string),
+        loyalty_points: row.get("loyalty_points").and_then(serde_json::Value::as_i64).unwrap_or(0),
+    }))
+}
+
+fn reject_rotation(err: RotationError, request_id: &str) -> Result<Response> {
+    let resp = crate::router::json_error(err.to_string(), err.code(), request_id, 401)?;
+    let resp = session::set_cookie(resp, &session::cleared_cookie(session::ACCESS_COOKIE))?;
+    session::set_cookie(resp, &session::cleared_cookie(session::REFRESH_COOKIE))
 }
 
 #[cfg(test)]

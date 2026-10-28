@@ -51,12 +51,12 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 header "Content-Type" contains "application/json"
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 jsonpath "$.role" == "Owner"
 jsonpath "$.permissions" == 1023
 jsonpath "$.expires_in" >= 3600
 [Captures]
-token_admin: jsonpath "$.token"
+token_admin: cookie "plinth_access"
 
 # Positive Case: Login Cashier (Permissions bitmask: 513)
 POST {{base_url}}/api/v1/auth/login
@@ -69,11 +69,11 @@ Content-Type: application/json
 }
 HTTP 200
 [Asserts]
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 jsonpath "$.role" == "Cashier"
 jsonpath "$.permissions" == 513
 [Captures]
-token_cashier: jsonpath "$.token"
+token_cashier: cookie "plinth_access"
 
 # Positive Case: Login Waiter (Permissions bitmask: 1)
 POST {{base_url}}/api/v1/auth/login
@@ -86,11 +86,11 @@ Content-Type: application/json
 }
 HTTP 200
 [Asserts]
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 jsonpath "$.role" == "Waiter"
 jsonpath "$.permissions" == 1
 [Captures]
-token_waiter: jsonpath "$.token"
+token_waiter: cookie "plinth_access"
 
 # Adversarial: Unauthenticated request missing all headers
 POST {{base_url}}/api/v1/orders

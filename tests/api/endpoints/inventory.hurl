@@ -9,7 +9,7 @@ Content-Type: application/json
 { "staff_id": "{{staff_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
-token: jsonpath "$.token"
+token: cookie "plinth_access"
 
 # List stock items
 GET {{base_url}}/api/v1/inventory

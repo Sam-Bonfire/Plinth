@@ -9,7 +9,7 @@ Content-Type: application/json
 { "staff_id": "{{staff_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
-token: jsonpath "$.token"
+token: cookie "plinth_access"
 
 # Positive: Ingest audit event
 POST {{base_url}}/api/v1/audit

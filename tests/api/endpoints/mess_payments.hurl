@@ -7,7 +7,7 @@ Content-Type: application/json
 { "staff_id": "{{staff_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
-token: jsonpath "$.token"
+token: cookie "plinth_access"
 
 # Top up success (404 because acc-1 does not exist in DB, but the structure is correct)
 POST {{base_url}}/api/v1/mess/topup

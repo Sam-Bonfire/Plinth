@@ -12,7 +12,7 @@ Content-Type: application/json
 { "staff_id": "{{staff_owner_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
-token_owner: jsonpath "$.token"
+token_owner: cookie "plinth_access"
 
 # Positive: Create staff returns 201 with generated id
 POST {{base_url}}/api/v1/staff
@@ -150,7 +150,7 @@ Content-Type: application/json
 { "staff_id": "{{staff_waiter_id}}", "pin": "1234" }
 HTTP 200
 [Captures]
-token_waiter: jsonpath "$.token"
+token_waiter: cookie "plinth_access"
 
 # Negative: Waiter cannot create staff (denied)
 POST {{base_url}}/api/v1/staff

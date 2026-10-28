@@ -66,10 +66,30 @@ export class ApiError extends Error {
 
 export interface ApiClientConfig {
   baseUrl: string;
-  token?: string | null;
   tenantId?: string | null;
   locationId?: string | null;
   fetchFn?: typeof globalThis.fetch;
+}
+
+/**
+ * Staff session state. Tokens are never part of this shape: they live in
+ * HttpOnly cookies the browser sends automatically.
+ */
+export interface StaffSessionDto {
+  staff_id: string;
+  role: string;
+  permissions: number;
+  expires_in: number;
+  tenant_id?: string;
+  location_id?: string;
+}
+
+/** Customer session state, also credential-free. */
+export interface CustomerSessionDto {
+  customer_id: string;
+  tenant_id: string;
+  location_id: string;
+  expires_in: number;
 }
 
 export interface ListOrdersParams {
@@ -175,7 +195,6 @@ export interface CustomerProfileDto {
 }
 
 export interface CustomerLoginResponseDto {
-  token?: string;
   customer: CustomerProfileDto;
   expires_in?: number;
 }
@@ -201,10 +220,6 @@ export class PlinthApiClient {
     };
   }
 
-  public setToken(token: string | null): void {
-    this.config.token = token;
-  }
-
   public setTenantContext(tenantId: string | null, locationId: string | null): void {
     this.config.tenantId = tenantId;
     this.config.locationId = locationId;
@@ -227,9 +242,6 @@ export class PlinthApiClient {
       ...customHeaders,
     };
 
-    if (this.config.token) {
-      headers.Authorization = `Bearer ${this.config.token}`;
-    }
     if (this.config.tenantId) {
       headers["x-tenant-id"] = this.config.tenantId;
     }
@@ -245,6 +257,7 @@ export class PlinthApiClient {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
     body?: unknown,
     params?: Record<string, string | number | boolean | undefined | null>,
+    allowRefresh = true,
   ): Promise<T> {
     const fetchImpl = this.getFetch();
     let url = `${this.config.baseUrl}${endpoint}`;
@@ -266,6 +279,8 @@ export class PlinthApiClient {
     const reqInit: RequestInit = {
       method,
       headers,
+      // Session cookies are the only credential store: page scripts never see a token.
+      credentials: "include",
     };
 
     if (body !== undefined && method !== "GET") {
@@ -302,6 +317,16 @@ export class PlinthApiClient {
         }
       }
 
+      const isSessionEndpoint = endpoint.startsWith("/api/v1/auth") || endpoint.startsWith("/api/v1/customer-auth");
+      if (response.status === 401 && allowRefresh && !isSessionEndpoint) {
+        try {
+          await this.refreshSession();
+          return await this.request<T>(endpoint, method, body, params, false);
+        } catch {
+          // Refresh failed: surface the original 401 below.
+        }
+      }
+
       throw new ApiError(errorMessage, response.status, errorCode, requestId);
     }
 
@@ -313,20 +338,33 @@ export class PlinthApiClient {
     return this.request<HealthResponseDto>("/health", "GET");
   }
 
-  // --- Auth Endpoint ---
-  // The role always comes from the stored staff row: callers cannot send one.
+  // --- Auth Endpoints ---
+  // Session tokens live in HttpOnly cookies; these methods only exchange and
+  // describe session state. The role always comes from the stored staff row.
   public async login(
     req: { staff_id: string; pin: string },
-  ): Promise<{ token: string; staff_id: string; role: string; permissions: number; expires_in: number }> {
-    const res = await this.request<{
-      token: string;
-      staff_id: string;
-      role: string;
-      permissions: number;
-      expires_in: number;
-    }>("/api/v1/auth/login", "POST", req);
-    this.setToken(res.token);
-    return res;
+  ): Promise<StaffSessionDto> {
+    return this.request<StaffSessionDto>("/api/v1/auth/login", "POST", req);
+  }
+
+  /** Current staff session, or an ApiError with status 401 when unauthenticated. */
+  public async getSession(): Promise<StaffSessionDto> {
+    return this.request<StaffSessionDto>("/api/v1/auth/session", "GET");
+  }
+
+  /** Rotates the refresh cookie and returns the new session state. */
+  public async refreshSession(): Promise<StaffSessionDto> {
+    return this.request<StaffSessionDto>("/api/v1/auth/refresh", "POST");
+  }
+
+  /** Revokes this device's refresh session and clears the cookies. */
+  public async logout(): Promise<void> {
+    await this.request<{ success: boolean }>("/api/v1/auth/logout", "POST");
+  }
+
+  /** Revokes every session for the signed-in staff member. */
+  public async revokeSessions(): Promise<void> {
+    await this.request<{ success: boolean }>("/api/v1/auth/revoke", "POST");
   }
 
   // --- Orders Endpoints ---
@@ -528,7 +566,6 @@ export class PlinthApiClient {
   // --- Customer Auth Endpoints ---
   public async customerLogin(req: CustomerLoginRequest): Promise<CustomerLoginResponseDto> {
     const raw = await this.request<{
-      token?: string;
       expires_in?: number;
       customer?: CustomerProfileDto;
       name?: string;
@@ -538,6 +575,7 @@ export class PlinthApiClient {
       loyalty_points?: number;
     }>("/api/v1/customer-auth/login", "POST", req);
 
+    // Older responses were a flat profile; keep accepting both shapes.
     const customer: CustomerProfileDto = raw.customer ?? {
       id: raw.id,
       name: raw.name ?? "",
@@ -546,15 +584,25 @@ export class PlinthApiClient {
       loyalty_points: raw.loyalty_points,
     };
 
-    if (raw.token) {
-      this.setToken(raw.token);
-    }
-
     return {
-      token: raw.token,
       expires_in: raw.expires_in,
       customer,
     };
+  }
+
+  /** Current customer session, or an ApiError with status 401 when unauthenticated. */
+  public async customerSession(): Promise<CustomerSessionDto> {
+    return this.request<CustomerSessionDto>("/api/v1/customer-auth/session", "GET");
+  }
+
+  /** Rotates the customer refresh cookie and returns the profile again. */
+  public async customerRefresh(): Promise<CustomerLoginResponseDto> {
+    return this.request<CustomerLoginResponseDto>("/api/v1/customer-auth/refresh", "POST");
+  }
+
+  /** Revokes this device's customer session and clears the cookies. */
+  public async customerLogout(): Promise<void> {
+    await this.request<{ success: boolean }>("/api/v1/customer-auth/logout", "POST");
   }
 
   public async customerRegister(req: CustomerRegisterRequest): Promise<CustomerProfileDto> {

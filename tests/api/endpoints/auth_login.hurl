@@ -16,7 +16,7 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 header "Content-Type" contains "application/json"
-jsonpath "$.token" isString
+cookie "plinth_access" isString
 jsonpath "$.staff_id" isString
 jsonpath "$.role" isString
 jsonpath "$.permissions" isInteger

@@ -22,6 +22,7 @@ describe("TrackingPage component", () => {
       <AuthContext.Provider
         value={{
           isAuthenticated: true,
+          isRestoring: false,
           tenantId: "tenant-1",
           locationId: "loc-1",
           login: async (): Promise<void> => {},

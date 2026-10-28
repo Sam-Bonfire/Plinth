@@ -75,6 +75,25 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     router
 }
 
+/// Origin list shared by CORS and the cookie CSRF check.
+#[must_use]
+pub fn allowed_origins(allowed_origins: Option<&str>) -> Vec<&str> {
+    let origins_str = allowed_origins.unwrap_or("http://127.0.0.1:8787,http://localhost:5173,http://localhost:5174");
+    origins_str.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()
+}
+
+/// A cookie-authenticated mutation must come from an allowlisted origin.
+/// Requests without an `Origin` header (native clients, curl) are not driven
+/// by a browser cookie jar and stay unaffected.
+#[must_use]
+pub fn origin_allowed(origin: Option<&str>, allowed_origins_env: Option<&str>) -> bool {
+    let Some(origin) = origin else {
+        return true;
+    };
+    let origins = allowed_origins(allowed_origins_env);
+    !origins.is_empty() && origins.contains(&origin)
+}
+
 /// Apply CORS configuration to a response
 ///
 /// # Errors
@@ -84,8 +103,7 @@ pub fn apply_cors(resp: Response, allowed_origins: Option<&str>) -> Result<Respo
         .with_methods(vec![Method::Get, Method::Post, Method::Put, Method::Delete, Method::Options])
         .with_allowed_headers(vec!["Authorization", "Content-Type", "x-tenant-id", "x-location-id", "x-request-id"]);
 
-    let origins_str = allowed_origins.unwrap_or("http://127.0.0.1:8787,http://localhost:5173,http://localhost:5174");
-    let origins: Vec<&str> = origins_str.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    let origins = self::allowed_origins(allowed_origins);
 
     if origins.is_empty() {
         // Strict fallback block if empty string passed in env var
@@ -95,4 +113,21 @@ pub fn apply_cors(resp: Response, allowed_origins: Option<&str>) -> Result<Respo
     }
 
     resp.with_cors(&cors)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_allowlisted_and_native_origins() {
+        assert!(origin_allowed(Some("http://localhost:5173"), Some("http://localhost:5173")));
+        assert!(origin_allowed(None, Some("http://localhost:5173")));
+    }
+
+    #[test]
+    fn rejects_unknown_and_empty_allowlists() {
+        assert!(!origin_allowed(Some("https://evil.example"), Some("http://localhost:5173")));
+        assert!(!origin_allowed(Some("http://localhost:5173"), Some("")));
+    }
 }

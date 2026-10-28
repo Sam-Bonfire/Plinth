@@ -17,7 +17,6 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
   const baseUrl = "https://api.plinth.local";
   const tenantId = "tenant-001";
   const locationId = "loc-99";
-  const token = "jwt-test-token-xyz";
 
   let client: PlinthApiClient;
   const originalFetch = globalThis.fetch;
@@ -25,7 +24,6 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
   beforeEach(() => {
     client = new PlinthApiClient({
       baseUrl,
-      token,
       tenantId,
       locationId,
     });
@@ -60,7 +58,6 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
         method: "GET",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
           "x-tenant-id": tenantId,
           "x-location-id": locationId,
         }),
@@ -169,7 +166,6 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
         method: "POST",
         body: JSON.stringify(orderReq),
         headers: expect.objectContaining({
-          Authorization: `Bearer ${token}`,
           "x-tenant-id": tenantId,
           "x-location-id": locationId,
           "Content-Type": "application/json",
@@ -666,9 +662,50 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
       );
     });
 
-    it("authenticates customer and normalizes profile response while updating client token", async () => {
+    it("refreshes once when an authenticated call returns 401", async () => {
+      const calls: string[] = [];
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        const target = String(url);
+        calls.push(target);
+        const orderCalls = calls.filter((call) => call.endsWith("/api/v1/orders")).length;
+        if (target.endsWith("/api/v1/orders") && orderCalls === 1) {
+          return {
+            ok: false,
+            status: 401,
+            json: async () => ({ error: "Unauthorized", code: "UNAUTHORIZED", request_id: "req-1" }),
+            headers: new Headers({ "x-request-id": "req-1" }),
+          };
+        }
+        if (target.endsWith("/api/v1/orders")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ data: [], page: 1, page_size: 20, total_records: 0, total_pages: 0 }),
+            headers: new Headers(),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            staff_id: "staff-1",
+            role: "Manager",
+            permissions: 15,
+            expires_in: 900,
+            tenant_id: "tenant-001",
+            location_id: "loc-99",
+          }),
+          headers: new Headers(),
+        };
+      });
+
+      const res = await client.listOrders();
+      expect(res.total_records).toBe(0);
+      expect(calls.filter((call) => call.endsWith("/api/v1/auth/refresh"))).toHaveLength(1);
+    });
+
+    it("authenticates customer with cookie sessions and never returns a token", async () => {
       const mockLoginResponse = {
-        token: "cust-jwt-token-abc",
         customer: {
           id: "cust-1",
           tenant_id: "tenant-001",
@@ -678,7 +715,7 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
           email: null,
           loyalty_points: 50,
         },
-        expires_in: 2592000,
+        expires_in: 900,
       };
 
       globalThis.fetch = vi.fn().mockResolvedValue({
@@ -693,25 +730,30 @@ describe("PlinthApiClient Contract and Wire Verification", () => {
         phone: "+919820012345",
       });
 
-      expect(res.token).toBe("cust-jwt-token-abc");
+      expect(res).not.toHaveProperty("token");
       expect(res.customer.name).toBe("Asha");
       expect(res.customer.phone).toBe("+919820012345");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://api.plinth.local/api/v1/customer-auth/login",
+        expect.objectContaining({ method: "POST", credentials: "include" }),
+      );
 
-      // Verify token was set on client
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ status: "ok" }),
+        json: async () => ({
+          customer_id: "cust-1",
+          tenant_id: "tenant-001",
+          location_id: "loc-99",
+          expires_in: 900,
+        }),
         headers: new Headers(),
       });
-      await client.getHealth();
+      const session = await client.customerSession();
+      expect(session.customer_id).toBe("cust-1");
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer cust-jwt-token-abc",
-          }),
-        }),
+        "https://api.plinth.local/api/v1/customer-auth/session",
+        expect.objectContaining({ method: "GET", credentials: "include" }),
       );
     });
 
