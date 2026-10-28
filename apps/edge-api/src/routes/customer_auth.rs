@@ -111,7 +111,7 @@ pub async fn register_customer<D>(mut req: Request, ctx: RouteContext<D>) -> Res
     };
 
     if let Err(e) = stmt.run().await {
-        return crate::router::json_error(format!("Failed to insert customer: {e}"), "INTERNAL_ERROR", &request_id, 500);
+        return crate::router::internal_error(&req, format!("Failed to insert customer: {e}"));
     }
 
     let profile = CustomerProfile {
@@ -168,7 +168,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
 
     let row_opt = match stmt.first::<serde_json::Value>(None).await {
         Ok(r) => r,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &request_id, 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     let Some(row) = row_opt else {
@@ -236,7 +236,7 @@ pub async fn login<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response
     let key = jsonwebtoken::EncodingKey::from_secret(secret.as_bytes());
     let token = match jsonwebtoken::encode(&header, &claims, &key) {
         Ok(t) => t,
-        Err(e) => return crate::router::json_error(format!("Failed to sign token: {e}"), "INTERNAL_ERROR", &request_id, 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Failed to sign token: {e}")),
     };
 
     let profile = CustomerProfile {

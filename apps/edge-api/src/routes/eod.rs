@@ -144,7 +144,7 @@ pub async fn open_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Res
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // 1. Reject when a shift is already open for this location
@@ -224,7 +224,7 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // 1. Fetch shift record

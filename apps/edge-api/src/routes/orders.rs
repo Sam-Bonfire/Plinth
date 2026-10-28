@@ -179,7 +179,7 @@ pub async fn create_order<D>(
 
     let order_json = match serde_json::to_string(&order) {
         Ok(j) => j,
-        Err(e) => return crate::router::json_error(format!("Serialization error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Serialization error: {e}")),
     };
 
     let table_id_str = order.table_id.map(|t| t.to_string()).unwrap_or_default();
@@ -277,7 +277,7 @@ pub async fn create_order<D>(
         .results()?;
     let recipes = match group_recipes(recipe_rows) {
         Ok(recipes) => recipes,
-        Err(e) => return crate::router::json_error(format!("Invalid recipe data: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Invalid recipe data: {e}")),
     };
     let deductions = InventoryDeductionService::calculate_deductions(&order, &recipes);
 
@@ -294,7 +294,7 @@ pub async fn create_order<D>(
         let old_qty_str = row.get("current_quantity").and_then(serde_json::Value::as_str).unwrap_or_default();
         let old_qty = match Decimal::from_str(old_qty_str) {
             Ok(q) => q,
-            Err(e) => return crate::router::json_error(format!("Invalid stock quantity: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+            Err(e) => return crate::router::internal_error(&req, format!("Invalid stock quantity: {e}")),
         };
         let new_qty = old_qty - deduction.quantity_to_deduct;
 

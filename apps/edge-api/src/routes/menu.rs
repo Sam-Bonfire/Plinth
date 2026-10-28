@@ -73,7 +73,7 @@ pub async fn get_menu_catalog<D>(req: Request, ctx: RouteContext<D>) -> Result<R
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     let cat_query = "SELECT id, name, display_order, is_active FROM menu_categories WHERE tenant_id = ? AND location_id = ? AND deleted_at IS NULL ORDER BY display_order ASC";
@@ -176,7 +176,7 @@ pub async fn update_item_availability<D>(mut req: Request, ctx: RouteContext<D>)
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database error: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     let Some(item_id_str) = ctx.param("id") else {

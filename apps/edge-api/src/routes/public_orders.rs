@@ -275,13 +275,13 @@ pub async fn submit_public_order<D>(mut req: Request, ctx: RouteContext<D>) -> R
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
 
     // Price from the catalog, never from the request.
     let catalog = match fetch_catalog_prices(&db, &payload.tenant_id).await {
         Ok(catalog) => catalog,
-        Err(e) => return Response::error(format!("Database error: {e}"), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database error: {e}")),
     };
     let (lines, total) = match apply_catalog_prices(&payload.items, &catalog) {
         Ok(priced) => priced,

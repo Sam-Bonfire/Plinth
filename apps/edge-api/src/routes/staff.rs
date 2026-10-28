@@ -103,14 +103,14 @@ pub async fn create_staff<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let now = chrono::Utc::now().to_rfc3339();
     let pin_hash = match hash_pin(&payload.pin) {
         Ok(h) => h,
-        Err(e) => return crate::router::json_error(format!("Failed to hash PIN: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Failed to hash PIN: {e}")),
     };
 
     // Persist to D1. A missing binding must fail the request: answering 201
     // without storing the staff member silently breaks later PIN logins.
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
-        Err(e) => return crate::router::json_error(format!("Database unavailable: {e}"), "INTERNAL_ERROR", &crate::router::get_request_id(&req), 500),
+        Err(e) => return crate::router::internal_error(&req, format!("Database unavailable: {e}")),
     };
     let stmt = db
         .prepare(
