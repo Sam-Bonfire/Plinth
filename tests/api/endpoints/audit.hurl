@@ -57,6 +57,23 @@ Content-Type: application/json
 }
 HTTP 401
 
+# Negative: An action outside the allowlist cannot enter the trail
+POST {{base_url}}/api/v1/audit
+Authorization: Bearer {{token}}
+x-tenant-id: {{tenant_id}}
+x-location-id: {{location_id}}
+Content-Type: application/json
+{
+  "action": "INVENTED_ACTION",
+  "target_type": "OrderLineItem",
+  "target_id": "00000000-0000-0000-0000-000000000011",
+  "payload_json": null,
+  "is_anomaly": false
+}
+HTTP 403
+[Asserts]
+jsonpath "$.code" == "AUDIT_ACTION_NOT_ALLOWED"
+
 # Positive: Flush target for the terminal role-matrix sync queue
 # The dashboard flushes queued ops to this endpoint; proving the contract here
 # proves the flush has somewhere real to deliver and can empty its queue.
