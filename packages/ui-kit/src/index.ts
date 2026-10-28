@@ -9,6 +9,7 @@ export { type KitchenTicketItem, mockKitchenTickets } from "./fixtures/kitchen.j
 export { type MenuCategory, type MenuItem, mockCategories, mockMenuItems, mockModifiers } from "./fixtures/menu.js";
 export { type OrderItem, type OrderTax, mockActiveDineInOrder, mockAggregatorOrders, mockTakeawayOrder } from "./fixtures/orders.js";
 export * from "./state/keyboard.js";
+export * from "./cart/cart.js";
 export * from "./state/toast.js";
 export * from "./lib/audience.js";
 export * from "./stores/index.js";

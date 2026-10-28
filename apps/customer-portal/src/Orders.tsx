@@ -3,7 +3,7 @@ import { Card, Flex, List, Tag, Typography, Steps } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { portalApi } from './api.js';
-import { inr } from './cart.js';
+import { inr } from './money.js';
 import { loadOrders } from './session.js';
 
 const { Title, Text } = Typography;

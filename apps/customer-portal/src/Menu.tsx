@@ -1,5 +1,8 @@
 import {
+  addLine,
+  cartTotals,
   PlinthApiClient,
+  type CartLine,
   type PublicMenuCatalogResponseDto,
   type PublicMenuCategoryDto,
   type PublicMenuItemDto,
@@ -9,9 +12,9 @@ import { Alert, Button, Card, Empty, Flex, Segmented, Space, Spin, Tag, Typograp
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { portalApi } from './api.js';
-import { addToCart, cartCount, cartTotal, inr, type Cart } from './cart.js';
 import { ConsentDrawer, type ConsentChoices } from './ConsentDrawer.js';
 import { LoginModal, type LoginSubmitData } from './LoginModal.js';
+import { inr } from './money.js';
 import { loadConsent, loadCustomer, saveConsent, saveCustomer, saveOrder, type PortalCustomer } from './session.js';
 
 export type {
@@ -36,7 +39,7 @@ export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element 
   const [tenants, setTenants] = useState<PublicTenantDto[]>([]);
   const [catalog, setCatalog] = useState<PublicMenuCatalogResponseDto | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [cart, setCart] = useState<Cart>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<PortalCustomer | null>(() => loadCustomer());
   const [loginOpen, setLoginOpen] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | undefined>(undefined);
@@ -95,9 +98,9 @@ export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element 
         channel: 'Takeaway',
         customer_name: cust.name,
         items: cart.map((l) => ({
-          menu_item_id: l.id,
+          menu_item_id: l.itemId,
           name: l.name,
-          unit_price_minor: l.price_minor,
+          unit_price_minor: l.unitPriceMinor,
           quantity: l.qty,
         })),
       });
@@ -106,7 +109,7 @@ export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element 
         ticket_id: data.ticket_id,
         tenant_id: tenantId,
         total_minor: data.total_minor,
-        itemCount: cartCount(cart),
+        itemCount: cartTotals(cart).count,
         placedAt: new Date().toISOString(),
       });
       setPlacedId(data.order_id);
@@ -256,7 +259,21 @@ export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element 
                 <Text strong style={{ fontSize: '16px', color: 'var(--font)' }}>
                   {inr(item.price_minor)}
                 </Text>
-                <Button size="small" type="primary" onClick={() => setCart((c) => addToCart(c, item))}>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() =>
+                    setCart((c) =>
+                      addLine(c, {
+                        itemId: item.id,
+                        name: item.name,
+                        detail: '',
+                        unitPriceMinor: item.price_minor,
+                        gstRatePercent: 0,
+                      }),
+                    )
+                  }
+                >
                   Add
                 </Button>
               </Space>
@@ -277,7 +294,7 @@ export const Menu = ({ client = portalApi }: MenuProps = {}): React.JSX.Element 
         >
           <Flex justify="space-between" align="center">
             <Text strong>
-              {cartCount(cart)} items · {inr(cartTotal(cart))}
+              {cartTotals(cart).count} items · {inr(cartTotals(cart).subtotalMinor)}
             </Text>
             <Button type="primary" loading={placing} onClick={checkout}>
               {customer ? `Order as ${customer.name}` : 'Login & Order'}

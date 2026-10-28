@@ -1,16 +1,14 @@
-import type { MenuItem } from "@plinth/ui-kit";
+import {
+  addLine as addCartLine,
+  cartLineKey,
+  removeLine as removeCartLine,
+  setLineQty,
+  type CartLine,
+  type MenuItem,
+} from "@plinth/ui-kit";
 import { create } from "zustand";
 
-export interface CartLine {
-  key: string;
-  itemId: string;
-  name: string;
-  detail: string;
-  qty: number;
-  rate: number;
-  gstRate: number;
-}
-
+/** A cart line plus its extended amount, in major units for display. */
 export interface CartRow extends CartLine {
   amount: number;
 }
@@ -33,45 +31,30 @@ const initialState: CartState = {
   lines: [],
 };
 
-let lineSeq = 0;
-
-export function nextCartKey(): string {
-  lineSeq += 1;
-  return `line-${lineSeq}`;
-}
+/** Menu prices are in rupees; the cart prices everything in minor units. */
+const toLine = (item: MenuItem, modifiers: string[]): Omit<CartLine, "key" | "qty"> => ({
+  itemId: item.id,
+  name: item.name,
+  detail: modifiers.join(" · "),
+  unitPriceMinor: Math.round(item.price * 100),
+  gstRatePercent: item.gstRate,
+});
 
 export const useCartStore = create<CartStore>()((set) => ({
   ...initialState,
   addLine: (item: MenuItem, modifiers: string[]): string => {
-    const key = nextCartKey();
-    set((state) => ({
-      lines: [
-        ...state.lines,
-        {
-          key,
-          itemId: item.id,
-          name: item.name,
-          detail: modifiers.join(" · "),
-          qty: 1,
-          rate: item.price,
-          gstRate: item.gstRate,
-        },
-      ],
-    }));
-    return key;
+    const line = toLine(item, modifiers);
+    set((state) => ({ lines: addCartLine(state.lines, line) }));
+    return cartLineKey(line);
   },
   changeQty: (key: string, qty: number | null): void => {
     if (qty === null || qty < 1) {
       return;
     }
-    set((state) => ({
-      lines: state.lines.map((l) => (l.key === key ? { ...l, qty } : l)),
-    }));
+    set((state) => ({ lines: setLineQty(state.lines, key, qty) }));
   },
   removeLine: (key: string): void => {
-    set((state) => ({
-      lines: state.lines.filter((l) => l.key !== key),
-    }));
+    set((state) => ({ lines: removeCartLine(state.lines, key) }));
   },
   clear: (): void => {
     set({ lines: [] });
@@ -80,19 +63,3 @@ export const useCartStore = create<CartStore>()((set) => ({
     set({ ...initialState });
   },
 }));
-
-export function selectSubtotal(state: CartStore): number {
-  return state.lines.reduce((sum, l) => sum + l.qty * l.rate, 0);
-}
-
-export function selectGstTotal(state: CartStore): number {
-  return state.lines.reduce((sum, l) => sum + (l.qty * l.rate * l.gstRate) / 100, 0);
-}
-
-export function selectItemCount(state: CartStore): number {
-  return state.lines.reduce((sum, l) => sum + l.qty, 0);
-}
-
-export function selectRows(state: CartStore): CartRow[] {
-  return state.lines.map((l) => ({ ...l, amount: l.qty * l.rate }));
-}
