@@ -43,6 +43,35 @@ pub struct AuditListResponse {
     pub events: Vec<AuditEventDto>,
 }
 
+/// Audit actions the edge accepts, each with the permission it implies.
+///
+/// The trail is tamper-evident, so an arbitrary action string from any logged-in
+/// caller would let the watched pollute their own record.
+const AUDIT_ACTIONS: &[(&str, Permissions)] = &[
+    ("TENDER_CASH", Permissions::TAKE_ORDER),
+    ("TENDER_UPI", Permissions::TAKE_ORDER),
+    ("TENDER_CARD", Permissions::TAKE_ORDER),
+    ("TENDER_WALLET", Permissions::TAKE_ORDER),
+    ("APPLY_DISCOUNT", Permissions::APPLY_DISCOUNT),
+    ("VOID_ORDER", Permissions::VOID_ORDER),
+    ("PROCESS_REFUND", Permissions::PROCESS_REFUND),
+    ("PRICE_OVERRIDE", Permissions::MODIFY_PRICE),
+    ("OPEN_SHIFT", Permissions::OPEN_CLOSE_SHIFT),
+    ("CLOSE_SHIFT", Permissions::OPEN_CLOSE_SHIFT),
+    ("MESS_TOPUP", Permissions::MANAGE_MESS),
+    ("PO_RECEIVE", Permissions::MANAGE_INVENTORY),
+    ("ROLE_MATRIX_SYNC", Permissions::MANAGE_STAFF),
+];
+
+/// Permission an audit action requires, or `None` when it is not allowlisted.
+#[must_use]
+pub fn required_permission(action: &str) -> Option<Permissions> {
+    AUDIT_ACTIONS
+        .iter()
+        .find(|(name, _)| *name == action)
+        .map(|(_, permission)| *permission)
+}
+
 /// Maps a D1 result row to an audit event DTO.
 #[must_use]
 pub fn parse_audit_row(v: &serde_json::Value) -> Option<AuditEventDto> {
@@ -80,6 +109,13 @@ pub async fn ingest_audit<D>(mut req: Request, ctx: RouteContext<D>) -> Result<R
     let Ok(payload) = req.json::<IngestAuditRequest>().await else {
         return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     };
+
+    let Some(required) = required_permission(&payload.action) else {
+        return crate::router::json_error("Audit action not allowed", "AUDIT_ACTION_NOT_ALLOWED", &crate::router::get_request_id(&req), 403);
+    };
+    if !tenant_ctx.permissions.contains(required) {
+        return crate::router::json_error("Insufficient permissions", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    }
 
     let db = match ctx.env.d1("CELLAR_DB") {
         Ok(db) => db,
@@ -177,6 +213,28 @@ mod tests {
     fn test_parse_audit_row_rejects_incomplete() {
         let v = serde_json::json!({ "id": "e-1" });
         assert!(parse_audit_row(&v).is_none());
+    }
+
+    #[test]
+    fn test_required_permission_maps_known_actions() {
+        assert_eq!(required_permission("VOID_ORDER"), Some(Permissions::VOID_ORDER));
+        assert_eq!(required_permission("TENDER_UPI"), Some(Permissions::TAKE_ORDER));
+        assert_eq!(required_permission("ROLE_MATRIX_SYNC"), Some(Permissions::MANAGE_STAFF));
+    }
+
+    #[test]
+    fn test_required_permission_rejects_unknown_action() {
+        assert_eq!(required_permission("SOMETHING_INVENTED"), None);
+        assert_eq!(required_permission(""), None);
+        assert_eq!(required_permission("void_order"), None);
+    }
+
+    #[test]
+    fn test_cashier_cannot_claim_a_manager_action() {
+        let cashier = core_domain::enums::staff::StaffRole::Cashier.default_permissions();
+        assert!(cashier.contains(required_permission("TENDER_CASH").unwrap()));
+        assert!(!cashier.contains(required_permission("ROLE_MATRIX_SYNC").unwrap()));
+        assert!(!cashier.contains(required_permission("VOID_ORDER").unwrap()));
     }
 
     #[test]
