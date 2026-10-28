@@ -39,6 +39,19 @@ const ROUTE_META: Record<string, RouteMeta> = {
 
 const DEFAULT_META: RouteMeta = { title: "PlinthOS", sub: "" };
 
+/** Edge health as far as the dashboard can see it. */
+type ApiHealth = "checking" | "live" | "degraded" | "down";
+
+const HEALTH_POLL_MS = 30_000;
+
+const HEALTH_TAGS: Record<ApiHealth, React.ReactNode> = {
+  checking: <Tag>Checking API…</Tag>,
+  live: <Tag color="success">All systems live</Tag>,
+  degraded: <Tag color="warning">Database unreachable</Tag>,
+  down: <Tag color="error">API unreachable</Tag>,
+};
+
+
 const OUTLETS: string[] = ["Koramangala", "Indiranagar", "HSR Layout"];
 
 // ponytail: static badge counts mirroring the prototype; wire to live stores when those exist.
@@ -87,12 +100,33 @@ const navItems: MenuProps["items"] = [
 export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, client } = useAuth();
   const { sidebarCollapsed, setSidebarCollapsed } = useUiStore();
   const { isDark, toggleTheme } = usePlinthTheme();
   const [outletIndex, setOutletIndex] = useState<number>(0);
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [eodOpen, setEodOpen] = useState<boolean>(false);
+  const [apiHealth, setApiHealth] = useState<ApiHealth>("checking");
+
+  // The header used to claim "All systems live" without asking anyone; this
+  // polls the edge so the tag reflects the API and its database instead.
+  useEffect(() => {
+    let active = true;
+    const probe = async (): Promise<void> => {
+      try {
+        const health = await client.getHealth();
+        if (active) setApiHealth(health.d1_reachable ? "live" : "degraded");
+      } catch {
+        if (active) setApiHealth("down");
+      }
+    };
+    void probe();
+    const timer = setInterval(() => void probe(), HEALTH_POLL_MS);
+    return (): void => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [client]);
 
   useEffect(() => {
     localStorage.setItem("plinth-theme", isDark ? "dark" : "light");
@@ -224,7 +258,7 @@ export const AppLayout: React.FC = () => {
             <Typography.Text type="secondary">{meta.sub}</Typography.Text>
           </div>
           <Space wrap>
-            {isOnline ? <Tag color="success">All systems live</Tag> : <Tag color="warning">Offline mode</Tag>}
+            {isOnline ? HEALTH_TAGS[apiHealth] : <Tag color="warning">Offline mode</Tag>}
             <Button size="small" onClick={toggleTheme}>
               {isDark ? "Light Mode" : "Dark Mode"}
             </Button>
