@@ -74,7 +74,7 @@ describe("App Shell", () => {
 
   it("toggles offline mode from the topbar", async () => {
     renderShellAt("/orders");
-    expect(await screen.findByText("All systems live")).toBeDefined();
+    // The health tag itself is covered in AppLayout.test; here only the offline switch matters.
     fireEvent.click(await screen.findByRole("button", { name: /Simulate Offline/ }));
     expect(await screen.findByText("Offline mode")).toBeDefined();
     expect(await screen.findByRole("button", { name: /Go Online/ })).toBeDefined();
