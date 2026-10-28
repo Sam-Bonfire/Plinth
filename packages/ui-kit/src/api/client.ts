@@ -567,12 +567,26 @@ export class PlinthApiClient {
   public async customerLogin(req: CustomerLoginRequest): Promise<CustomerLoginResponseDto> {
     const raw = await this.request<{
       expires_in?: number;
-      customer: CustomerProfileDto;
+      customer?: CustomerProfileDto;
+      name?: string;
+      phone?: string;
+      id?: string;
+      email?: string | null;
+      loyalty_points?: number;
     }>("/api/v1/customer-auth/login", "POST", req);
+
+    // Older responses were a flat profile; keep accepting both shapes.
+    const customer: CustomerProfileDto = raw.customer ?? {
+      id: raw.id,
+      name: raw.name ?? "",
+      phone: raw.phone ?? req.phone,
+      email: raw.email,
+      loyalty_points: raw.loyalty_points,
+    };
 
     return {
       expires_in: raw.expires_in,
-      customer: raw.customer,
+      customer,
     };
   }
 
