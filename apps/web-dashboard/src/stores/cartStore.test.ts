@@ -1,27 +1,44 @@
-import { mockMenuItems } from "@plinth/ui-kit";
+import { cartTotals, mockMenuItems } from "@plinth/ui-kit";
 import { describe, it, expect, beforeEach } from "vitest";
-import { useCartStore, selectSubtotal, selectGstTotal, selectItemCount, selectRows } from "./cartStore.js";
+import { useCartStore } from "./cartStore.js";
+
+const [first, second] = mockMenuItems;
 
 describe("CartStore", () => {
   beforeEach(() => {
     useCartStore.getState().reset();
   });
 
-  it("adds lines with modifier detail and sequential keys", () => {
-    const item = mockMenuItems[0];
-    if (!item) throw new Error("missing fixture item");
-    const key = useCartStore.getState().addLine(item, ["Full", "Spicy"]);
+  it("adds a line with modifier detail, in minor units", () => {
+    if (!first) throw new Error("missing fixture item");
+    const key = useCartStore.getState().addLine(first, ["Full", "Spicy"]);
     const lines = useCartStore.getState().lines;
     expect(lines).toHaveLength(1);
     expect(lines[0]?.key).toBe(key);
     expect(lines[0]?.qty).toBe(1);
     expect(lines[0]?.detail).toBe("Full · Spicy");
+    expect(lines[0]?.unitPriceMinor).toBe(Math.round(first.price * 100));
+  });
+
+  it("merges the same item and options into one line", () => {
+    if (!first) throw new Error("missing fixture item");
+    const key = useCartStore.getState().addLine(first, ["Full"]);
+    const again = useCartStore.getState().addLine(first, ["Full"]);
+    expect(again).toBe(key);
+    expect(useCartStore.getState().lines).toHaveLength(1);
+    expect(useCartStore.getState().lines[0]?.qty).toBe(2);
+  });
+
+  it("keeps different options on separate lines", () => {
+    if (!first) throw new Error("missing fixture item");
+    useCartStore.getState().addLine(first, ["Full"]);
+    useCartStore.getState().addLine(first, ["Half"]);
+    expect(useCartStore.getState().lines).toHaveLength(2);
   });
 
   it("ignores null and sub-one quantities", () => {
-    const item = mockMenuItems[0];
-    if (!item) throw new Error("missing fixture item");
-    const key = useCartStore.getState().addLine(item, []);
+    if (!first) throw new Error("missing fixture item");
+    const key = useCartStore.getState().addLine(first, []);
     useCartStore.getState().changeQty(key, null);
     useCartStore.getState().changeQty(key, 0);
     useCartStore.getState().changeQty("missing", 5);
@@ -31,25 +48,22 @@ describe("CartStore", () => {
   });
 
   it("removes lines and clears the cart", () => {
-    const [a, b] = mockMenuItems;
-    if (!a || !b) throw new Error("missing fixture items");
-    const keyA = useCartStore.getState().addLine(a, []);
-    useCartStore.getState().addLine(b, []);
+    if (!first || !second) throw new Error("missing fixture items");
+    const keyA = useCartStore.getState().addLine(first, []);
+    useCartStore.getState().addLine(second, []);
     useCartStore.getState().removeLine(keyA);
     expect(useCartStore.getState().lines).toHaveLength(1);
     useCartStore.getState().clear();
     expect(useCartStore.getState().lines).toHaveLength(0);
   });
 
-  it("computes subtotal, gst, count, and row amounts", () => {
-    const [a, b] = mockMenuItems;
-    if (!a || !b) throw new Error("missing fixture items");
-    useCartStore.getState().addLine({ ...a, price: 100, gstRate: 5 }, []);
-    useCartStore.getState().addLine({ ...b, price: 200, gstRate: 12 }, []);
-    const state = useCartStore.getState();
-    expect(selectSubtotal(state)).toBe(300);
-    expect(selectGstTotal(state)).toBe(5 + 24);
-    expect(selectItemCount(state)).toBe(2);
-    expect(selectRows(state).map((r) => r.amount)).toEqual([100, 200]);
+  it("totals the lines it holds", () => {
+    if (!first || !second) throw new Error("missing fixture items");
+    useCartStore.getState().addLine({ ...first, price: 100, gstRate: 5 }, []);
+    useCartStore.getState().addLine({ ...second, price: 200, gstRate: 12 }, []);
+    const totals = cartTotals(useCartStore.getState().lines);
+    expect(totals.subtotalMinor).toBe(30000);
+    expect(totals.gstMinor).toBe(500 + 2400);
+    expect(totals.count).toBe(2);
   });
 });

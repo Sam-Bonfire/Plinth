@@ -1,4 +1,4 @@
-import { mockCategories, mockMenuItems, type MenuItem } from "@plinth/ui-kit";
+import { cartTotals, mockCategories, mockMenuItems, type MenuItem } from "@plinth/ui-kit";
 import { Button, Card, Col, Input, InputNumber, List, Modal, Radio, Row, Segmented, Space, Table, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { usePosShortcuts } from "../hooks/usePosShortcuts.js";
@@ -83,12 +83,16 @@ export const PosPage: React.FC = () => {
     useCartStore.getState().removeLine(key);
   };
 
-  const subtotal = useMemo(() => lines.reduce((sum, l) => sum + l.qty * l.rate, 0), [lines]);
-  const gstTotal = useMemo(() => lines.reduce((sum, l) => sum + (l.qty * l.rate * l.gstRate) / 100, 0), [lines]);
+  const totals = useMemo(() => cartTotals(lines), [lines]);
+  const subtotal = totals.subtotalMinor / 100;
+  const gstTotal = totals.gstMinor / 100;
   const discount = (subtotal * discountPct) / 100;
   const total = subtotal + gstTotal - discount;
 
-  const rows: CartRow[] = useMemo(() => lines.map((l) => ({ ...l, amount: l.qty * l.rate })), [lines]);
+  const rows: CartRow[] = useMemo(
+    () => lines.map((l) => ({ ...l, amount: (l.qty * l.unitPriceMinor) / 100 })),
+    [lines],
+  );
 
   const columns: TableColumnsType<CartRow> = [
     {
@@ -182,7 +186,7 @@ export const PosPage: React.FC = () => {
       return;
     }
     const change = payMethod === "Cash" ? tenderChange(total, tendered ?? total) : 0;
-    const itemCount = useCartStore.getState().lines.reduce((sum: number, l): number => sum + l.qty, 0);
+    const itemCount = cartTotals(useCartStore.getState().lines).count;
     setCompleted({ id: orderSeq, change });
     setOrderSeq((seq: number): number => seq + 1);
     void logAudit(client, `TENDER_${payMethod.toUpperCase()}`, "order", `#${orderSeq}`);
