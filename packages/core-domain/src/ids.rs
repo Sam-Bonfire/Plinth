@@ -101,6 +101,14 @@ define_id!(
     RecipeId
 );
 define_id!(
+    /// Identifier for a Vendor
+    VendorId
+);
+define_id!(
+    /// Identifier for a Purchase Order
+    PurchaseOrderId
+);
+define_id!(
     /// Identifier for an Audit Event
     AuditEventId
 );
