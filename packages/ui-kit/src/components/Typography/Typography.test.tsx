@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CurrencyText, MonoText, PlinthText, PlinthTitle, formatINR } from "./Typography.js";
+import { CurrencyText, MonoText, PlinthText, PlinthTitle, formatCurrency } from "./Typography.js";
 
 describe("Typography primitives", () => {
   it("renders PlinthTitle with heading role", () => {
@@ -20,8 +20,8 @@ describe("Typography primitives", () => {
   });
 
   it("formats CurrencyText as en-IN INR", () => {
-    expect(formatINR(1234.5)).toBe("₹1,234.50");
-    expect(formatINR(NaN)).toBe("—");
+    expect(formatCurrency(1234.5)).toBe("₹1,234.50");
+    expect(formatCurrency(NaN)).toBe("—");
     render(<CurrencyText value={1234.5} />);
     expect(screen.getByText("₹1,234.50")).toBeDefined();
   });

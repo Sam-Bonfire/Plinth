@@ -367,7 +367,8 @@ pub async fn close_shift<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Re
     // 5. Insert audit log event
     let audit_sql = "INSERT INTO audit_events (id, tenant_id, location_id, actor_id, action, target_type, target_id, payload_json, is_anomaly, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     let audit_id = AuditEventId::new();
-    let is_anomaly_int = i32::from(variance.abs() > 50_000); // flag > ₹500 variance as anomaly
+    let config = crate::config::BusinessConfig::from_env(&ctx.env);
+    let is_anomaly_int = i32::from(variance.abs() > config.variance_anomaly_threshold_minor); // flag > ₹500 variance as anomaly
     let audit_payload = serde_json::json!({
         "shift_id": payload.shift_id,
         "physical_cash_minor": physical_cash,

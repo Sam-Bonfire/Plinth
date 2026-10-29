@@ -27,11 +27,11 @@ export const MonoText: React.FC<MonoTextProps> = ({ style, children, ...rest }) 
   </Typography.Text>
 );
 
-export const formatINR = (value: number, maximumFractionDigits = 2): string => {
+export const formatCurrency = (value: number, currencyCode: string = "INR", maximumFractionDigits = 2): string => {
   if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "INR",
+    currency: currencyCode,
     maximumFractionDigits,
   }).format(value);
 };
@@ -48,6 +48,6 @@ export const CurrencyText: React.FC<CurrencyTextProps> = ({
   ...rest
 }) => (
   <MonoText style={{ fontVariantNumeric: "tabular-nums", ...style }} {...rest}>
-    {formatINR(value, maximumFractionDigits)}
+    {formatCurrency(value, "INR", maximumFractionDigits)}
   </MonoText>
 );

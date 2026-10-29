@@ -1,3 +1,4 @@
+pub mod config;
 pub mod audit;
 pub mod auth;
 pub mod crm;
