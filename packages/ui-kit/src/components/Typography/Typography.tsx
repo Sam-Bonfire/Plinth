@@ -1,5 +1,6 @@
 import { Typography } from "antd";
 import React from "react";
+import { useBusinessConfig } from "../../providers/BusinessConfigProvider.js";
 
 export type PlinthTitleProps = React.ComponentProps<typeof Typography.Title> & {
   level?: 1 | 2 | 3 | 4 | 5;
@@ -46,8 +47,11 @@ export const CurrencyText: React.FC<CurrencyTextProps> = ({
   maximumFractionDigits = 2,
   style,
   ...rest
-}) => (
-  <MonoText style={{ fontVariantNumeric: "tabular-nums", ...style }} {...rest}>
-    {formatCurrency(value, "INR", maximumFractionDigits)}
-  </MonoText>
-);
+}) => {
+  const { currency_code } = useBusinessConfig();
+  return (
+    <MonoText style={{ fontVariantNumeric: "tabular-nums", ...style }} {...rest}>
+      {formatCurrency(value, currency_code, maximumFractionDigits)}
+    </MonoText>
+  );
+};

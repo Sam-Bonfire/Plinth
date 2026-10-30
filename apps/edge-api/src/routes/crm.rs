@@ -76,7 +76,7 @@ pub async fn search_customers<D>(req: Request, ctx: RouteContext<D>) -> Result<R
         like.into(),
     ];
     let limit = crate::config::BusinessConfig::from_env(&ctx.env).list_page_limit_small;
-    let query = format!("SELECT id, name, phone, email, loyalty_points FROM customers WHERE tenant_id = ?1 AND deleted_at IS NULL AND (name LIKE ?2 OR phone LIKE ?3) ORDER BY name LIMIT {}", limit);
+    let query = format!("SELECT id, name, phone, email, loyalty_points FROM customers WHERE tenant_id = ?1 AND deleted_at IS NULL AND (name LIKE ?2 OR phone LIKE ?3) ORDER BY name LIMIT {limit}");
     let stmt = db
         .prepare(&query)
         .bind(&params)?;

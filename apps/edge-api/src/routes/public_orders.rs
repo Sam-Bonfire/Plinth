@@ -376,23 +376,6 @@ mod tests {
         }
     }
 
-    fn request() -> PublicOrderRequest {
-        PublicOrderRequest {
-            tenant_id: uuid::Uuid::now_v7().to_string(),
-            location_id: uuid::Uuid::now_v7().to_string(),
-            channel: "Swiggy".to_string(),
-            customer_name: None,
-            items: vec![PublicOrderItem {
-                menu_item_id: uuid::Uuid::now_v7().to_string(),
-                name: "Burger".to_string(),
-                unit_price_minor: 20000,
-                quantity: 2,
-                tax_rate: None,
-                notes: None,
-            }],
-        }
-    }
-
     #[test]
     fn prices_from_catalog_not_request() {
         let catalog = catalog();
