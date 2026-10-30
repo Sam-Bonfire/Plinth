@@ -4,6 +4,7 @@ use core_domain::enums::staff::{Permissions, StaffRole};
 use core_domain::ids::{LocationId, StaffMemberId, TenantId};
 use serde::{Deserialize, Serialize};
 use worker::{Request, Response, Result, RouteContext, Router};
+use std::collections::HashMap;
 
 fn hash_pin(pin: &str) -> std::result::Result<String, String> {
     let salt = SaltString::generate(&mut OsRng);
@@ -70,6 +71,9 @@ pub fn register<'a, D: 'a>(router: Router<'a, D>) -> Router<'a, D> {
     router
         .post_async("/api/v1/staff", create_staff)
         .get_async("/api/v1/staff", list_staff)
+        .get_async("/api/v1/staff/permissions", get_staff_permissions)
+        .get_async("/api/v1/staff/attendance", list_attendance)
+        .post_async("/api/v1/staff/attendance", record_attendance)
         .get_async("/api/v1/staff/:id", get_staff)
         .patch_async("/api/v1/staff/:id", update_staff)
         .post_async("/api/v1/staff/:id/pin-verify", verify_pin)
@@ -339,6 +343,215 @@ fn parse_role(s: &str) -> StaffRole {
     }
 }
 
+/// DTO for permissions
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct PermissionsResponseDto {
+    pub roles: HashMap<String, u32>,
+}
+
+/// DTO for an attendance entry
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct AttendanceEntryDto {
+    pub id: String,
+    pub staff_id: StaffMemberId,
+    pub name: String,
+    pub clock_in: String,
+    pub clock_out: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ActiveShift {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DbAttendance {
+    id: String,
+    staff_id: String,
+    name: String,
+    clock_in: String,
+    clock_out: Option<String>,
+}
+
+/// Request to record attendance (clock in or clock out)
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct RecordAttendanceRequest {
+    pub staff_id: StaffMemberId,
+    pub action: String, // "CLOCK_IN" or "CLOCK_OUT"
+}
+
+/// Response for listing attendance
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ListAttendanceResponse {
+    pub data: Vec<AttendanceEntryDto>,
+}
+
+/// Pure function to validate clock in
+/// Returns true if valid (i.e. no active clock-in exists)
+#[must_use]
+pub fn validate_clock_in(has_active_shift: bool) -> bool {
+    !has_active_shift
+}
+
+/// Pure function to validate clock out
+/// Returns true if valid (i.e. an active clock-in exists)
+#[must_use]
+pub fn validate_clock_out(has_active_shift: bool) -> bool {
+    has_active_shift
+}
+
+/// Staff may clock themselves; clocking anyone else needs staff management.
+#[must_use]
+pub fn may_record_for(caller: StaffMemberId, target: StaffMemberId, permissions: Permissions) -> bool {
+    caller == target || permissions.contains(Permissions::MANAGE_STAFF)
+}
+
+/// Gets the permissions map derived from the domain
+#[allow(clippy::missing_errors_doc)]
+pub async fn get_staff_permissions<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let _tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::MANAGE_STAFF) {
+        Ok(t) => t,
+        Err(r) => return Ok(r),
+    };
+
+    let mut roles = HashMap::new();
+    roles.insert("Owner".to_string(), StaffRole::Owner.default_permissions().bits());
+    roles.insert("Manager".to_string(), StaffRole::Manager.default_permissions().bits());
+    roles.insert("Cashier".to_string(), StaffRole::Cashier.default_permissions().bits());
+    roles.insert("Waiter".to_string(), StaffRole::Waiter.default_permissions().bits());
+    roles.insert("Kitchen".to_string(), StaffRole::Kitchen.default_permissions().bits());
+
+    Response::from_json(&PermissionsResponseDto { roles })
+}
+
+/// Lists attendance entries
+#[allow(clippy::missing_errors_doc, clippy::redundant_closure_for_method_calls, clippy::unnecessary_map_or)]
+pub async fn list_attendance<D>(req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(t) => t,
+        Err(r) => return Ok(r),
+    };
+
+    let db = match ctx.env.d1("CELLAR_DB") {
+        Ok(db) => db,
+        Err(e) => return crate::router::internal_error(&req, e),
+    };
+
+    // Join with staff_members to get the name
+    let stmt = db
+        .prepare("SELECT a.id, a.staff_id, s.name, a.clock_in, a.clock_out FROM staff_attendance a JOIN staff_members s ON a.staff_id = s.id WHERE a.tenant_id = ?1 AND a.location_id = ?2 ORDER BY a.clock_in DESC LIMIT 100")
+        .bind(&[
+            tenant_ctx.tenant_id.to_string().into(),
+            tenant_ctx.location_id.to_string().into(),
+        ])?;
+
+    let result = stmt.all().await?;
+    let rows: Vec<DbAttendance> = result.results()?;
+    let mut data = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let staff_uuid = uuid::Uuid::parse_str(&row.staff_id)
+            .map_err(|_| worker::Error::RustError("Invalid staff UUID".into()))?;
+        data.push(AttendanceEntryDto {
+            id: row.id,
+            staff_id: StaffMemberId::from(staff_uuid),
+            name: row.name,
+            clock_in: row.clock_in,
+            clock_out: row.clock_out,
+        });
+    }
+
+    Response::from_json(&ListAttendanceResponse { data })
+}
+
+/// Records a clock in or clock out
+#[allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+pub async fn record_attendance<D>(mut req: Request, ctx: RouteContext<D>) -> Result<Response> {
+    let tenant_ctx = match crate::auth::authorize(&req, &ctx, Permissions::empty()) {
+        Ok(t) => t,
+        Err(r) => return Ok(r),
+    };
+
+    let Ok(payload) = req.json::<RecordAttendanceRequest>().await else {
+        return crate::router::json_error("Invalid JSON payload", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
+    };
+
+    if !may_record_for(tenant_ctx.staff_id, payload.staff_id, tenant_ctx.permissions) {
+        return crate::router::json_error("Forbidden", "FORBIDDEN", &crate::router::get_request_id(&req), 403);
+    }
+
+    let db = match ctx.env.d1("CELLAR_DB") {
+        Ok(db) => db,
+        Err(e) => return crate::router::internal_error(&req, e),
+    };
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // Check if staff exists and belongs to tenant
+    let stmt_check = db
+        .prepare("SELECT id FROM staff_members WHERE id = ?1 AND tenant_id = ?2 AND deleted_at IS NULL")
+        .bind(&[
+            payload.staff_id.to_string().into(),
+            tenant_ctx.tenant_id.to_string().into(),
+        ])?;
+    if stmt_check.first::<serde_json::Value>(None).await?.is_none() {
+        return crate::router::json_error("Staff not found", "NOT_FOUND", &crate::router::get_request_id(&req), 404);
+    }
+
+    // Check active shift
+    let stmt_active = db
+        .prepare("SELECT id FROM staff_attendance WHERE tenant_id = ?1 AND location_id = ?2 AND staff_id = ?3 AND clock_out IS NULL")
+        .bind(&[
+            tenant_ctx.tenant_id.to_string().into(),
+            tenant_ctx.location_id.to_string().into(),
+            payload.staff_id.to_string().into(),
+        ])?;
+    let active_shift = stmt_active.first::<ActiveShift>(None).await?;
+    let has_active_shift = active_shift.is_some();
+
+    if payload.action == "CLOCK_IN" {
+        if !validate_clock_in(has_active_shift) {
+             return crate::router::json_error("Already clocked in", "INVALID_STATE", &crate::router::get_request_id(&req), 400);
+        }
+        let id = uuid::Uuid::now_v7().to_string();
+        let stmt = db
+            .prepare("INSERT INTO staff_attendance (id, tenant_id, location_id, staff_id, clock_in, clock_out, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)")
+            .bind(&[
+                id.into(),
+                tenant_ctx.tenant_id.to_string().into(),
+                tenant_ctx.location_id.to_string().into(),
+                payload.staff_id.to_string().into(),
+                now.clone().into(),
+                now.into(),
+            ])?;
+        if let Err(e) = stmt.run().await {
+            return crate::router::internal_error(&req, e);
+        }
+    } else if payload.action == "CLOCK_OUT" {
+         if !validate_clock_out(has_active_shift) {
+             return crate::router::json_error("Not clocked in", "INVALID_STATE", &crate::router::get_request_id(&req), 400);
+         }
+         let Some(active) = active_shift else {
+             return crate::router::json_error("Not clocked in", "INVALID_STATE", &crate::router::get_request_id(&req), 400);
+         };
+         let stmt = db
+            .prepare("UPDATE staff_attendance SET clock_out = ?1 WHERE id = ?2 AND tenant_id = ?3 AND location_id = ?4")
+            .bind(&[
+                now.into(),
+                active.id.into(),
+                tenant_ctx.tenant_id.to_string().into(),
+                tenant_ctx.location_id.to_string().into(),
+            ])?;
+         if let Err(e) = stmt.run().await {
+            return crate::router::internal_error(&req, e);
+        }
+    } else {
+         return crate::router::json_error("Invalid action", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
+    }
+
+    Response::ok("OK")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,5 +587,34 @@ mod tests {
     fn test_pin_verify_rejects_garbage() {
         assert!(!verify_pin_hash("", "4321"));
         assert!(!verify_pin_hash("plaintext-legacy", "plaintext-legacy"));
+    }
+
+    #[test]
+    fn test_validate_clock_in_success() {
+        assert!(validate_clock_in(false));
+    }
+
+    #[test]
+    fn test_validate_clock_in_rejects_double() {
+        assert!(!validate_clock_in(true));
+    }
+
+    #[test]
+    fn test_validate_clock_out_without_clock_in() {
+        assert!(!validate_clock_out(false));
+    }
+
+    #[test]
+    fn test_validate_clock_out_success() {
+        assert!(validate_clock_out(true));
+    }
+
+    #[test]
+    fn test_may_record_for_self_or_manager_only() {
+        let caller = StaffMemberId::new();
+        let other = StaffMemberId::new();
+        assert!(may_record_for(caller, caller, Permissions::empty()));
+        assert!(!may_record_for(caller, other, Permissions::empty()));
+        assert!(may_record_for(caller, other, Permissions::MANAGE_STAFF));
     }
 }
