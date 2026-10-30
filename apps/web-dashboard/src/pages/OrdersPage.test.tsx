@@ -1,5 +1,6 @@
-import { PlinthThemeProvider } from "@plinth/ui-kit";
 import type { PlinthApiClient } from "@plinth/ui-kit";
+import { PlinthThemeProvider } from "@plinth/ui-kit";
+import { BusinessConfigProvider } from "@plinth/ui-kit";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../providers/AuthProvider.js";
@@ -45,9 +46,11 @@ const getMockAuthContext = (mockClientArgs?: Partial<PlinthApiClient>) => ({
 function renderPage(mockClientArgs?: Partial<PlinthApiClient>): void {
   render(
     <AuthContext.Provider value={getMockAuthContext(mockClientArgs)}>
-      <PlinthThemeProvider>
+      <BusinessConfigProvider>
+        <PlinthThemeProvider>
         <OrdersPage />
       </PlinthThemeProvider>
+      </BusinessConfigProvider>
     </AuthContext.Provider>,
   );
 }

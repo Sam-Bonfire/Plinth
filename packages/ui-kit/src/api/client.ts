@@ -494,6 +494,11 @@ export class PlinthApiClient {
     return this.request<ZReportDto>("/api/v1/eod/close", "POST", req);
   }
 
+  // --- Business Config ---
+  public async getBusinessConfig(): Promise<import("./generated/types.js").BusinessConfig> {
+    return this.request<import("./generated/types.js").BusinessConfig>("/api/v1/config", "GET");
+  }
+
   // --- Sales Reports Endpoint ---
   public async getSalesReport(params?: SalesReportParams): Promise<SalesReportDto> {
     return this.request<SalesReportDto>(

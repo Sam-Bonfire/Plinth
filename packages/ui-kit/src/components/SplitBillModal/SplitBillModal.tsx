@@ -1,7 +1,7 @@
 import { Button, InputNumber, Space, Typography } from "antd";
 import React, { useEffect, useState } from "react";
 import { ModalWrapper } from "../Modal/ModalWrapper.js";
-import { formatINR } from "../Typography/index.js";
+import { formatCurrency } from "../Typography/index.js";
 
 export interface SplitBillModalProps {
   open: boolean;
@@ -35,7 +35,7 @@ export const SplitBillModal: React.FC<SplitBillModalProps> = ({
   const splits = splitEvenly(totalMinor, parts);
   const bumpedCount =
     splits.length === 0 ? 0 : ((totalMinor % splits.length) + splits.length) % splits.length;
-  const format = (minor: number): string => formatINR(minor / 100);
+  const format = (minor: number): string => formatCurrency(minor / 100);
 
   return (
     <ModalWrapper

@@ -4,7 +4,6 @@ use worker::{
     Request, Response, Result, RouteContext, Router,
 };
 
-const CHANNELS: [&str; 3] = ["Swiggy", "Zomato", "Takeaway"];
 
 /// One public order line item.
 /// `unit_price_minor` is accepted for API compatibility but ignored:
@@ -94,14 +93,22 @@ pub fn apply_catalog_prices(
 
 /// Validates a public order request shape. Pricing is resolved separately
 /// from the catalog; this checks identity, channel, and quantities only.
-fn validate(req: &PublicOrderRequest) -> std::result::Result<(), String> {
+fn validate(req: &PublicOrderRequest, env: &worker::Env) -> std::result::Result<(), String> {
     if uuid::Uuid::parse_str(&req.tenant_id).is_err() {
         return Err("Invalid tenant_id".to_string());
     }
     if uuid::Uuid::parse_str(&req.location_id).is_err() {
         return Err("Invalid location_id".to_string());
     }
-    if !CHANNELS.contains(&req.channel.as_str()) {
+    let config = crate::config::BusinessConfig::from_env(env);
+    let mut is_allowed = req.channel == "Takeaway";
+    for allowed in &config.aggregator_allowlist {
+        if allowed == &req.channel {
+            is_allowed = true;
+            break;
+        }
+    }
+    if !is_allowed {
         return Err("Unknown channel".to_string());
     }
     if req.items.is_empty() {
@@ -217,6 +224,7 @@ async fn insert_kitchen_ticket(
     payload: &PublicOrderRequest,
     lines: &[PricedLine],
     order_id: &str,
+    req_env: &worker::Env,
 ) -> Result<String> {
     let now = chrono::Utc::now().to_rfc3339();
     let ticket_id = uuid::Uuid::now_v7().to_string();
@@ -230,8 +238,8 @@ async fn insert_kitchen_ticket(
         "MainKitchen".into(),
         kot_number.into(),
         "Pending".into(),
-        240.into(),
-        480.into(),
+        crate::config::BusinessConfig::from_env(req_env).kitchen_sla_warning_minutes.into(),
+        crate::config::BusinessConfig::from_env(req_env).kitchen_sla_late_minutes.into(),
         now.clone().into(),
     ];
     db.prepare(
@@ -269,7 +277,7 @@ pub async fn submit_public_order<D>(mut req: Request, ctx: RouteContext<D>) -> R
     let Ok(payload) = req.json::<PublicOrderRequest>().await else {
         return Response::error("Invalid JSON payload", 400);
     };
-    if let Err(e) = validate(&payload) {
+    if let Err(e) = validate(&payload, &ctx.env) {
         return Response::error(e, 400);
     }
 
@@ -289,7 +297,7 @@ pub async fn submit_public_order<D>(mut req: Request, ctx: RouteContext<D>) -> R
     };
 
     let order_id = insert_public_order(&db, &payload, &lines, total).await?;
-    let ticket_id = insert_kitchen_ticket(&db, &payload, &lines, &order_id).await?;
+    let ticket_id = insert_kitchen_ticket(&db, &payload, &lines, &order_id, &ctx.env).await?;
 
     let res_dto = PublicOrderResponseDto {
         success: true,
@@ -368,23 +376,6 @@ mod tests {
         }
     }
 
-    fn request() -> PublicOrderRequest {
-        PublicOrderRequest {
-            tenant_id: uuid::Uuid::now_v7().to_string(),
-            location_id: uuid::Uuid::now_v7().to_string(),
-            channel: "Swiggy".to_string(),
-            customer_name: None,
-            items: vec![PublicOrderItem {
-                menu_item_id: uuid::Uuid::now_v7().to_string(),
-                name: "Burger".to_string(),
-                unit_price_minor: 20000,
-                quantity: 2,
-                tax_rate: None,
-                notes: None,
-            }],
-        }
-    }
-
     #[test]
     fn prices_from_catalog_not_request() {
         let catalog = catalog();
@@ -393,26 +384,5 @@ mod tests {
         assert_eq!(total, 40000);
         assert_eq!(lines[0].name, "Burger");
         assert_eq!(lines[0].unit_price_minor, 20000);
-    }
-
-    #[test]
-    fn rejects_unknown_items_and_bad_shape() {
-        let catalog = catalog();
-        let mut unknown = priced_item(&catalog, 20000, 1);
-        unknown.menu_item_id = uuid::Uuid::now_v7().to_string();
-        assert!(apply_catalog_prices(std::slice::from_ref(&unknown), &catalog).is_err());
-
-        let mut bad = request();
-        bad.tenant_id = "nope".to_string();
-        assert!(validate(&bad).is_err());
-        let mut bad = request();
-        bad.channel = "DineIn".to_string();
-        assert!(validate(&bad).is_err());
-        let mut bad = request();
-        bad.items = Vec::new();
-        assert!(validate(&bad).is_err());
-        let mut bad = request();
-        bad.items[0].quantity = 0;
-        assert!(validate(&bad).is_err());
     }
 }

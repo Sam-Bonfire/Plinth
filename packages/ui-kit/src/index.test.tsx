@@ -41,7 +41,7 @@ describe('UI Kit Theme & Components', () => {
       'PlinthText',
       'MonoText',
       'CurrencyText',
-      'formatINR',
+      'formatCurrency',
       'ToastManager',
       'useUiStore',
     ]) {

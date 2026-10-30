@@ -3,6 +3,7 @@ use specta_typescript::Typescript;
 use specta::TypeCollection;
 
 // Import all domain models and value objects
+use edge_api::config::BusinessConfig;
 use core_domain::enums::{
     kitchen::{KitchenTicketStatus, StationId},
     order_channel::OrderChannel,
@@ -128,6 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<Recipe>();
     types.register::<CashMovement>();
     types.register::<CashDrawerCount>();
+    types.register::<BusinessConfig>();
     types.register::<StoreShift>();
     types.register::<ZReport>();
 

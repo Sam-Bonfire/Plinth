@@ -29,6 +29,8 @@ export type AuditResponseDto = { success: boolean; event_id: AuditEventId }
  */
 export type BumpTicketRequest = { bumped_by: StaffMemberId | null }
 
+export type BusinessConfig = { currency_code: string; default_gst_rate_percent: number; tender_methods: string[]; variance_anomaly_threshold_minor: number; kitchen_sla_warning_minutes: number; kitchen_sla_late_minutes: number; aggregator_allowlist: string[]; list_page_limit_small: number; list_page_limit_large: number }
+
 /**
  * Cash reconciliation count
  */

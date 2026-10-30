@@ -5,6 +5,7 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "@plinth/ui-kit";
+import { useBusinessConfig } from "@plinth/ui-kit";
 import { Button, Card, Descriptions, Input, Modal, Popconfirm, Segmented, Space, Table, Tabs, Typography, message, type TableColumnsType } from "antd";
 import React, { useEffect, useMemo, useState } from "react";
 import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
@@ -45,6 +46,7 @@ const inr = (n: number): string =>
 
 export const OrdersPage: React.FC = () => {
   const { client } = useAuth();
+  const config = useBusinessConfig();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
@@ -173,7 +175,7 @@ export const OrdersPage: React.FC = () => {
                   qty: item.quantity,
                   price_minor: Math.round(item.price * 100),
                 })),
-                tax_minor: Math.round(row.total * 0.05 * 100), // mock 5% tax or calculate as needed
+                tax_minor: Math.round(row.total * (config.default_gst_rate_percent / 100) * 100),
                 total_minor: Math.round(row.total * 100),
                 txn_id: row.id,
                 timestamp: row.placedAt,

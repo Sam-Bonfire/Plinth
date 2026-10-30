@@ -131,14 +131,22 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
     let mut batch = Vec::new();
     let now = chrono::Utc::now().to_rfc3339();
 
-    if provider == "swiggy" || provider == "zomato" {
+    let config = crate::config::BusinessConfig::from_env(&ctx.env);
+    let mut aggregator_name: Option<String> = None;
+    for allowed in &config.aggregator_allowlist {
+        if allowed.to_lowercase() == *provider {
+            aggregator_name = Some(allowed.clone());
+            break;
+        }
+    }
+
+    if let Some(channel) = aggregator_name {
         let Some(location_id) = req.headers().get("x-location-id").ok().flatten().filter(|id| !id.is_empty()) else {
             return crate::router::json_error("Missing x-location-id header", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
         };
 
         let oid = uuid::Uuid::now_v7().to_string();
         order_id = Some(oid.clone());
-        let channel = if provider == "swiggy" { "Swiggy" } else { "Zomato" };
 
         let stmt_order = db.prepare(
             "INSERT INTO orders (id, tenant_id, location_id, terminal_id, channel, status, subtotal_minor, total_minor, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -171,8 +179,8 @@ pub async fn ingest<D>(mut req: Request, ctx: RouteContext<D>, provider: &str) -
             "MainKitchen".into(),
             crate::db::money(kot_number),
             "Pending".into(),
-            crate::db::money(240),
-            crate::db::money(480),
+            crate::db::money(i64::from(config.kitchen_sla_warning_minutes)),
+            crate::db::money(i64::from(config.kitchen_sla_late_minutes)),
             now.clone().into(),
         ])?;
         batch.push(stmt_ticket);
