@@ -53,7 +53,7 @@ use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryPara
 use edge_api::routes::mess::{MessBalanceResponse, MessLedgerResponse, MessPayRequest, MessTopUpRequest};
 use edge_api::routes::refunds::{RefundRequest, RefundResponse};
 use edge_api::routes::reports::SalesReportDto;
-use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest};
+use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest, PermissionsResponseDto, AttendanceEntryDto, RecordAttendanceRequest, ListAttendanceResponse};
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -167,6 +167,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<ListStaffResponse>();
     types.register::<PinVerifyRequest>();
     types.register::<PinVerifyResponse>();
+    types.register::<PermissionsResponseDto>();
+    types.register::<AttendanceEntryDto>();
+    types.register::<RecordAttendanceRequest>();
+    types.register::<ListAttendanceResponse>();
 
     types.register::<CloseShiftRequest>();
     types.register::<OpenShiftRequest>();

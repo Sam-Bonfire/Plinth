@@ -5,6 +5,11 @@ export type AdjustStockRequest = { stock_item_id: StockItemId; delta: string; re
 export type ApiErrorResponse = { error: string; code: string; request_id: string }
 
 /**
+ * DTO for an attendance entry
+ */
+export type AttendanceEntryDto = { id: string; staff_id: StaffMemberId; name: string; clock_in: string; clock_out: string | null }
+
+/**
  * One audit log event as stored
  */
 export type AuditEventDto = { id: string; actor_id: string; action: string; target_type: string; target_id: string; is_anomaly: boolean; timestamp: string }
@@ -409,6 +414,11 @@ export type KitchenTicketStatus =
  * Ticket is cancelled
  */
 "Cancelled"
+
+/**
+ * Response for listing attendance
+ */
+export type ListAttendanceResponse = { data: AttendanceEntryDto[] }
 
 export type ListStaffResponse = { data: StaffResponseDto[]; total: number }
 
@@ -874,6 +884,11 @@ export type PaymentStatus =
  */
 export type Permissions = number
 
+/**
+ * DTO for permissions
+ */
+export type PermissionsResponseDto = { roles: Partial<{ [key in string]: number }> }
+
 export type PinVerifyRequest = { pin: string }
 
 export type PinVerifyResponse = { valid: boolean; staff_id: StaffMemberId }
@@ -933,6 +948,11 @@ quantity: StockQuantity;
  * Wastage percentage for this ingredient.
  */
 wastage_percent: string }
+
+/**
+ * Request to record attendance (clock in or clock out)
+ */
+export type RecordAttendanceRequest = { staff_id: StaffMemberId; action: string }
 
 /**
  * Identifier for a Refund

@@ -1,13 +1,13 @@
 import type { AuditEventDto } from "@plinth/ui-kit";
-import { Alert, Card, Segmented, Space, Table, Tag, Typography, type TableColumnsType } from "antd";
-import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Card, Space, Spin, Table, Tag, Typography, type TableColumnsType } from "antd";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../providers/AuthProvider.js";
 
 export const AuditLogPage: React.FC = () => {
   const { client } = useAuth();
   const [events, setEvents] = useState<AuditEventDto[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>("All");
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,12 +17,14 @@ export const AuditLogPage: React.FC = () => {
         if (!cancelled) {
           setEvents(rows);
           setError(null);
+          setLoading(false);
         }
       })
       .catch((err: unknown): void => {
         if (!cancelled) {
           setEvents([]);
           setError(err instanceof Error ? err.message : String(err));
+          setLoading(false);
         }
       });
     return (): void => {
@@ -30,7 +32,7 @@ export const AuditLogPage: React.FC = () => {
     };
   }, [client]);
 
-  const rows = useMemo((): AuditEventDto[] => (filter === "Anomalies" ? events.filter((e: AuditEventDto): boolean => e.is_anomaly) : events), [events, filter]);
+
 
   const columns: TableColumnsType<AuditEventDto> = [
     { title: "Time", dataIndex: "timestamp", key: "timestamp", width: 140 },
@@ -48,6 +50,7 @@ export const AuditLogPage: React.FC = () => {
 
   return (
     <div>
+      <Spin spinning={loading}>
       {error !== null && (
         <Alert
           message="Audit service unavailable"
@@ -61,13 +64,13 @@ export const AuditLogPage: React.FC = () => {
         title="Audit Log"
         extra={
           <Space>
-            <Typography.Text type="secondary">{error !== null ? "Offline" : "Live"} · {rows.length} events</Typography.Text>
-            <Segmented options={["All", "Anomalies"]} value={filter} onChange={(v: string | number): void => setFilter(v.toString())} size="small" />
+            <Typography.Text type="secondary">{error !== null ? "Offline" : "Live"} · {events.length} events</Typography.Text>
+
           </Space>
         }
       >
         <Table<AuditEventDto>
-          dataSource={rows}
+          dataSource={events}
           columns={columns}
           rowKey="id"
           pagination={{ pageSize: 20 }}
@@ -75,6 +78,7 @@ export const AuditLogPage: React.FC = () => {
           locale={{ emptyText: error !== null ? "Audit service unavailable - no events loaded." : "No audit events." }}
         />
       </Card>
+      </Spin>
     </div>
   );
 };
