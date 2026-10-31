@@ -41,7 +41,7 @@ impl Permissions {
 
     #[must_use]
     pub const fn all() -> Self {
-        Self(0b0000_0011_1111_1111)
+        Self(0b0000_1111_1111_1111)
     }
 
     #[must_use]
@@ -118,6 +118,27 @@ mod tests {
     }
 
     #[test]
+    fn test_all_covers_every_permission() {
+        let all = Permissions::all();
+        for perm in [
+            Permissions::TAKE_ORDER,
+            Permissions::APPLY_DISCOUNT,
+            Permissions::VOID_ORDER,
+            Permissions::PROCESS_REFUND,
+            Permissions::MODIFY_PRICE,
+            Permissions::ACCESS_REPORTS,
+            Permissions::EXPORT_DATA,
+            Permissions::MANAGE_STAFF,
+            Permissions::MANAGE_MENU,
+            Permissions::OPEN_CLOSE_SHIFT,
+            Permissions::MANAGE_MESS,
+            Permissions::MANAGE_INVENTORY,
+        ] {
+            assert!(all.contains(perm), "all() must include {perm:?}");
+        }
+    }
+
+    #[test]
     fn test_bitwise_operators() {
         let cashier = Permissions::TAKE_ORDER | Permissions::OPEN_CLOSE_SHIFT;
         assert!(cashier.contains(Permissions::TAKE_ORDER));
@@ -133,7 +154,7 @@ mod tests {
 
         assert_eq!(
             Permissions::all() - Permissions::MANAGE_STAFF,
-            Permissions::from_bits_truncate(0b0000_0011_0111_1111)
+            Permissions::from_bits_truncate(0b0000_1111_0111_1111)
         );
         assert!(!(Permissions::all() - Permissions::MANAGE_STAFF).contains(Permissions::MANAGE_STAFF));
 
