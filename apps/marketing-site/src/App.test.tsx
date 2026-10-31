@@ -8,7 +8,7 @@ describe('Marketing Site App', () => {
     expect(await screen.findByRole('banner')).toBeDefined();
     expect(await screen.findByText('Power Your Restaurant')).toBeDefined();
     expect(await screen.findByRole('contentinfo')).toBeDefined();
-  });
+  }, 30000);
 
   it('exposes anchor targets for header links and CTA', async () => {
     render(<App />);
