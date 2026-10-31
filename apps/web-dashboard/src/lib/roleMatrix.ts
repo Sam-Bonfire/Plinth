@@ -1,85 +1,33 @@
+import type { PlinthApiClient } from "@plinth/ui-kit";
+
 export type RoleMatrix = Record<string, Record<string, boolean>>;
 
-const MATRIX_KEY = "plinth-role-matrix";
-const SYNC_QUEUE_KEY = "plinth-terminal-sync-queue";
-
-export interface SyncOp {
-  type: "role-matrix";
-  matrix: RoleMatrix;
-  queuedAt: string;
-}
-
-const isMatrix = (v: unknown): v is RoleMatrix => {
-  if (typeof v !== "object" || v === null) return false;
-  return Object.values(v as Record<string, unknown>).every(
-    (row: unknown): boolean =>
-      typeof row === "object" &&
-      row !== null &&
-      Object.values(row as Record<string, unknown>).every((cell: unknown): boolean => typeof cell === "boolean"),
-  );
+export const PERMISSION_LABELS: Record<number, string> = {
+  [1 << 0]: "Take orders",
+  [1 << 1]: "Apply discounts",
+  [1 << 2]: "Void orders",
+  [1 << 3]: "Process refunds",
+  [1 << 4]: "Modify price",
+  [1 << 5]: "View reports",
+  [1 << 6]: "Export data",
+  [1 << 7]: "Manage staff",
+  [1 << 8]: "Edit menu",
+  [1 << 9]: "Open and close till",
+  [1 << 10]: "Manage mess",
+  [1 << 11]: "Manage inventory",
 };
 
-const readQueue = (): SyncOp[] => {
-  try {
-    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
-    if (raw === null) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SyncOp[]) : [];
-  } catch {
-    return [];
-  }
-};
+export const loadRoleMatrix = async (client: PlinthApiClient): Promise<RoleMatrix> => {
+  const { roles } = await client.getStaffPermissions();
+  const matrix: RoleMatrix = {};
 
-/** Persists the queue; storage failures fall back to the in-memory view. */
-const writeQueue = (queue: SyncOp[]): void => {
-  try {
-    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
-  } catch {
-    // Storage unavailable: the queue only lives for this page load.
-  }
-};
-
-export const loadRoleMatrix = (fallback: RoleMatrix): RoleMatrix => {
-  try {
-    const raw = localStorage.getItem(MATRIX_KEY);
-    if (raw === null) return fallback;
-    const parsed: unknown = JSON.parse(raw);
-    return isMatrix(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-export const saveRoleMatrix = (matrix: RoleMatrix): void => {
-  try {
-    localStorage.setItem(MATRIX_KEY, JSON.stringify(matrix));
-  } catch {
-    // Storage unavailable: matrix stays in memory only.
-  }
-};
-
-/** Queues the matrix for terminal sync; returns the queue depth after enqueue. */
-export const queueTerminalSync = (matrix: RoleMatrix): number => {
-  const queue = readQueue();
-  queue.push({ type: "role-matrix", matrix, queuedAt: new Date().toISOString() });
-  writeQueue(queue);
-  return queue.length;
-};
-
-/**
- * Delivers every queued op with `send`. Ops that succeed are dropped, ops that
- * fail stay queued for the next attempt.
- * @returns how many ops are still pending
- */
-export const flushTerminalSync = async (send: (op: SyncOp) => Promise<void>): Promise<number> => {
-  const stillPending: SyncOp[] = [];
-  for (const op of readQueue()) {
-    try {
-      await send(op);
-    } catch {
-      stillPending.push(op);
+  for (const [bitStr, capability] of Object.entries(PERMISSION_LABELS)) {
+    const bit = parseInt(bitStr, 10);
+    matrix[capability] = {};
+    for (const [role, roleBits] of Object.entries(roles)) {
+      matrix[capability][role] = (roleBits & bit) === bit;
     }
   }
-  writeQueue(stillPending);
-  return stillPending.length;
+
+  return matrix;
 };

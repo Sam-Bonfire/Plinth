@@ -38,6 +38,9 @@ import type {
   SalesReportDto,
   StockItemResponseDto,
   TicketQueryParams,
+  PermissionsResponseDto,
+  RecordAttendanceRequest,
+  ListAttendanceResponse,
   UpdateItemAvailabilityRequest,
   ZReportDto,
 } from "./generated/types.js";
@@ -525,9 +528,20 @@ export class PlinthApiClient {
   public async updateStaff(staffId: string, req: UpdateStaffRequest): Promise<StaffResponseDto> {
     return this.request<StaffResponseDto>(`/api/v1/staff/${encodeURIComponent(staffId)}`, "PATCH", req);
   }
-
   public async verifyStaffPin(staffId: string, req: PinVerifyRequest): Promise<PinVerifyResponse> {
     return this.request<PinVerifyResponse>(`/api/v1/staff/${encodeURIComponent(staffId)}/pin-verify`, "POST", req);
+  }
+
+  public async getStaffPermissions(): Promise<PermissionsResponseDto> {
+    return this.request<PermissionsResponseDto>("/api/v1/staff/permissions", "GET");
+  }
+
+  public async listAttendance(): Promise<ListAttendanceResponse> {
+    return this.request<ListAttendanceResponse>("/api/v1/staff/attendance", "GET");
+  }
+
+  public async recordAttendance(req: RecordAttendanceRequest): Promise<void> {
+    await this.request<{ success: boolean }>("/api/v1/staff/attendance", "POST", req);
   }
 
   // --- Public Portal Endpoints ---
