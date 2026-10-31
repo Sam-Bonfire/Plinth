@@ -11,10 +11,8 @@ const ConfigScope: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const App: React.FC = () => {
-  const defaultIsDark = localStorage.getItem("plinth-theme") === "dark";
-
   return (
-    <PlinthThemeProvider defaultIsDark={defaultIsDark}>
+    <PlinthThemeProvider>
       <LinguiProvider>
         <AuthProvider>
           <ConfigScope>

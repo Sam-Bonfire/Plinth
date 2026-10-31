@@ -27,7 +27,7 @@ describe("PlinthThemeProvider", () => {
 
   it("provides default dark theme if specified", () => {
     render(
-      <PlinthThemeProvider defaultIsDark={true}>
+      <PlinthThemeProvider overrideIsDark={true}>
         <TestConsumer />
       </PlinthThemeProvider>
     );
@@ -51,7 +51,7 @@ describe("PlinthThemeProvider", () => {
 
   it("marks the theme on a wrapper for CSS variables", () => {
     const { container } = render(
-      <PlinthThemeProvider defaultIsDark={true}>
+      <PlinthThemeProvider overrideIsDark={true}>
         <span>child</span>
       </PlinthThemeProvider>
     );

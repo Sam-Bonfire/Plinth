@@ -3,18 +3,9 @@ import { Button } from 'antd';
 import { describe, expect, it } from 'vitest';
 import * as PublicSurface from './index';
 
-const { PlinthThemeProvider, getThemeConfig } = PublicSurface;
+const { PlinthThemeProvider } = PublicSurface;
 
 describe('UI Kit Theme & Components', () => {
-  it('should generate theme config correctly for light and dark modes', () => {
-    const lightConfig = getThemeConfig(false);
-    const darkConfig = getThemeConfig(true);
-
-    expect(lightConfig).toBeDefined();
-    expect(darkConfig).toBeDefined();
-    expect(lightConfig.token?.borderRadius).toBe(8);
-  });
-
   it('should render component wrapped in PlinthThemeProvider', () => {
     render(
       <PlinthThemeProvider>
@@ -29,7 +20,7 @@ describe('UI Kit Theme & Components', () => {
     const surface = PublicSurface as Record<string, unknown>;
     for (const name of [
       'TOKENS',
-      'getThemeConfig',
+      'TOKENS_BY_MODE',
       'PlinthThemeProvider',
       'PlinthButton',
       'PlinthCard',

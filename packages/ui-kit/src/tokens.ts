@@ -35,3 +35,24 @@ export const TOKENS: Tokens = {
   p: "#9333ea",
   o: "#ea580c",
 };
+
+export const TOKENS_BY_MODE: Record<"light" | "dark", Tokens> = {
+  light: TOKENS,
+  dark: {
+    ...TOKENS,
+    bg: "#0e1110",
+    acc: "#e8ece8",
+    s1: "#171b17",
+    s2: "#1d221d",
+    s3: "#262b26",
+    s4: "#313631",
+    s5: "#3f453f",
+    b1: "rgba(255, 255, 255, 0.12)",
+    g: "#4ade80",
+    r: "#f87171",
+    y: "#facc15",
+    bl: "#60a5fa",
+    p: "#c084fc",
+    o: "#fb923c",
+  },
+};
