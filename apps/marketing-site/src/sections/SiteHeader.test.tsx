@@ -9,6 +9,8 @@ const mockLinks = [
 ];
 
 describe('SiteHeader', () => {
+  beforeAll(() => { vi.useFakeTimers(); });
+  afterAll(() => { vi.useRealTimers(); });
   beforeAll(() => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,

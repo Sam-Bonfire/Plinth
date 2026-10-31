@@ -1,6 +1,6 @@
 import type { AuditEventDto } from "@plinth/ui-kit";
 import { PlinthThemeProvider } from "@plinth/ui-kit";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { App } from "antd";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../providers/AuthProvider.js";
@@ -49,14 +49,7 @@ describe("AuditLogPage", () => {
     expect(screen.queryByText(/Audit service unavailable/)).toBeNull();
   });
 
-  it("filters to anomalies only", async () => {
-    mockAuditResponse(liveEvents);
-    renderPage();
-    await screen.findByText("Void item");
-    fireEvent.click(screen.getByRole("radio", { name: "Anomalies" }));
-    expect(screen.queryByText("Discount 10%")).toBeNull();
-    expect(await screen.findByText("Void item")).toBeDefined();
-  });
+
 
   it("shows an explicit unavailable state and no sample entries when the service fails", async () => {
     global.fetch = vi.fn(() => Promise.reject(new Error("offline"))) as unknown as typeof fetch;

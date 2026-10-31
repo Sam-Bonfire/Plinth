@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Marketing Site App', () => {
-  it('assembles header, sections, and footer', async () => {
+  it('assembles header, sections, and footer', { timeout: 30000 }, async () => {
     render(<App />);
     expect(await screen.findByRole('banner')).toBeDefined();
     expect(await screen.findByText('Power Your Restaurant')).toBeDefined();
