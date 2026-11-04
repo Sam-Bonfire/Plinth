@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { PlinthThemeProvider, usePlinthTheme } from "./PlinthThemeProvider.js";
 
@@ -47,6 +47,28 @@ describe("PlinthThemeProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "Toggle Theme" }));
 
     expect(screen.getByTestId("is-dark").textContent).toBe("true");
+  });
+
+  it("persists the dark choice and restores it on a fresh mount", () => {
+    localStorage.clear();
+    render(
+      <PlinthThemeProvider>
+        <TestConsumer />
+      </PlinthThemeProvider>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Toggle Theme" }));
+    expect(screen.getByTestId("is-dark").textContent).toBe("true");
+    expect(localStorage.getItem("plinth-theme")).toBe("dark");
+    cleanup();
+
+    render(
+      <PlinthThemeProvider>
+        <TestConsumer />
+      </PlinthThemeProvider>
+    );
+    expect(screen.getByTestId("is-dark").textContent).toBe("true");
+    expect(screen.getByTestId("token-bg").textContent).toBe("#0e1110");
+    localStorage.clear();
   });
 
   it("marks the theme on a wrapper for CSS variables", () => {
