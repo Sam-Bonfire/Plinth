@@ -1,16 +1,7 @@
-﻿import { getThemeConfig } from '@plinth/ui-kit';
-import { ConfigProvider } from 'antd';
+﻿import { PlinthThemeProvider } from '@plinth/ui-kit';
 import React, { useMemo } from 'react';
 import { PosApp } from './router.js';
 import { ShowcaseView } from './showcase/ShowcaseView.js';
-
-export const PlinthThemeProvider: React.FC<{ children: React.ReactNode; isDark?: boolean }> = ({ children, isDark = false }) => {
-  return (
-    <ConfigProvider theme={getThemeConfig(isDark)}>
-      {children}
-    </ConfigProvider>
-  );
-};
 
 const App: React.FC = () => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -19,7 +10,7 @@ const App: React.FC = () => {
 
   if (scene) {
     return (
-      <PlinthThemeProvider isDark={isDark}>
+      <PlinthThemeProvider overrideIsDark={isDark}>
         <ShowcaseView scene={scene} />
       </PlinthThemeProvider>
     );
