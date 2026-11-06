@@ -3,6 +3,7 @@ use specta_typescript::Typescript;
 use specta::TypeCollection;
 
 // Import all domain models and value objects
+use edge_api::config::BusinessConfig;
 use core_domain::enums::{
     kitchen::{KitchenTicketStatus, StationId},
     order_channel::OrderChannel,
@@ -53,7 +54,7 @@ use edge_api::routes::kds::{BumpTicketRequest, KitchenTicketDto, TicketQueryPara
 use edge_api::routes::mess::{MessBalanceResponse, MessLedgerResponse, MessPayRequest, MessTopUpRequest};
 use edge_api::routes::refunds::{RefundRequest, RefundResponse};
 use edge_api::routes::reports::SalesReportDto;
-use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest};
+use edge_api::routes::staff::{CreateStaffRequest, ListStaffResponse, PinVerifyRequest, PinVerifyResponse, StaffResponseDto, UpdateStaffRequest, PermissionsResponseDto, AttendanceEntryDto, RecordAttendanceRequest, ListAttendanceResponse};
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -128,6 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<Recipe>();
     types.register::<CashMovement>();
     types.register::<CashDrawerCount>();
+    types.register::<BusinessConfig>();
     types.register::<StoreShift>();
     types.register::<ZReport>();
 
@@ -167,6 +169,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<ListStaffResponse>();
     types.register::<PinVerifyRequest>();
     types.register::<PinVerifyResponse>();
+    types.register::<PermissionsResponseDto>();
+    types.register::<AttendanceEntryDto>();
+    types.register::<RecordAttendanceRequest>();
+    types.register::<ListAttendanceResponse>();
 
     types.register::<CloseShiftRequest>();
     types.register::<OpenShiftRequest>();
@@ -182,6 +188,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<RefundResponse>();
 
     types.register::<SalesReportDto>();
+    types.register::<edge_api::routes::reports::GstReportDto>();
+    types.register::<edge_api::routes::reports::GstSlabSummaryDto>();
+    types.register::<edge_api::routes::locations::LocationDto>();
     types.register::<ApiErrorResponse>();
     types.register::<HealthResponseDto>();
 

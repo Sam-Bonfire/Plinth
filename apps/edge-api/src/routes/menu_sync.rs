@@ -5,7 +5,6 @@ use worker::{
     Request, Response, Result, RouteContext, Router,
 };
 
-const PLATFORMS: [&str; 2] = ["Swiggy", "Zomato"];
 
 /// Request payload to queue a menu sync to aggregators
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -54,8 +53,9 @@ pub async fn queue_menu_sync<D>(mut req: Request, ctx: RouteContext<D>) -> Resul
     if !payload.is_valid() {
         return crate::router::json_error("platforms and menu_version are required", "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
     }
+    let config = crate::config::BusinessConfig::from_env(&ctx.env);
     for platform in &payload.platforms {
-        if !PLATFORMS.contains(&platform.as_str()) {
+        if !config.aggregator_allowlist.contains(platform) {
             return crate::router::json_error(format!("Unknown platform: {platform}"), "INVALID_PAYLOAD", &crate::router::get_request_id(&req), 400);
         }
     }
@@ -134,13 +134,6 @@ mod tests {
             item_count: 3,
         };
         assert!(!empty.is_valid());
-    }
-
-    #[test]
-    fn test_platform_allowlist() {
-        assert!(PLATFORMS.contains(&"Swiggy"));
-        assert!(PLATFORMS.contains(&"Zomato"));
-        assert!(!PLATFORMS.contains(&"UberEats"));
     }
 
     #[test]

@@ -1,6 +1,8 @@
+import type { LocationDto } from "@plinth/ui-kit";
 import { Button, Card, Col, Form, Input, InputNumber, Menu, Modal, Row, Select, Space, Switch, Table, Typography, message, type MenuProps, type TableColumnsType } from "antd";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../providers/AuthProvider.js";
 import { TablesPage } from "./TablesPage.js";
 
 type SettingValue = string | number | boolean;
@@ -15,18 +17,11 @@ interface SettingDef {
   max?: number;
 }
 
-interface Location {
-  key: string;
-  name: string;
-  city: string;
-  tables: number;
-  active: boolean;
-}
+
 
 interface LocationFormValues {
   name: string;
-  city: string;
-  tables: number;
+
 }
 
 const TABS: { key: string; label: string }[] = [
@@ -86,11 +81,7 @@ const DEFAULTS: Record<string, Record<string, SettingValue>> = {
   notifications: { lowStock: true, payoutShortfall: true, summaryEmail: "owner@example.com" },
 };
 
-export const seedLocations = (): Location[] => [
-  { key: "L-01", name: "Koramangala", city: "Bengaluru", tables: 14, active: true },
-  { key: "L-02", name: "Indiranagar", city: "Bengaluru", tables: 10, active: true },
-  { key: "L-03", name: "HSR Layout", city: "Bengaluru", tables: 8, active: false },
-];
+
 
 const isSettingValue = (v: unknown): v is SettingValue => {
   return typeof v === "string" || typeof v === "number" || typeof v === "boolean";
@@ -104,17 +95,9 @@ const isValuesRecord = (v: unknown): v is Record<string, Record<string, SettingV
   });
 };
 
-const isLocation = (v: unknown): v is Location => {
-  if (typeof v !== "object" || v === null) return false;
-  const loc = v as Record<string, unknown>;
-  return typeof loc.key === "string" && typeof loc.name === "string" && typeof loc.city === "string" && typeof loc.tables === "number" && typeof loc.active === "boolean";
-};
 
-const isLocationArray = (v: unknown): v is Location[] => {
-  return Array.isArray(v) && v.every(isLocation);
-};
 
-export const loadSettings = (): { values: Record<string, Record<string, SettingValue>>; locations: Location[] } => {
+export const loadSettings = (): { values: Record<string, Record<string, SettingValue>> } => {
   try {
     const data = localStorage.getItem("plinth-settings");
     if (data) {
@@ -122,25 +105,36 @@ export const loadSettings = (): { values: Record<string, Record<string, SettingV
       if (typeof parsed === "object" && parsed !== null) {
         const p = parsed as Record<string, unknown>;
         const values = isValuesRecord(p.values) ? p.values : DEFAULTS;
-        const locations = isLocationArray(p.locations) ? p.locations : seedLocations();
-        return { values, locations };
+        return { values };
       }
     }
   } catch {
     // Ignore parse errors and fall back to defaults
   }
-  return { values: DEFAULTS, locations: seedLocations() };
+  return { values: DEFAULTS };
 };
 
-export const saveSettings = (state: { values: Record<string, Record<string, SettingValue>>; locations: Location[] }): void => {
+export const saveSettings = (state: { values: Record<string, Record<string, SettingValue>> }): void => {
   localStorage.setItem("plinth-settings", JSON.stringify(state));
 };
 
 export const SettingsPage: React.FC = () => {
   const [tab, setTab] = useState<string>("general");
   const [values, setValues] = useState<Record<string, Record<string, SettingValue>>>(() => loadSettings().values);
-  const [locations, setLocations] = useState<Location[]>(() => loadSettings().locations);
-  const [editing, setEditing] = useState<Location | "new" | null>(null);
+  const [locations, setLocations] = useState<LocationDto[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const { client } = useAuth();
+  const [editing, setEditing] = useState<LocationDto | "new" | null>(null);
+
+  useEffect(() => {
+    client.getLocations()
+      .then(data => setLocations(data))
+      .catch(err => {
+        console.error("Failed to load locations", err);
+        void message.error("Failed to load locations");
+      })
+      .finally(() => setLoadingLocations(false));
+  }, [client]);
   const [form] = Form.useForm<LocationFormValues>();
 
   const setValue = (t: string, key: string, value: SettingValue): void => {
@@ -148,38 +142,33 @@ export const SettingsPage: React.FC = () => {
   };
 
   const saveTab = (): void => {
-    saveSettings({ values, locations });
+    saveSettings({ values });
     void message.success("Settings saved.");
   };
 
-  const toggleLocation = (key: string, active: boolean): void => {
-    const updated = locations.map((l: Location): Location => (l.key === key ? { ...l, active } : l));
-    setLocations(updated);
-    saveSettings({ values, locations: updated });
-  };
 
   const openAdd = (): void => {
     form.setFieldsValue({ name: "", city: "", tables: 0 });
     setEditing("new");
   };
 
-  const openEdit = (loc: Location): void => {
-    form.setFieldsValue({ name: loc.name, city: loc.city, tables: loc.tables });
+  const openEdit = (loc: LocationDto): void => {
+    form.setFieldsValue({ name: loc.name });
     setEditing(loc);
   };
 
   const saveLocation = (v: LocationFormValues): void => {
     if (editing === "new") {
       const key = `L-${locations.length + 1}-${v.name.length}`;
-      const newLoc = { key, active: true, ...v };
+      const newLoc = { id: key, ...v };
       const updated = [...locations, newLoc];
       setLocations(updated);
-      saveSettings({ values, locations: updated });
+
       void message.success(`Location ${v.name} added.`);
     } else if (editing !== null) {
-      const updated = locations.map((l: Location): Location => (l.key === editing.key ? { ...l, ...v } : l));
+      const updated = locations.map((l: LocationDto): LocationDto => (l.id === editing.id ? { ...l, ...v } : l));
       setLocations(updated);
-      saveSettings({ values, locations: updated });
+
       void message.success(`Location ${v.name} updated.`);
     }
     setEditing(null);
@@ -206,22 +195,13 @@ export const SettingsPage: React.FC = () => {
     return <Input value={typeof value === "string" ? value : ""} onChange={(e): void => setValue(t, def.key, e.target.value)} style={{ width: 240 }} />;
   };
 
-  const locationColumns: TableColumnsType<Location> = [
+  const locationColumns: TableColumnsType<LocationDto> = [
     { title: "Location", dataIndex: "name", key: "name", render: (n: string): React.ReactNode => <Typography.Text strong>{n}</Typography.Text> },
-    { title: "City", dataIndex: "city", key: "city", width: 140 },
-    { title: "Tables", dataIndex: "tables", key: "tables", width: 90, align: "right" },
-    {
-      title: "Active",
-      dataIndex: "active",
-      key: "active",
-      width: 100,
-      render: (active: boolean, row: Location): React.ReactNode => <Switch checked={active} onChange={(v: boolean): void => toggleLocation(row.key, v)} />,
-    },
     {
       title: "Actions",
       key: "actions",
       width: 90,
-      render: (_: unknown, row: Location): React.ReactNode => (
+      render: (_: unknown, row: LocationDto): React.ReactNode => (
         <Button size="small" onClick={(): void => openEdit(row)}>
           Edit
         </Button>
@@ -255,7 +235,7 @@ export const SettingsPage: React.FC = () => {
                 </Space>
               }
             >
-              <Table<Location> dataSource={locations} columns={locationColumns} rowKey="key" pagination={false} size="small" />
+              <Table<LocationDto> dataSource={locations} columns={locationColumns} rowKey="id" pagination={false} size="small" loading={loadingLocations} />
             </Card>
           ) : tab === "floor" ? (
             <TablesPage />
@@ -284,12 +264,7 @@ export const SettingsPage: React.FC = () => {
           <Form.Item name="name" label="Name" rules={[{ required: true, message: "Name is required" }]}>
             <Input placeholder="Location name" />
           </Form.Item>
-          <Form.Item name="city" label="City" rules={[{ required: true, message: "City is required" }]}>
-            <Input placeholder="City" />
-          </Form.Item>
-          <Form.Item name="tables" label="Tables" rules={[{ required: true, message: "Tables is required" }]}>
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
+
         </Form>
       </Modal>
     </div>

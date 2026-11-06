@@ -1,17 +1,23 @@
-import { LinguiProvider, PlinthThemeProvider } from "@plinth/ui-kit";
+import { BusinessConfigProvider, LinguiProvider, PlinthThemeProvider } from "@plinth/ui-kit";
 import React from "react";
 import { RouterProvider } from "react-router-dom";
-import { AuthProvider } from "./providers/AuthProvider.js";
+import { AuthProvider, useAuth } from "./providers/AuthProvider.js";
 import { router } from "./router.js";
 
-const App: React.FC = () => {
-  const defaultIsDark = localStorage.getItem("plinth-theme") === "dark";
+// The config endpoint needs the authenticated client, so this mounts inside AuthProvider.
+const ConfigScope: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { client } = useAuth();
+  return <BusinessConfigProvider client={client}>{children}</BusinessConfigProvider>;
+};
 
+const App: React.FC = () => {
   return (
-    <PlinthThemeProvider defaultIsDark={defaultIsDark}>
+    <PlinthThemeProvider>
       <LinguiProvider>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <ConfigScope>
+            <RouterProvider router={router} />
+          </ConfigScope>
         </AuthProvider>
       </LinguiProvider>
     </PlinthThemeProvider>

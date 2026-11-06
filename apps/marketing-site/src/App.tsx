@@ -1,6 +1,6 @@
-import { getThemeConfig } from '@plinth/ui-kit';
+import { PlinthThemeProvider } from '@plinth/ui-kit';
 import { useFontsLoaded } from '@plinth/ui-kit/fonts/loader.js';
-import { ConfigProvider, message } from 'antd';
+import { message } from 'antd';
 import React from 'react';
 import { ApiPlayground } from './sections/ApiPlayground.js';
 import { ByodMatrix } from './sections/ByodMatrix.js';
@@ -18,15 +18,6 @@ import { RoiCalculator } from './sections/RoiCalculator.js';
 import { SiteFooter } from './sections/SiteFooter.js';
 import { SiteHeader } from './sections/SiteHeader.js';
 import { Testimonials } from './sections/Testimonials.js';
-
-const PlinthThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const themeConfig = getThemeConfig(false);
-  return (
-    <ConfigProvider theme={themeConfig}>
-      {children}
-    </ConfigProvider>
-  );
-};
 
 const submitLead = async (values: LeadFormValues): Promise<void> => {
   const res = await fetch('/api/v1/marketing/leads', {

@@ -75,10 +75,10 @@ pub async fn search_customers<D>(req: Request, ctx: RouteContext<D>) -> Result<R
         like.clone().into(),
         like.into(),
     ];
+    let limit = crate::config::BusinessConfig::from_env(&ctx.env).list_page_limit_small;
+    let query = format!("SELECT id, name, phone, email, loyalty_points FROM customers WHERE tenant_id = ?1 AND deleted_at IS NULL AND (name LIKE ?2 OR phone LIKE ?3) ORDER BY name LIMIT {limit}");
     let stmt = db
-        .prepare(
-            "SELECT id, name, phone, email, loyalty_points FROM customers WHERE tenant_id = ?1 AND deleted_at IS NULL AND (name LIKE ?2 OR phone LIKE ?3) ORDER BY name LIMIT 50",
-        )
+        .prepare(&query)
         .bind(&params)?;
     let rows = stmt.run().await?;
     let result: Vec<serde_json::Value> = rows.results()?;

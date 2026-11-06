@@ -38,6 +38,9 @@ import type {
   SalesReportDto,
   StockItemResponseDto,
   TicketQueryParams,
+  PermissionsResponseDto,
+  RecordAttendanceRequest,
+  ListAttendanceResponse,
   UpdateItemAvailabilityRequest,
   ZReportDto,
 } from "./generated/types.js";
@@ -494,7 +497,25 @@ export class PlinthApiClient {
     return this.request<ZReportDto>("/api/v1/eod/close", "POST", req);
   }
 
+  // --- Business Config ---
+  public async getBusinessConfig(): Promise<import("./generated/types.js").BusinessConfig> {
+    return this.request<import("./generated/types.js").BusinessConfig>("/api/v1/config", "GET");
+  }
+
   // --- Sales Reports Endpoint ---
+  public async getLocations(): Promise<LocationDto[]> {
+    return this.request<LocationDto[]>("/api/v1/locations", "GET");
+  }
+
+  public async getGstReport(params?: SalesReportParams): Promise<GstReportDto> {
+    return this.request<GstReportDto>(
+      "/api/v1/reports/gst",
+      "GET",
+      undefined,
+      params as Record<string, string | number | boolean | undefined | null>,
+    );
+  }
+
   public async getSalesReport(params?: SalesReportParams): Promise<SalesReportDto> {
     return this.request<SalesReportDto>(
       "/api/v1/reports/sales",
@@ -520,9 +541,20 @@ export class PlinthApiClient {
   public async updateStaff(staffId: string, req: UpdateStaffRequest): Promise<StaffResponseDto> {
     return this.request<StaffResponseDto>(`/api/v1/staff/${encodeURIComponent(staffId)}`, "PATCH", req);
   }
-
   public async verifyStaffPin(staffId: string, req: PinVerifyRequest): Promise<PinVerifyResponse> {
     return this.request<PinVerifyResponse>(`/api/v1/staff/${encodeURIComponent(staffId)}/pin-verify`, "POST", req);
+  }
+
+  public async getStaffPermissions(): Promise<PermissionsResponseDto> {
+    return this.request<PermissionsResponseDto>("/api/v1/staff/permissions", "GET");
+  }
+
+  public async listAttendance(): Promise<ListAttendanceResponse> {
+    return this.request<ListAttendanceResponse>("/api/v1/staff/attendance", "GET");
+  }
+
+  public async recordAttendance(req: RecordAttendanceRequest): Promise<void> {
+    await this.request<{ success: boolean }>("/api/v1/staff/attendance", "POST", req);
   }
 
   // --- Public Portal Endpoints ---

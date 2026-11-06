@@ -1,10 +1,9 @@
-import type { ThemeConfig } from "antd";
-import { theme } from "antd";
 import "./tokens.css";
 import "./components/Badge/badge.css";
 
 export * from "./tokens.js";
 export * from "./api/index.js";
+export * from "./config.js";
 export { type KitchenTicketItem, mockKitchenTickets } from "./fixtures/kitchen.js";
 export { type MenuCategory, type MenuItem, mockCategories, mockMenuItems, mockModifiers } from "./fixtures/menu.js";
 export { type OrderItem, type OrderTax, mockActiveDineInOrder, mockAggregatorOrders, mockTakeawayOrder } from "./fixtures/orders.js";
@@ -94,67 +93,6 @@ export * from "./components/SidebarNavigation/index.js";
 export * from "./components/TopbarNavigation/index.js";
 export * from "./components/ToggleSwitch/index.js";
 export * from "./components/Typography/index.js";
-
-export const getThemeConfig = (isDark: boolean): ThemeConfig => ({
-  algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-  token: {
-    colorPrimary: "var(--acc)",
-    colorBorder: "var(--b1)",
-    borderRadius: 8,
-    borderRadiusLG: 12,
-    fontFamily: "var(--font)",
-    fontFamilyCode: "var(--mono)",
-  },
-  components: {
-    Button: {
-      colorPrimary: "var(--acc)",
-      colorBorder: "var(--b1)",
-    },
-    Input: {
-      colorPrimary: "var(--acc)",
-      colorBorder: "var(--b1)",
-    },
-    Select: {
-      colorPrimary: "var(--acc)",
-      colorBorder: "var(--b1)",
-    },
-    Tabs: {
-      colorPrimary: "var(--acc)",
-    },
-    Table: {
-      headerColor: "var(--s2)",
-      headerBg: "var(--b1)",
-      headerSplitColor: "transparent",
-      colorSplit: "var(--b1)",
-      controlItemBgHover: "transparent",
-      headerFilterHoverBg: "transparent",
-      rowHoverBg: "var(--s2)",
-      cellPaddingBlock: 12,
-      cellPaddingInline: 16,
-      borderRadius: 8,
-    },
-    Pagination: {
-      itemBg: "transparent",
-      itemActiveBg: "var(--b1)",
-      colorText: "var(--acc)",
-      colorPrimary: "var(--acc)",
-      borderRadius: 4,
-    },
-    Checkbox: {
-      colorPrimary: "var(--acc)",
-      borderRadiusSM: 2,
-    },
-    Radio: {
-      colorPrimary: "var(--acc)",
-    },
-    Drawer: {
-      colorBgElevated: "var(--bg)",
-    },
-    Modal: {
-      colorBgElevated: "var(--bg)",
-    },
-  },
-});
 export * from "./components/DataTable/index.js";
 export * from "./components/LiveTimerDisplay/index.js";
 export * from "./gallery/Gallery.js";

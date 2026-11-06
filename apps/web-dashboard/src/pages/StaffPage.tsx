@@ -1,6 +1,7 @@
-import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
+import { CheckCircleOutlined } from "@ant-design/icons";
+import { Alert, Spin, Button, Card, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
-import { loadRoleMatrix, flushTerminalSync, queueTerminalSync, saveRoleMatrix } from "../lib/roleMatrix.js";
+import { loadRoleMatrix } from "../lib/roleMatrix.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
@@ -67,69 +68,87 @@ const CAPABILITIES: string[] = [
   "Bump KDS tickets",
 ];
 
-const seedStaff = (): StaffMember[] => [
-  { key: "ST-01", name: "Rajesh K", role: "Manager", outlet: "Koramangala", shift: "Morning", ordersToday: 142, lastAction: "Discount 10% · ORD-1098", status: "Active" },
-  { key: "ST-02", name: "Meera S", role: "Cashier", outlet: "Koramangala", shift: "Morning", ordersToday: 118, lastAction: "Tender UPI · ORD-1099", status: "Active" },
-  { key: "ST-03", name: "Arun V", role: "Kitchen", outlet: "Koramangala", shift: "Evening", ordersToday: 0, lastAction: "Bump KOT-042", status: "Active" },
-  { key: "ST-04", name: "Divya R", role: "Cashier", outlet: "Indiranagar", shift: "Evening", ordersToday: 64, lastAction: "Login 16:02", status: "Off duty" },
-];
 
-const seedPerms = (): Record<string, Record<Role, boolean>> => ({
-  "Open and close till": { Owner: true, Manager: true, Cashier: true, Kitchen: false },
-  "Apply discounts": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-  "Void orders": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-  "Process refunds": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-  "Edit menu": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-  "View reports": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-  "Manage staff": { Owner: true, Manager: false, Cashier: false, Kitchen: false },
-  "Bump KDS tickets": { Owner: true, Manager: true, Cashier: false, Kitchen: true },
-});
 
-const seedAttendance = (): AttendanceEntry[] => [
-  { key: "ATT-01", staffKey: "ST-01", name: "Rajesh K", clockIn: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), clockOut: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }, // Normal completed shift (3 hours)
-  { key: "ATT-02", staffKey: "ST-02", name: "Meera S", clockIn: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), clockOut: null }, // Missing-out shift (clocked in 2 hours ago)
-  { key: "ATT-03", staffKey: "ST-03", name: "Arun V", clockIn: new Date(Date.now() - 14 * 60 * 60 * 1000).toISOString(), clockOut: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() }, // Overnight/long shift (8 hours)
-];
+
+
+
 
 const roleColor = (r: Role): string => (r === "Owner" ? "purple" : r === "Manager" ? "blue" : r === "Cashier" ? "green" : "orange");
 
 export const StaffPage: React.FC = () => {
   const { client } = useAuth();
-  const [staff, setStaff] = useState<StaffMember[]>(seedStaff);
-  const [perms, setPerms] = useState<Record<string, Record<Role, boolean>>>(() => loadRoleMatrix(seedPerms()) as Record<string, Record<Role, boolean>>);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [perms, setPerms] = useState<RoleMatrix>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<StaffMember | "new" | null>(null);
   const [form] = Form.useForm<StaffFormValues>();
   const [escalations, setEscalations] = useState<EscalationRequest[]>([]);
   const [escStaffKey, setEscStaffKey] = useState<string | null>(null);
   const [escRole, setEscRole] = useState<Role>("Manager");
   const [escReason, setEscReason] = useState<string>("");
-  const [attendanceEntries, setAttendanceEntries] = useState<AttendanceEntry[]>(seedAttendance);
+  const [attendanceEntries, setAttendanceEntries] = useState<AttendanceEntry[]>([]);
 
-  const handleClockIn = (member: StaffMember): void => {
-    const entry: AttendanceEntry = {
-      key: `ATT-${Date.now()}`,
-      staffKey: member.key,
-      name: member.name,
-      clockIn: new Date().toISOString(),
-      clockOut: null,
-    };
-    setAttendanceEntries((prev) => [...prev, entry]);
-    void message.success(`${member.name} clocked in.`);
+  const loadData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const [staffRes, attendanceRes, matrix] = await Promise.all([
+        client.listStaff(),
+        client.listAttendance(),
+        loadRoleMatrix(client)
+      ]);
+
+      setStaff(staffRes.data.map(s => ({
+        key: s.id,
+        name: s.name,
+        role: s.role as Role,
+        outlet: s.location_id,
+        shift: "Morning",
+        ordersToday: 0,
+        lastAction: "Active",
+        status: s.is_active ? "Active" : "Off duty"
+      })));
+
+      setAttendanceEntries(attendanceRes.data.map(a => ({
+        key: a.id,
+        staffKey: a.staff_id,
+        name: a.name,
+        clockIn: a.clock_in,
+        clockOut: a.clock_out ?? null
+      })));
+
+      setPerms(matrix);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [client]);
+
+  React.useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const handleClockIn = async (member: StaffMember): Promise<void> => {
+    try {
+      await client.recordAttendance({ staff_id: member.key, action: "CLOCK_IN" });
+      void message.success(`${member.name} clocked in.`);
+      void loadData();
+    } catch (err) {
+      void message.error(`Failed to clock in: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
-  const handleClockOut = (member: StaffMember): void => {
-    setAttendanceEntries((prev) => {
-      const reversed = [...prev].reverse();
-      const index = reversed.findIndex(e => e.staffKey === member.key && e.clockOut === null);
-      if (index !== -1) {
-        const actualIndex = prev.length - 1 - index;
-        const newEntries = [...prev];
-        newEntries[actualIndex] = { ...newEntries[actualIndex], clockOut: new Date().toISOString() };
-        return newEntries;
-      }
-      return prev;
-    });
-    void message.success(`${member.name} clocked out.`);
+  const handleClockOut = async (member: StaffMember): Promise<void> => {
+    try {
+      await client.recordAttendance({ staff_id: member.key, action: "CLOCK_OUT" });
+      void message.success(`${member.name} clocked out.`);
+      void loadData();
+    } catch (err) {
+      void message.error(`Failed to clock out: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const openAdd = (): void => {
@@ -152,36 +171,6 @@ export const StaffPage: React.FC = () => {
       void message.success(`Staff member ${values.name} updated.`);
     }
     setEditing(null);
-  };
-
-  const togglePerm = (capability: string, role: Role, value: boolean): void => {
-    setPerms((prev) => ({ ...prev, [capability]: { ...prev[capability], [role]: value } }));
-  };
-
-  const savePerms = (): void => {
-    saveRoleMatrix(perms);
-    void message.success("Role permissions saved.");
-  };
-
-  const syncTerminals = (): void => {
-    queueTerminalSync(perms);
-    void flushTerminalSync((op) =>
-      client
-        .ingestAudit({
-          action: "ROLE_MATRIX_SYNC",
-          target_type: "role-matrix",
-          target_id: "terminal-sync",
-          payload_json: JSON.stringify(op.matrix),
-          is_anomaly: false,
-        })
-        .then(() => undefined),
-    ).then((pending: number): void => {
-      if (pending === 0) {
-        void message.success("Matrix synced to terminals.");
-      } else {
-        void message.warning(`Terminal sync blocked: ${pending} change(s) still queued.`);
-      }
-    });
   };
 
   const submitEscalation = (): void => {
@@ -252,7 +241,7 @@ export const StaffPage: React.FC = () => {
         width: 110,
         align: "center" as const,
         render: (_: unknown, row: { key: string; capability: string }): React.ReactNode => (
-          <Checkbox checked={perms[row.capability]?.[role] ?? false} onChange={(e): void => togglePerm(row.capability, role, e.target.checked)} />
+          perms[row.capability]?.[role] ? <CheckCircleOutlined style={{ color: "#52c41a" }} /> : null
         ),
       }),
     ),
@@ -260,6 +249,8 @@ export const StaffPage: React.FC = () => {
 
   return (
     <div>
+      {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
+      <Spin spinning={loading}>
       <Tabs
         defaultActiveKey="list"
         tabBarExtraContent={
@@ -284,14 +275,7 @@ export const StaffPage: React.FC = () => {
               <Card
                 title="Role Permissions Matrix"
                 extra={
-                  <Space>
-                    <Button size="small" onClick={syncTerminals}>
-                      Sync to Terminals
-                    </Button>
-                    <Button size="small" onClick={savePerms}>
-                      Save Changes
-                    </Button>
-                  </Space>
+                  null
                 }
               >
                 <Table<{ key: string; capability: string }>
@@ -463,6 +447,7 @@ export const StaffPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+      </Spin>
     </div>
   );
 };

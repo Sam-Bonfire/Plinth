@@ -1,3 +1,4 @@
+pub mod config;
 pub mod audit;
 pub mod auth;
 pub mod crm;
@@ -9,10 +10,14 @@ pub mod menu_sync;
 pub mod orders;
 pub mod public_menu;
 pub mod public_orders;
+pub mod purchase_orders;
+pub mod recipes;
 pub mod reports;
 pub mod staff;
+pub mod vendors;
 pub mod webhooks;
 pub mod ws;
+pub mod locations;
 
 
 

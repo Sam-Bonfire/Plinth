@@ -113,8 +113,9 @@ pub async fn get_public_menu<D>(req: Request, ctx: RouteContext<D>) -> Result<Re
     let cat_res = cat_stmt.all().await?;
     let raw_categories: Vec<RawCategoryRow> = cat_res.results()?;
 
-    let item_query = "SELECT id, primary_category_id, name, description, price_minor, is_veg FROM menu_items WHERE tenant_id = ? AND is_available = 1 AND deleted_at IS NULL LIMIT 100";
-    let item_stmt = db.prepare(item_query).bind(&cat_params)?;
+    let config = crate::config::BusinessConfig::from_env(&ctx.env);
+    let item_query = format!("SELECT id, primary_category_id, name, description, price_minor, is_veg FROM menu_items WHERE tenant_id = ? AND is_available = 1 AND deleted_at IS NULL LIMIT {}", config.list_page_limit_large);
+    let item_stmt = db.prepare(&item_query).bind(&cat_params)?;
     let item_res = item_stmt.all().await?;
     let raw_items: Vec<RawMenuItemRow> = item_res.results()?;
     

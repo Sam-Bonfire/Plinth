@@ -1,60 +1,26 @@
+import type { PlinthApiClient } from "@plinth/ui-kit";
 import { describe, expect, it } from "vitest";
-import { flushTerminalSync, loadRoleMatrix, queueTerminalSync, saveRoleMatrix, type RoleMatrix, type SyncOp } from "./roleMatrix.js";
-
-const matrix: RoleMatrix = {
-  "Apply discounts": { Owner: true, Manager: true, Cashier: false, Kitchen: false },
-};
-
+import { loadRoleMatrix } from "./roleMatrix.js";
 describe("roleMatrix", () => {
-  it("returns fallback when storage is empty or corrupt", () => {
-    localStorage.clear();
-    expect(loadRoleMatrix(matrix)).toEqual(matrix);
-    localStorage.setItem("plinth-role-matrix", "not-json{{");
-    expect(loadRoleMatrix(matrix)).toEqual(matrix);
-    localStorage.setItem("plinth-role-matrix", JSON.stringify({ bogus: [1, 2] }));
-    expect(loadRoleMatrix(matrix)).toEqual(matrix);
-  });
+  it("builds the correct role matrix based on domain bitmasks", async () => {
+    const mockClient = {
+      getStaffPermissions: async () => ({
+        roles: {
+          Manager: 0b0000_0010_0000_0010, // OPEN_CLOSE_TILL (512) and APPLY_DISCOUNTS (2)
+          Cashier: 0b0000_0000_0000_0001  // TAKE_ORDERS (1)
+        }
+      })
+    } as unknown as PlinthApiClient;
 
-  it("round-trips a saved matrix", () => {
-    localStorage.clear();
-    saveRoleMatrix(matrix);
-    expect(loadRoleMatrix({})).toEqual(matrix);
-  });
+    const matrix = await loadRoleMatrix(mockClient);
 
-  it("queues terminal sync ops and reports depth", () => {
-    localStorage.clear();
-    expect(queueTerminalSync(matrix)).toBe(1);
-    expect(queueTerminalSync(matrix)).toBe(2);
-    const raw = localStorage.getItem("plinth-terminal-sync-queue") ?? "[]";
-    const queue = JSON.parse(raw) as { type: string }[];
-    expect(queue).toHaveLength(2);
-    expect(queue[0]?.type).toBe("role-matrix");
-  });
+    // Manager should have Apply discounts
+    expect(matrix["Apply discounts"]?.Manager).toBe(true);
+    expect(matrix["Open and close till"]?.Manager).toBe(true);
+    expect(matrix["Take orders"]?.Manager).toBe(false);
 
-  it("flushes queued ops and empties the queue", async () => {
-    localStorage.clear();
-    queueTerminalSync(matrix);
-    queueTerminalSync(matrix);
-
-    const sent: SyncOp[] = [];
-    const pending = await flushTerminalSync(async (op: SyncOp): Promise<void> => {
-      sent.push(op);
-    });
-
-    expect(sent).toHaveLength(2);
-    expect(pending).toBe(0);
-    expect(localStorage.getItem("plinth-terminal-sync-queue")).toBe("[]");
-  });
-
-  it("keeps ops that fail to send", async () => {
-    localStorage.clear();
-    queueTerminalSync(matrix);
-
-    const pending = await flushTerminalSync(async (): Promise<void> => {
-      throw new Error("offline");
-    });
-
-    expect(pending).toBe(1);
-    expect(JSON.parse(localStorage.getItem("plinth-terminal-sync-queue") ?? "[]")).toHaveLength(1);
+    // Cashier should have Take orders
+    expect(matrix["Take orders"]?.Cashier).toBe(true);
+    expect(matrix["Apply discounts"]?.Cashier).toBe(false);
   });
 });

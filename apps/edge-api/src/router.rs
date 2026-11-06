@@ -56,8 +56,12 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = crate::routes::customer_auth::register(router);
     let router = crate::routes::crm::register(router);
     let router = crate::routes::staff::register(router);
+    let router = crate::routes::config::register(router);
     let router = crate::routes::webhooks::register(router);
     let router = crate::routes::inventory::register(router);
+    let router = crate::routes::vendors::register(router);
+    let router = crate::routes::recipes::register(router);
+    let router = crate::routes::purchase_orders::register(router);
     let router = crate::routes::orders::register(router);
     let router = crate::routes::kds::register(router);
     let router = crate::routes::menu::register(router);
@@ -72,6 +76,7 @@ pub fn build_router(auth_context: Option<TenantContext>) -> Router<'static, Opti
     let router = crate::routes::health::register(router);
     let router = crate::routes::leads::register(router);
     let router = crate::routes::refunds::register(router);
+    let router = crate::routes::locations::register(router);
     router
 }
 
