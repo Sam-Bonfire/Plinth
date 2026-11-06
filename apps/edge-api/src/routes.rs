@@ -17,6 +17,7 @@ pub mod staff;
 pub mod vendors;
 pub mod webhooks;
 pub mod ws;
+pub mod locations;
 
 
 

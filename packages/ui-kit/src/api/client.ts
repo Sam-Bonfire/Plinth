@@ -503,6 +503,19 @@ export class PlinthApiClient {
   }
 
   // --- Sales Reports Endpoint ---
+  public async getLocations(): Promise<LocationDto[]> {
+    return this.request<LocationDto[]>("/api/v1/locations", "GET");
+  }
+
+  public async getGstReport(params?: SalesReportParams): Promise<GstReportDto> {
+    return this.request<GstReportDto>(
+      "/api/v1/reports/gst",
+      "GET",
+      undefined,
+      params as Record<string, string | number | boolean | undefined | null>,
+    );
+  }
+
   public async getSalesReport(params?: SalesReportParams): Promise<SalesReportDto> {
     return this.request<SalesReportDto>(
       "/api/v1/reports/sales",

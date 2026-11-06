@@ -188,6 +188,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<RefundResponse>();
 
     types.register::<SalesReportDto>();
+    types.register::<edge_api::routes::reports::GstReportDto>();
+    types.register::<edge_api::routes::reports::GstSlabSummaryDto>();
+    types.register::<edge_api::routes::locations::LocationDto>();
     types.register::<ApiErrorResponse>();
     types.register::<HealthResponseDto>();
 
