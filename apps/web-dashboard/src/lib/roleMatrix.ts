@@ -25,7 +25,7 @@ export const loadRoleMatrix = async (client: PlinthApiClient): Promise<RoleMatri
     const bit = parseInt(bitStr, 10);
     matrix[capability] = {};
     for (const [role, roleBits] of Object.entries(roles)) {
-      matrix[capability][role] = (roleBits & bit) === bit;
+      matrix[capability][role] = ((roleBits ?? 0) & bit) === bit;
     }
   }
 
