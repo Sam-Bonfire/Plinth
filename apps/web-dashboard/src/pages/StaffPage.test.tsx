@@ -1,5 +1,5 @@
 import { PlinthThemeProvider } from "@plinth/ui-kit";
-import type { PlinthApiClient } from "@plinth/ui-kit";
+import type { PlinthApiClient, RecordAttendanceRequest } from "@plinth/ui-kit";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { App } from "antd";
 import { describe, expect, it } from "vitest";
@@ -34,7 +34,7 @@ const mockAuthContext = {
         Cashier: 0b0000_0010_0000_0001
       }
     }),
-    recordAttendance: async (req) => {
+    recordAttendance: async (req: RecordAttendanceRequest) => {
       if (req.action === "CLOCK_IN") {
         mockAttendanceData.push({
           id: `ATT-${Date.now()}`,

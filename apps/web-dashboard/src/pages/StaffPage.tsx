@@ -1,7 +1,7 @@
 import { CheckCircleOutlined } from "@ant-design/icons";
 import { Alert, Spin, Button, Card, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message, type TableColumnsType } from "antd";
 import React, { useState } from "react";
-import { loadRoleMatrix } from "../lib/roleMatrix.js";
+import { loadRoleMatrix, type RoleMatrix } from "../lib/roleMatrix.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 type Role = "Owner" | "Manager" | "Cashier" | "Kitchen";
