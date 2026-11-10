@@ -40,7 +40,7 @@ describe("SettingsPage", () => {
       ...defaults.values,
       general: { ...defaults.values.general, currency: "USD", darkMode: true },
     };
-    saveSettings({ values: updatedValues, locations: defaults.locations });
+    saveSettings({ values: updatedValues });
 
     const loaded = loadSettings();
     expect(loaded.values.general.currency).toBe("USD");

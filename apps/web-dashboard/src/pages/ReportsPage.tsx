@@ -20,6 +20,9 @@ type LocationPoint = {
   revenue: number;
 };
 
+// Widens rate so the "Total" summary row can share the table's row type.
+type GstTableRow = Omit<GstSlabSummaryDto, "rate"> & { key: string; rate: string };
+
 interface TopItem {
   key: string;
   rank: number;
@@ -260,11 +263,11 @@ export const ReportsPage: React.FC = () => {
         />
 
         <h2>Tax Liability (GST) Summary</h2>
-        <Table<{ key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }>
-          dataSource={[...gstSummary.slabs.map(slab => ({ ...slab, key: slab.rate })), { key: "Total", rate: "Total", rate_percent: 0, taxable_amount_minor: 0, tax_amount_minor: gstSummary.total_tax_minor } as unknown as GstSlabSummaryDto & { key: string }]}
+        <Table<GstTableRow>
+          dataSource={[...gstSummary.slabs.map(slab => ({ ...slab, key: slab.rate })), { key: "Total", rate: "Total", rate_percent: 0, taxable_amount_minor: 0, tax_amount_minor: gstSummary.total_tax_minor }]}
           columns={[
-            { title: "Slab", dataIndex: "rate", key: "rate", render: (rate: string, record: GstSlabSummaryDto & { key: string }): React.ReactNode => rate === "Total" ? <Typography.Text strong>Total</Typography.Text> : <Typography.Text strong>{record.rate_percent}% ({record.rate})</Typography.Text> },
-            { title: "Taxable Value", dataIndex: "taxableAmount", key: "taxableAmount", align: "right", render: (r: number, record: GstSlabSummaryDto & { key: string }): React.ReactNode => record.rate === "Total" ? "" : inr(r / 100) },
+            { title: "Slab", dataIndex: "rate", key: "rate", render: (rate: string, record: GstTableRow): React.ReactNode => rate === "Total" ? <Typography.Text strong>Total</Typography.Text> : <Typography.Text strong>{record.rate_percent}% ({record.rate})</Typography.Text> },
+            { title: "Taxable Value", dataIndex: "taxable_amount_minor", key: "taxable_amount_minor", align: "right", render: (r: number, record: GstTableRow): React.ReactNode => record.rate === "Total" ? "" : inr(r / 100) },
             { title: "Tax Amount", dataIndex: "tax_amount_minor", key: "tax_amount_minor", align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
           ]}
           rowKey="key"

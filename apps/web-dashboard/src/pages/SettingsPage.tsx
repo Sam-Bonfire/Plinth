@@ -148,7 +148,7 @@ export const SettingsPage: React.FC = () => {
 
 
   const openAdd = (): void => {
-    form.setFieldsValue({ name: "", city: "", tables: 0 });
+    form.setFieldsValue({ name: "" });
     setEditing("new");
   };
 
@@ -158,6 +158,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const saveLocation = (v: LocationFormValues): void => {
+    // shortcut: add/edit only mutates local state; upgrade when locations CRUD lands on the edge-api
     if (editing === "new") {
       const key = `L-${locations.length + 1}-${v.name.length}`;
       const newLoc = { id: key, ...v };

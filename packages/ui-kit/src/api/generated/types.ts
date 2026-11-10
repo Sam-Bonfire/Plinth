@@ -256,6 +256,10 @@ export type GstRate =
  */
 "TwentyEightPercent"
 
+export type GstReportDto = { slabs: GstSlabSummaryDto[]; total_tax_minor: number }
+
+export type GstSlabSummaryDto = { rate: GstRate; rate_percent: number; taxable_amount_minor: number; tax_amount_minor: number }
+
 export type HealthResponseDto = { status: string; version: string; uptime_secs: number; d1_reachable: boolean }
 
 /**
@@ -423,6 +427,8 @@ export type KitchenTicketStatus =
 export type ListAttendanceResponse = { data: AttendanceEntryDto[] }
 
 export type ListStaffResponse = { data: StaffResponseDto[]; total: number }
+
+export type LocationDto = { id: string; name: string }
 
 /**
  * Identifier for a Location (Specific outlet/branch)
