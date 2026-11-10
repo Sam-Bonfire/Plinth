@@ -1,8 +1,9 @@
+import type { GstReportDto, GstSlabSummaryDto } from "@plinth/ui-kit";
 import { BarChart, LineChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Row, Segmented, Space, Statistic, Table, Typography, message, type TableColumnsType } from "antd";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { buildAnalyticsCsv, type CsvSection } from "../lib/analyticsExport.js";
-import { type GstInputRow, summarizeGst, type GstSlabSummary } from "../lib/gst.js";
+import { useAuth } from "../providers/AuthProvider.js";
 
 type RevenuePoint = {
   day: string;
@@ -18,6 +19,9 @@ type LocationPoint = {
   outlet: string;
   revenue: number;
 };
+
+// Widens rate so the "Total" summary row can share the table's row type.
+type GstTableRow = Omit<GstSlabSummaryDto, "rate"> & { key: string; rate: string };
 
 interface TopItem {
   key: string;
@@ -82,22 +86,29 @@ const TOP_ITEMS: TopItem[] = [
   { key: "5", rank: 5, item: "Mango Lassi", qty: 203, revenue: 22330, share: "8%" },
 ];
 
-const MOCK_GST_ROWS: GstInputRow[] = [
-  { rate: "FivePercent", taxableAmount: 145000 },
-  { rate: "TwelvePercent", taxableAmount: 42000 },
-  { rate: "EighteenPercent", taxableAmount: 97500 },
-  { rate: "Exempt", taxableAmount: 12000 },
-];
-
 const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 export const ReportsPage: React.FC = () => {
   const [period, setPeriod] = useState<string>("week");
+  const [gstSummary, setGstSummary] = useState<GstReportDto>({ slabs: [], total_tax_minor: 0 });
+  const [loadingGst, setLoadingGst] = useState(true);
+  const { client } = useAuth();
+
+  useEffect(() => {
+    setLoadingGst(true);
+    client.getGstReport({ period })
+      .then(data => setGstSummary(data))
+      .catch(err => {
+        console.error("Failed to load GST report", err);
+        void message.error("Failed to load GST report");
+      })
+      .finally(() => setLoadingGst(false));
+  }, [client, period]);
   const data = PERIODS[period] ?? PERIODS.week;
 
   const exportCsv = (): void => {
-    const gstSummary = summarizeGst(MOCK_GST_ROWS);
+
 
     const sections: CsvSection[] = [
       {
@@ -134,8 +145,8 @@ export const ReportsPage: React.FC = () => {
         title: "Tax Liability (GST) Summary",
         headers: ["Slab", "Taxable Value", "Tax Amount"],
         rows: [
-          ...gstSummary.slabs.map((s) => [`${s.ratePercent}% (${s.rate})`, s.taxableAmount, s.taxAmount]),
-          ["Total", "", gstSummary.totalTax],
+          ...gstSummary.slabs.map((s) => [`${s.rate_percent}% (${s.rate})`, s.taxable_amount_minor / 100, s.tax_amount_minor / 100]),
+          ["Total", "", gstSummary.total_tax_minor / 100],
         ],
       },
     ];
@@ -170,16 +181,14 @@ export const ReportsPage: React.FC = () => {
     { title: "#", dataIndex: "rank", key: "rank", width: 50 },
     { title: "Item", dataIndex: "item", key: "item", render: (i: string): React.ReactNode => <Typography.Text strong>{i}</Typography.Text> },
     { title: "Qty", dataIndex: "qty", key: "qty", width: 80, align: "right" },
-    { title: "Revenue", dataIndex: "revenue", key: "revenue", width: 110, align: "right", render: (r: number): React.ReactNode => inr(r) },
+    { title: "Revenue", dataIndex: "revenue", key: "revenue", width: 110, align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
     { title: "Share", dataIndex: "share", key: "share", width: 80, align: "right" },
   ];
 
-  const gstSummary = summarizeGst(MOCK_GST_ROWS);
-
-  const gstColumns: TableColumnsType<GstSlabSummary> = [
-    { title: "Slab", dataIndex: "rate", key: "rate", render: (_: string, record: GstSlabSummary): React.ReactNode => <Typography.Text strong>{record.ratePercent}% ({record.rate})</Typography.Text> },
-    { title: "Taxable Value", dataIndex: "taxableAmount", key: "taxableAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
-    { title: "Tax Amount", dataIndex: "taxAmount", key: "taxAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
+  const gstColumns: TableColumnsType<GstSlabSummaryDto> = [
+    { title: "Slab", dataIndex: "rate", key: "rate", render: (_: string, record: GstSlabSummaryDto): React.ReactNode => <Typography.Text strong>{record.rate_percent}% ({record.rate})</Typography.Text> },
+    { title: "Taxable Value", dataIndex: "taxable_amount_minor", key: "taxable_amount_minor", align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
+    { title: "Tax Amount", dataIndex: "tax_amount_minor", key: "tax_amount_minor", align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
   ];
 
   return (
@@ -244,7 +253,7 @@ export const ReportsPage: React.FC = () => {
           dataSource={LOCATIONS}
           columns={[
             { title: "Location", dataIndex: "outlet", key: "outlet" },
-            { title: "Revenue", dataIndex: "revenue", key: "revenue", align: "right", render: (r: number): React.ReactNode => inr(r) },
+            { title: "Revenue", dataIndex: "revenue", key: "revenue", align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
           ]}
           rowKey="outlet"
           pagination={false}
@@ -254,12 +263,12 @@ export const ReportsPage: React.FC = () => {
         />
 
         <h2>Tax Liability (GST) Summary</h2>
-        <Table<{ key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }>
-          dataSource={[...gstSummary.slabs.map(slab => ({ ...slab, key: slab.rate })), { key: "Total", rate: "Total", ratePercent: 0, taxableAmount: 0, taxAmount: gstSummary.totalTax }]}
+        <Table<GstTableRow>
+          dataSource={[...gstSummary.slabs.map(slab => ({ ...slab, key: slab.rate })), { key: "Total", rate: "Total", rate_percent: 0, taxable_amount_minor: 0, tax_amount_minor: gstSummary.total_tax_minor }]}
           columns={[
-            { title: "Slab", dataIndex: "rate", key: "rate", render: (rate: string, record: { key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }): React.ReactNode => rate === "Total" ? <Typography.Text strong>Total</Typography.Text> : <Typography.Text strong>{record.ratePercent}% ({record.rate})</Typography.Text> },
-            { title: "Taxable Value", dataIndex: "taxableAmount", key: "taxableAmount", align: "right", render: (r: number, record: { key: string, rate: string, ratePercent: number, taxableAmount: number, taxAmount: number }): React.ReactNode => record.rate === "Total" ? "" : inr(r) },
-            { title: "Tax Amount", dataIndex: "taxAmount", key: "taxAmount", align: "right", render: (r: number): React.ReactNode => inr(r) },
+            { title: "Slab", dataIndex: "rate", key: "rate", render: (rate: string, record: GstTableRow): React.ReactNode => rate === "Total" ? <Typography.Text strong>Total</Typography.Text> : <Typography.Text strong>{record.rate_percent}% ({record.rate})</Typography.Text> },
+            { title: "Taxable Value", dataIndex: "taxable_amount_minor", key: "taxable_amount_minor", align: "right", render: (r: number, record: GstTableRow): React.ReactNode => record.rate === "Total" ? "" : inr(r / 100) },
+            { title: "Tax Amount", dataIndex: "tax_amount_minor", key: "tax_amount_minor", align: "right", render: (r: number): React.ReactNode => inr(r / 100) },
           ]}
           rowKey="key"
           pagination={false}
@@ -322,8 +331,8 @@ export const ReportsPage: React.FC = () => {
       </Row>
       <Row gutter={16}>
         <Col span={24}>
-          <Card title="Tax Liability (GST) Summary" extra={<Statistic value={gstSummary.totalTax} prefix="Total Tax: ₹" valueStyle={{ fontSize: 16, fontWeight: "bold" }} formatter={(val) => new Intl.NumberFormat("en-IN").format(Number(val))} />}>
-            <Table<GstSlabSummary> dataSource={gstSummary.slabs} columns={gstColumns} rowKey="rate" pagination={false} size="small" />
+          <Card title="Tax Liability (GST) Summary" extra={<Statistic value={gstSummary.total_tax_minor / 100} prefix="Total Tax: ₹" valueStyle={{ fontSize: 16, fontWeight: "bold" }} formatter={(val) => new Intl.NumberFormat("en-IN").format(Number(val))} />}>
+            <Table<GstSlabSummaryDto> dataSource={gstSummary.slabs} columns={gstColumns} rowKey="rate" pagination={false} size="small" loading={loadingGst} />
           </Card>
         </Col>
       </Row>
