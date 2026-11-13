@@ -1,128 +1,99 @@
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Space, Statistic, Table, Typography, type TableColumnsType } from "antd";
-import React, { useMemo, useState } from "react";
-import { seedRecipes, subRecipeCost, type Recipe } from "../data/recipes.js";
+import type { Recipe } from "@plinth/ui-kit";
+import { Card, Col, Input, Row, Space, Statistic, Table, Typography, type TableColumnsType } from "antd";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "../providers/AuthProvider.js";
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-
-interface RecipeFormValues {
+interface RecipeRow {
+  key: string;
   item: string;
-  uses: { ingredient: string }[];
+  uses: string;
   cost: number;
   margin: string;
 }
 
+const inr = (n: number): string =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+
 export const RecipesPage: React.FC = () => {
-  const [recipes, setRecipes] = useState<Recipe[]>(seedRecipes);
+  const { client } = useAuth();
+  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState<string>("");
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingIsSub, setEditingIsSub] = useState<boolean>(false);
-  const [form] = Form.useForm<RecipeFormValues>();
+  const loadRecipes = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const [recipeData, stockData, catalog] = await Promise.all([
+        client.listRecipes(),
+        client.getInventory(),
+        client.getMenuCatalog(),
+      ]);
 
-  const filteredRecipes = useMemo((): Recipe[] => {
+      const stockById = new Map(stockData.map((s) => [s.id, s]));
+      const menuItems = catalog.categories.flatMap((c) => c.items);
+      const menuById = new Map(menuItems.map((m) => [m.id, m]));
+
+      const rows: RecipeRow[] = recipeData.map((r: Recipe): RecipeRow => {
+        let cost = 0;
+        let hasUnknown = false;
+        const uses: string[] = [];
+        for (const ing of r.ingredients) {
+          const stock = stockById.get(ing.stock_item_id);
+          if (stock === undefined) {
+            hasUnknown = true;
+            continue;
+          }
+          uses.push(stock.name);
+          cost += Number(ing.quantity.value) * Number(stock.cost_per_unit.amount) * (1 + Number(ing.wastage_percent) / 100);
+        }
+        if (hasUnknown) uses.push("unmapped item");
+        const menuItem = menuById.get(r.menu_item_id);
+        const price = menuItem !== undefined ? menuItem.price_minor / 100 : 0;
+        const margin = menuItem !== undefined && price > 0 && cost > 0 ? `${Math.round(((price - cost) / price) * 100)}%` : "—";
+        return {
+          key: r.id,
+          item: menuItem?.name ?? r.menu_item_id,
+          uses: uses.join(", "),
+          cost,
+          margin,
+        };
+      });
+
+      setRecipes(rows);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void loadRecipes();
+  }, [loadRecipes]);
+
+  const filteredRecipes = useMemo((): RecipeRow[] => {
     const q = query.trim().toLowerCase();
     if (q === "") {
       return recipes;
     }
-    return recipes.filter(
-      (r: Recipe): boolean =>
-        r.item.toLowerCase().includes(q) || r.uses.toLowerCase().includes(q),
-    );
+    return recipes.filter((r: RecipeRow): boolean => r.item.toLowerCase().includes(q) || r.uses.toLowerCase().includes(q));
   }, [recipes, query]);
 
-  const mainRecipes = filteredRecipes.filter(r => !r.isSubRecipe);
-  const subRecipes = filteredRecipes.filter(r => r.isSubRecipe);
+  const avgCost = filteredRecipes.length === 0 ? 0 : filteredRecipes.reduce((s: number, r: RecipeRow): number => s + r.cost, 0) / filteredRecipes.length;
 
-  const avgCost = mainRecipes.length === 0 ? 0 : mainRecipes.reduce((s: number, r: Recipe): number => s + subRecipeCost(r, recipes), 0) / mainRecipes.length;
-
-  const openEdit = (recipe: Recipe | null, isSub: boolean): void => {
-    setEditingIsSub(isSub);
-    if (recipe) {
-      setEditingId(recipe.key);
-      form.setFieldsValue({
-        item: recipe.item,
-        uses: recipe.uses.split(',').filter(s => s.trim().length > 0).map(s => ({ ingredient: s.trim() })),
-        cost: recipe.cost,
-        margin: recipe.margin,
-      });
-    } else {
-      setEditingId("new");
-      form.resetFields();
-      form.setFieldsValue({ uses: [{ ingredient: "" }] });
-    }
-  };
-
-  const saveRecipe = (): void => {
-    form.validateFields().then((values: RecipeFormValues) => {
-      const usesString = (values.uses || []).map(u => u.ingredient.trim()).filter(Boolean).join(", ");
-
-      if (editingId === "new") {
-        const newRecipe: Recipe = {
-          key: `REC-NEW-${Date.now()}`,
-          item: values.item,
-          uses: usesString,
-          cost: values.cost || 0,
-          margin: values.margin || "0%",
-          isSubRecipe: editingIsSub,
-        };
-        setRecipes([...recipes, newRecipe]);
-      } else {
-        setRecipes(recipes.map(r =>
-          r.key === editingId
-            ? { ...r, item: values.item, uses: usesString, cost: values.cost || 0, margin: values.margin || "0%" }
-            : r
-        ));
-      }
-      setEditingId(null);
-    }).catch(() => {
-      // validation failed
-    });
-  };
-
-  const columns: TableColumnsType<Recipe> = [
+  const columns: TableColumnsType<RecipeRow> = [
     { title: "Recipe", dataIndex: "item", key: "item", render: (v: string): React.ReactNode => <Typography.Text strong>{v}</Typography.Text> },
     { title: "Uses", dataIndex: "uses", key: "uses" },
     {
       title: "Food Cost",
-      key: "cost",
-      align: "right",
-      render: (_: unknown, r: Recipe): React.ReactNode => {
-        const cost = subRecipeCost(r, recipes);
-        return inr(cost);
-      }
-    },
-    { title: "Margin", dataIndex: "margin", key: "margin", width: 90 },
-    {
-      key: "action",
-      width: 90,
-      render: (_: unknown, row: Recipe): React.ReactNode => (
-        <Button size="small" onClick={() => openEdit(row, !!row.isSubRecipe)}>
-          Edit
-        </Button>
-      ),
-    },
-  ];
-
-  const subColumns: TableColumnsType<Recipe> = [
-    { title: "Base Recipe", dataIndex: "item", key: "item", render: (v: string): React.ReactNode => <Typography.Text strong>{v}</Typography.Text> },
-    { title: "Uses", dataIndex: "uses", key: "uses" },
-    {
-      title: "Base Cost",
       dataIndex: "cost",
       key: "cost",
       align: "right",
-      render: (v: number): React.ReactNode => inr(v)
+      render: (v: number): React.ReactNode => inr(v),
     },
-    {
-      key: "action",
-      width: 90,
-      render: (_: unknown, row: Recipe): React.ReactNode => (
-        <Button size="small" onClick={() => openEdit(row, true)}>
-          Edit
-        </Button>
-      ),
-    },
+    { title: "Margin", dataIndex: "margin", key: "margin", width: 90 },
   ];
 
   return (
@@ -131,14 +102,9 @@ export const RecipesPage: React.FC = () => {
         <Col span={12}>
           <Card>
             <Space size="large">
-              <Statistic title="Main Recipes" value={mainRecipes.length} />
+              <Statistic title="Recipes" value={filteredRecipes.length} loading={loading} />
               <Statistic title="Avg Food Cost" value={inr(avgCost)} />
             </Space>
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card>
-            <Statistic title="Base Recipes" value={subRecipes.length} />
           </Card>
         </Col>
       </Row>
@@ -148,74 +114,12 @@ export const RecipesPage: React.FC = () => {
         extra={
           <Space>
             <Input allowClear placeholder="Search recipes or ingredients…" value={query} onChange={(e): void => setQuery(e.target.value)} style={{ width: 240 }} />
-            <Button onClick={() => openEdit(null, true)}>Add Base Recipe</Button>
-            <Button type="primary" onClick={() => openEdit(null, false)}>Add Recipe</Button>
           </Space>
         }
       >
-        <Typography.Title level={5}>Main Recipes</Typography.Title>
-        <Table<Recipe> dataSource={mainRecipes} columns={columns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No main recipes match." }} style={{ marginBottom: 24 }} />
-
-        <Typography.Title level={5}>Base Recipes (Sub-Recipes)</Typography.Title>
-        <Table<Recipe> dataSource={subRecipes} columns={subColumns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No base recipes match." }} />
+        {error !== null ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+        <Table<RecipeRow> dataSource={filteredRecipes} columns={columns} rowKey="key" loading={loading} pagination={false} size="small" locale={{ emptyText: "No recipes match." }} />
       </Card>
-
-      <Modal
-        title={editingId === "new" ? (editingIsSub ? "Add Base Recipe" : "Add Recipe") : (editingIsSub ? "Edit Base Recipe" : "Edit Recipe")}
-        open={editingId !== null}
-        onOk={saveRecipe}
-        onCancel={(): void => setEditingId(null)}
-        okText="Save"
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="item" label="Name" rules={[{ required: true, message: "Name is required" }]}>
-            <Input placeholder="Recipe Name" />
-          </Form.Item>
-
-          <Form.Item label="Ingredients (Uses)">
-            <Form.List name="uses">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'ingredient']}
-                        rules={[{ required: true, message: 'Missing ingredient' }]}
-                        style={{ margin: 0, width: '100%' }}
-                      >
-                        <Input placeholder="Ingredient Name" style={{ width: 300 }} />
-                      </Form.Item>
-                      <Button danger onClick={() => remove(name)}>Remove</Button>
-                    </Space>
-                  ))}
-                  <Form.Item style={{ marginTop: 8 }}>
-                    <Button type="dashed" onClick={() => add()} block>
-                      + Add Ingredient
-                    </Button>
-                  </Form.Item>
-                </>
-              )}
-            </Form.List>
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="cost" label="Base Cost (₹)" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            {!editingIsSub && (
-              <Col span={12}>
-                <Form.Item name="margin" label="Margin">
-                  <Input placeholder="e.g. 70%" />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
-        </Form>
-      </Modal>
     </div>
   );
 };

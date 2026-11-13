@@ -191,6 +191,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     types.register::<edge_api::routes::reports::GstReportDto>();
     types.register::<edge_api::routes::reports::GstSlabSummaryDto>();
     types.register::<edge_api::routes::locations::LocationDto>();
+    types.register::<edge_api::routes::vendors::CreateVendorRequest>();
+    types.register::<edge_api::routes::vendors::UpdateVendorRequest>();
+    types.register::<core_domain::models::vendor::Vendor>();
+    types.register::<edge_api::routes::purchase_orders::CreatePoLineRequest>();
+    types.register::<edge_api::routes::purchase_orders::CreatePurchaseOrderRequest>();
+    types.register::<edge_api::routes::recipes::CreateRecipeIngredientDto>();
+    types.register::<edge_api::routes::recipes::CreateRecipeRequest>();
+    types.register::<core_domain::models::purchase_order::PurchaseOrder>();
+    types.register::<core_domain::models::purchase_order::PoLineItem>();
+    types.register::<core_domain::models::purchase_order::PurchaseOrderStatus>();
     types.register::<ApiErrorResponse>();
     types.register::<HealthResponseDto>();
 

@@ -32,13 +32,22 @@ import type {
   PaginatedResponse,
   PinVerifyRequest,
   PinVerifyResponse,
+  PurchaseOrder,
+  PurchaseOrderId,
+  Recipe,
   RefundRequest,
   RefundResponse,
   StaffResponseDto,
   UpdateStaffRequest,
   SalesReportDto,
-  GstReportDto,
   StockItemResponseDto,
+  CreateVendorRequest,
+  UpdateVendorRequest,
+  Vendor,
+  VendorId,
+  CreatePurchaseOrderRequest,
+  CreateRecipeRequest,
+  GstReportDto,
   TicketQueryParams,
   PermissionsResponseDto,
   RecordAttendanceRequest,
@@ -456,6 +465,45 @@ export class PlinthApiClient {
       "/api/v1/inventory/adjust",
       "POST",
       req,
+    );
+  }
+
+  // --- Vendors Endpoints ---
+  public async listVendors(): Promise<Vendor[]> {
+    return this.request<Vendor[]>("/api/v1/vendors", "GET");
+  }
+
+  public async createVendor(req: CreateVendorRequest): Promise<Vendor> {
+    return this.request<Vendor>("/api/v1/vendors", "POST", req);
+  }
+
+  public async updateVendor(id: VendorId, req: UpdateVendorRequest): Promise<Vendor> {
+    return this.request<Vendor>(`/api/v1/vendors/${encodeURIComponent(id)}`, "PATCH", req);
+  }
+
+  // --- Recipes Endpoints ---
+  public async listRecipes(): Promise<Recipe[]> {
+    return this.request<Recipe[]>("/api/v1/recipes", "GET");
+  }
+
+  public async createRecipe(req: CreateRecipeRequest): Promise<Recipe> {
+    return this.request<Recipe>("/api/v1/recipes", "POST", req);
+  }
+
+  // --- Purchase Order Endpoints ---
+  public async listPurchaseOrders(): Promise<PurchaseOrder[]> {
+    return this.request<PurchaseOrder[]>("/api/v1/purchase-orders", "GET");
+  }
+
+  public async createPurchaseOrder(req: CreatePurchaseOrderRequest): Promise<PurchaseOrder> {
+    return this.request<PurchaseOrder>("/api/v1/purchase-orders", "POST", req);
+  }
+
+  public async receivePurchaseOrder(id: PurchaseOrderId): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      `/api/v1/purchase-orders/${encodeURIComponent(id)}/receive`,
+      "POST",
+      {},
     );
   }
 

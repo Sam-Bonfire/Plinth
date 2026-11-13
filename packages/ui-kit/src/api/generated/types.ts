@@ -125,7 +125,17 @@ export type CreateLineItemDto = { menu_item_id: MenuItemId; name: string; unit_p
 
 export type CreateOrderRequest = { channel: OrderChannel; terminal_id: TerminalId; table_id: FloorTableId | null; seat_number: SeatNumber | null; items: CreateLineItemDto[]; discounts: Discount[]; charges: OrderCharge[]; tip: TipAmount | null }
 
+export type CreatePoLineRequest = { stock_item_id: StockItemId; quantity: string; unit_cost_minor: number }
+
+export type CreatePurchaseOrderRequest = { vendor_id: VendorId | null; supplier_name: string | null; lines: CreatePoLineRequest[] }
+
+export type CreateRecipeIngredientDto = { stock_item_id: StockItemId; quantity: string; wastage_percent: string }
+
+export type CreateRecipeRequest = { menu_item_id: MenuItemId; ingredients: CreateRecipeIngredientDto[]; preparation_notes: string | null }
+
 export type CreateStaffRequest = { name: string; role: StaffRole; pin: string }
+
+export type CreateVendorRequest = { name: string; contact: string; rate: string }
 
 /**
  * Supported currencies. Non-exhaustive for future expansion.
@@ -901,6 +911,8 @@ export type PinVerifyRequest = { pin: string }
 
 export type PinVerifyResponse = { valid: boolean; staff_id: StaffMemberId }
 
+export type PoLineItem = { id: string; po_id: PurchaseOrderId; stock_item_id: StockItemId; quantity: string; unit_cost_minor: number; total_minor: number }
+
 /**
  * Defines service level agreements for food preparation
  */
@@ -913,6 +925,15 @@ threshold_warning: DurationDto;
  * Duration after which late status is triggered
  */
 threshold_late: DurationDto }
+
+export type PurchaseOrder = { id: PurchaseOrderId; tenant_id: TenantId; location_id: LocationId; supplier_name: string; vendor_id: VendorId | null; status: PurchaseOrderStatus; total_minor: number; created_by: string; lines: PoLineItem[]; created_at: string; received_at: string | null }
+
+/**
+ * Identifier for a Purchase Order
+ */
+export type PurchaseOrderId = string
+
+export type PurchaseOrderStatus = "Draft" | "Submitted" | "Received" | "Cancelled"
 
 /**
  * Represents a recipe for a menu item.
@@ -1428,6 +1449,18 @@ export type UnitOfMeasure =
 export type UpdateItemAvailabilityRequest = { is_available: boolean; reason: string | null }
 
 export type UpdateStaffRequest = { name: string | null; role: StaffRole | null; is_active: boolean | null }
+
+export type UpdateVendorRequest = { name: string | null; contact: string | null; rate: string | null; active: boolean | null }
+
+/**
+ * Represents a vendor in the system.
+ */
+export type Vendor = { id: VendorId; tenant_id: TenantId; location_id: LocationId; name: string; contact: string; rate: string; active: boolean; created_at: string; updated_at: string }
+
+/**
+ * Identifier for a Vendor
+ */
+export type VendorId = string
 
 /**
  * End-of-shift Z-Report summary
