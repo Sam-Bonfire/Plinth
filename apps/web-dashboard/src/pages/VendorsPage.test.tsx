@@ -4,6 +4,45 @@ import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import { VendorsPage } from "./VendorsPage.js";
 
+const h = vi.hoisted(() => ({
+  vendorList: [
+    {
+      id: "V-1",
+      tenant_id: "T-1",
+      location_id: "L-1",
+      name: "Fresh Farms Produce",
+      contact: "contact@freshfarms.in",
+      rate: "45.50",
+      active: true,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    },
+    {
+      id: "V-2",
+      tenant_id: "T-1",
+      location_id: "L-1",
+      name: "Quality Meats Ltd",
+      contact: "orders@qualitymeats.in",
+      rate: "120",
+      active: false,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    },
+  ],
+  createVendor: vi.fn(),
+  updateVendor: vi.fn(),
+}));
+
+vi.mock("../providers/AuthProvider.js", () => ({
+  useAuth: () => ({
+    client: {
+      listVendors: vi.fn().mockResolvedValue(h.vendorList),
+      createVendor: h.createVendor.mockResolvedValue(h.vendorList[0]),
+      updateVendor: h.updateVendor.mockResolvedValue(h.vendorList[0]),
+    },
+  }),
+}));
+
 // Mock window.matchMedia if needed
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -30,13 +69,11 @@ function renderPage(): void {
 }
 
 describe("VendorsPage", () => {
-  it("renders seeded vendors correctly", async () => {
+  it("renders vendors from the API", async () => {
     renderPage();
     expect(await screen.findByText("Vendor / Supplier Directory")).toBeDefined();
     expect(await screen.findByText("Fresh Farms Produce")).toBeDefined();
     expect(await screen.findByText("Quality Meats Ltd")).toBeDefined();
-    expect(await screen.findByText("Oceanic Seafoods")).toBeDefined();
-    expect(await screen.findByText("Sunrise Dairy")).toBeDefined();
   });
 
   it("filters vendors when searching", async () => {
@@ -62,8 +99,26 @@ describe("VendorsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Name is required")).toBeDefined();
       expect(screen.getByText("Contact is required")).toBeDefined();
-      expect(screen.getByText("Items supplied is required")).toBeDefined();
-      expect(screen.getByText("Lead time is required")).toBeDefined();
+      expect(screen.getByText("Rate is required")).toBeDefined();
     });
+  });
+
+  it("creates a vendor through the client", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Add Vendor/i }));
+    fireEvent.change(await screen.findByPlaceholderText("Vendor name"), { target: { value: "Sunrise Dairy" } });
+    fireEvent.change(await screen.findByPlaceholderText("Email or Phone"), { target: { value: "hello@sunrise.in" } });
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: 30 } });
+    fireEvent.click(await screen.findByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(h.createVendor).toHaveBeenCalledWith({
+        name: "Sunrise Dairy",
+        contact: "hello@sunrise.in",
+        rate: "30",
+      });
+    });
+    expect(await screen.findByText("Vendor added successfully")).toBeDefined();
   });
 });

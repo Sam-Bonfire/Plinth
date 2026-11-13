@@ -1,23 +1,21 @@
 import { AlertBanner, BarChart, InventoryStockBar } from "@plinth/ui-kit";
-import { App, Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Select, Space, Statistic, Table, Tabs, Tag, Typography, type TableColumnsType } from "antd";
-import React, { useMemo, useState } from "react";
-import { PurchaseOrderCreator, type PurchaseOrder } from "../components/PurchaseOrderCreator.js";
+import type { CreatePurchaseOrderRequest, PurchaseOrder, StockItemResponseDto } from "@plinth/ui-kit";
+import { App, Button, Card, Col, InputNumber, Modal, Row, Space, Statistic, Table, Tabs, Tag, Typography, type TableColumnsType } from "antd";
+import React, { useCallback, useEffect, useState } from "react";
+import { PurchaseOrderCreator, type StockItemOption } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
-import { seedRecipes, type Recipe } from "../data/recipes.js";
 import { logAudit } from "../lib/auditTrail.js";
-import { receivePurchaseOrder } from "../lib/inventoryReceiving.js";
 import { useAuth } from "../providers/AuthProvider.js";
 import { RecipesPage } from "./RecipesPage.js";
 import { VendorsPage } from "./VendorsPage.js";
 
-interface Ingredient {
+interface StockRow {
   key: string;
   name: string;
-  category: string;
   unit: string;
   current: number;
   par: number;
-  lastCount: string;
+  unitCostMinor: number;
 }
 
 type VariancePoint = {
@@ -25,27 +23,6 @@ type VariancePoint = {
   kind: string;
   value: number;
 };
-
-interface IngredientFormValues {
-  name: string;
-  category: string;
-  unit: string;
-  current: number;
-  par: number;
-}
-
-const CATEGORIES: string[] = ["Proteins", "Dairy", "Produce", "Spices", "Grains", "Beverages"];
-
-const seedIngredients = (): Ingredient[] => [
-  { key: "ING-01", name: "Chicken Breast", category: "Proteins", unit: "kg", current: 24, par: 15, lastCount: "Today 08:10" },
-  { key: "ING-02", name: "Paneer", category: "Dairy", unit: "kg", current: 18, par: 10, lastCount: "Today 08:10" },
-  { key: "ING-03", name: "Tomato", category: "Produce", unit: "kg", current: 3, par: 10, lastCount: "Yesterday 21:40" },
-  { key: "ING-04", name: "Garam Masala", category: "Spices", unit: "kg", current: 0, par: 5, lastCount: "Yesterday 21:40" },
-  { key: "ING-05", name: "Basmati Rice", category: "Grains", unit: "kg", current: 42, par: 20, lastCount: "Today 08:10" },
-  { key: "ING-06", name: "Milk", category: "Dairy", unit: "L", current: 4, par: 12, lastCount: "Today 08:10" },
-  { key: "ING-07", name: "Onion", category: "Produce", unit: "kg", current: 30, par: 15, lastCount: "Today 08:10" },
-  { key: "ING-08", name: "Butter", category: "Dairy", unit: "kg", current: 9, par: 6, lastCount: "Today 08:10" },
-];
 
 const seedVariance = (): VariancePoint[] => [
   { cat: "Proteins", kind: "Theoretical", value: 12200 },
@@ -66,69 +43,95 @@ const inr = (n: number): string =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 type StockStatus = "OK" | "Low" | "Critical";
-const stockStatus = (ing: Ingredient): StockStatus => {
+const stockStatus = (ing: StockRow): StockStatus => {
   if (ing.current <= 0) return "Critical";
   if (ing.current <= ing.par) return "Low";
   return "OK";
 };
 const statusColor = (s: StockStatus): string => (s === "OK" ? "success" : s === "Low" ? "warning" : "error");
 
+const toRow = (s: StockItemResponseDto): StockRow => ({
+  key: s.id,
+  name: s.name,
+  unit: s.unit,
+  current: Number(s.current_quantity),
+  par: Number(s.par_level),
+  unitCostMinor: Math.round(Number(s.cost_per_unit.amount) * 100),
+});
+
+const poColor = (s: PurchaseOrder["status"]): string =>
+  s === "Received" ? "success" : s === "Cancelled" ? "default" : s === "Submitted" ? "processing" : "warning";
+
 export const InventoryPage: React.FC = () => {
-  const [ingredients, setIngredients] = useState<Ingredient[]>(seedIngredients);
   const { client } = useAuth();
-  const [recipes, setRecipes] = useState<Recipe[]>(seedRecipes);
-  const [category, setCategory] = useState<string>("all");
-  const [adjusting, setAdjusting] = useState<Ingredient | null>(null);
+  const [ingredients, setIngredients] = useState<StockRow[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState<StockRow | null>(null);
   const [adjustValue, setAdjustValue] = useState<number>(0);
-  const [adding, setAdding] = useState<boolean>(false);
   const [counting, setCounting] = useState<boolean>(false);
   const [poOpen, setPoOpen] = useState<boolean>(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [recipeCosts, setRecipeCosts] = useState<Record<string, number>>({});
-  const [recipesOpen, setRecipesOpen] = useState<boolean>(false);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
-  const [form] = Form.useForm<IngredientFormValues>();
   const { message } = App.useApp();
 
-  const rows = useMemo(
-    (): Ingredient[] => ingredients.filter((i: Ingredient): boolean => category === "all" || i.category === category),
-    [ingredients, category],
-  );
-  const lowItems = ingredients.filter((i: Ingredient): boolean => stockStatus(i) !== "OK");
+  const loadData = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const [stockData, vendorData, poData] = await Promise.all([
+        client.getInventory(),
+        client.listVendors(),
+        client.listPurchaseOrders(),
+      ]);
+      setIngredients(stockData.map(toRow));
+      setVendors(vendorData.map((v) => ({ id: v.id, name: v.name })));
+      setPurchaseOrders(poData);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const lowItems = ingredients.filter((i: StockRow): boolean => stockStatus(i) !== "OK");
   const variance = seedVariance();
   const theoretical = variance.filter((v: VariancePoint): boolean => v.kind === "Theoretical").reduce((s: number, v: VariancePoint): number => s + v.value, 0);
   const actual = variance.filter((v: VariancePoint): boolean => v.kind === "Actual").reduce((s: number, v: VariancePoint): number => s + v.value, 0);
 
-  const openAdjust = (ing: Ingredient): void => {
+  const openAdjust = (ing: StockRow): void => {
     setAdjustValue(ing.current);
     setAdjusting(ing);
   };
 
-  const saveAdjust = (): void => {
+  const saveAdjust = async (): Promise<void> => {
     if (!adjusting) return;
     const value = Math.max(0, adjustValue);
-    setIngredients((prev: Ingredient[]): Ingredient[] =>
-      prev.map((i: Ingredient): Ingredient => (i.key === adjusting.key ? { ...i, current: value, lastCount: "Just now" } : i)),
-    );
-    void message.success(`Stock for ${adjusting.name} set to ${value} ${adjusting.unit}.`);
-    setAdjusting(null);
-  };
-
-  const openAdd = (): void => {
-    form.setFieldsValue({ name: "", category: CATEGORIES[0], unit: "kg", current: 0, par: 0 });
-    setAdding(true);
-  };
-
-  const saveAdded = (values: IngredientFormValues): void => {
-    const key = `ING-${ingredients.length + 1}-${values.name.length}`;
-    setIngredients((prev: Ingredient[]): Ingredient[] => [...prev, { key, lastCount: "Just now", ...values }]);
-    void message.success(`Ingredient ${values.name} added.`);
-    setAdding(false);
+    const delta = value - adjusting.current;
+    try {
+      await client.adjustStock({
+        stock_item_id: adjusting.key,
+        delta: String(delta),
+        reason: "PhysicalCountCorrection",
+        notes: null,
+      });
+      void message.success(`Stock for ${adjusting.name} set to ${value} ${adjusting.unit}.`);
+      setAdjusting(null);
+      void loadData();
+    } catch (err) {
+      void message.error(`Failed to adjust stock: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const openCount = (): void => {
     const initial: Record<string, number> = {};
-    ingredients.forEach((i: Ingredient): void => {
+    ingredients.forEach((i: StockRow): void => {
       initial[i.key] = i.current;
     });
     setCounts(initial);
@@ -136,39 +139,44 @@ export const InventoryPage: React.FC = () => {
   };
 
   const saveCount = (): void => {
-    setIngredients((prev: Ingredient[]): Ingredient[] =>
-      prev.map((i: Ingredient): Ingredient => (counts[i.key] === undefined ? i : { ...i, current: Math.max(0, counts[i.key] as number), lastCount: "Just now" })),
+    setIngredients((prev: StockRow[]): StockRow[] =>
+      prev.map((i: StockRow): StockRow => (counts[i.key] === undefined ? i : { ...i, current: Math.max(0, counts[i.key] as number) })),
     );
     void message.success(`Stock count saved for ${ingredients.length} ingredients.`);
     setCounting(false);
   };
 
-  const openRecipes = (): void => {
-    const initial: Record<string, number> = {};
-    recipes.forEach((r: Recipe): void => {
-      initial[r.key] = r.cost;
-    });
-    setRecipeCosts(initial);
-    setRecipesOpen(true);
+  const submitPo = async (req: CreatePurchaseOrderRequest): Promise<void> => {
+    try {
+      await client.createPurchaseOrder(req);
+      void message.success("Purchase order created.");
+      void logAudit(client, "PO_CREATE", "purchase_order", req.vendor_id ?? "unknown");
+      setPoOpen(false);
+      void loadData();
+    } catch (err) {
+      void message.error(`Failed to create PO: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
-  const saveRecipes = (): void => {
-    setRecipes((prev: Recipe[]): Recipe[] =>
-      prev.map((r: Recipe): Recipe => (recipeCosts[r.key] === undefined ? r : { ...r, cost: recipeCosts[r.key] as number })),
-    );
-    void message.success("Recipe costs updated.");
-    setRecipesOpen(false);
+  const receivePo = async (po: PurchaseOrder): Promise<void> => {
+    try {
+      await client.receivePurchaseOrder(po.id);
+      void message.success(`PO for ${po.supplier_name} received into stock.`);
+      void logAudit(client, "PO_RECEIVE", "purchase_order", po.id);
+      void loadData();
+    } catch (err) {
+      void message.error(`Failed to receive PO: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
-  const stockColumns: TableColumnsType<Ingredient> = [
+  const stockColumns: TableColumnsType<StockRow> = [
     { title: "Ingredient", dataIndex: "name", key: "name", render: (n: string): React.ReactNode => <Typography.Text strong>{n}</Typography.Text> },
-    { title: "Category", dataIndex: "category", key: "category", width: 100 },
     {
       title: "Current",
       dataIndex: "current",
       key: "current",
       width: 190,
-      render: (current: number, row: Ingredient): React.ReactNode => (
+      render: (current: number, row: StockRow): React.ReactNode => (
         <Space direction="vertical" size={0} style={{ width: "100%" }}>
           <Typography.Text style={{ fontFamily: "var(--mono)" }}>
             {current} {row.unit}
@@ -177,22 +185,21 @@ export const InventoryPage: React.FC = () => {
         </Space>
       ),
     },
-    { title: "PAR", dataIndex: "par", key: "par", width: 80, render: (par: number, row: Ingredient): React.ReactNode => `${par} ${row.unit}` },
+    { title: "PAR", dataIndex: "par", key: "par", width: 80, render: (par: number, row: StockRow): React.ReactNode => `${par} ${row.unit}` },
     {
       title: "Status",
       key: "status",
       width: 100,
-      render: (_: unknown, row: Ingredient): React.ReactNode => {
+      render: (_: unknown, row: StockRow): React.ReactNode => {
         const s = stockStatus(row);
         return <Tag color={statusColor(s)}>{s}</Tag>;
       },
     },
-    { title: "Last Count", dataIndex: "lastCount", key: "lastCount", width: 130 },
     {
       title: "Action",
       key: "action",
       width: 90,
-      render: (_: unknown, row: Ingredient): React.ReactNode => (
+      render: (_: unknown, row: StockRow): React.ReactNode => (
         <Button size="small" onClick={(): void => openAdjust(row)}>
           Adjust
         </Button>
@@ -200,19 +207,37 @@ export const InventoryPage: React.FC = () => {
     },
   ];
 
-  const recipeColumns: TableColumnsType<Recipe> = [
-    { title: "Menu Item", dataIndex: "item", key: "item" },
-    { title: "Recipe Uses", dataIndex: "uses", key: "uses" },
-    { title: "Cost/Serving", dataIndex: "cost", key: "cost", width: 120, align: "right", render: (c: number): React.ReactNode => inr(c) },
-    { title: "Margin", dataIndex: "margin", key: "margin", width: 90 },
+  const poColumns: TableColumnsType<PurchaseOrder> = [
+    { title: "Supplier", dataIndex: "supplier_name", key: "supplier", render: (s: string): React.ReactNode => <Typography.Text strong>{s}</Typography.Text> },
+    { title: "Total", dataIndex: "total_minor", key: "total", align: "right", render: (v: number): React.ReactNode => inr(v / 100) },
+    { title: "Status", dataIndex: "status", key: "status", width: 110, render: (s: PurchaseOrder["status"]): React.ReactNode => <Tag color={poColor(s)}>{s}</Tag> },
+    {
+      title: "Action",
+      key: "action",
+      width: 100,
+      render: (_: unknown, po: PurchaseOrder): React.ReactNode =>
+        po.status === "Received" || po.status === "Cancelled" ? null : (
+          <Button size="small" onClick={(): void => { void receivePo(po); }}>
+            Receive
+          </Button>
+        ),
+    },
   ];
+
+  const stockItemOptions: StockItemOption[] = ingredients.map((i: StockRow): StockItemOption => ({
+    id: i.key,
+    name: i.name,
+    unit: i.unit,
+    unitCostMinor: i.unitCostMinor,
+  }));
 
   const stockContent: React.ReactNode = (
     <div>
+      {error !== null ? <Typography.Text type="danger">{error}</Typography.Text> : null}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
-            <Statistic title="Total SKUs" value={ingredients.length} />
+            <Statistic title="Total SKUs" value={ingredients.length} loading={loading} />
           </Card>
         </Col>
         <Col span={6}>
@@ -238,7 +263,6 @@ export const InventoryPage: React.FC = () => {
             style={{ marginBottom: 16 }}
             extra={
               <Space>
-                <Segmented value={category} onChange={(v): void => setCategory(v as string)} options={["all", ...CATEGORIES]} />
                 <Button size="small" onClick={() => setSheetOpen(true)}>
                   Open Sheet
                 </Button>
@@ -248,16 +272,13 @@ export const InventoryPage: React.FC = () => {
                 <Button size="small" onClick={openCount}>
                   Stock Count
                 </Button>
-                <Button size="small" type="primary" onClick={openAdd}>
-                  + Add
-                </Button>
               </Space>
             }
           >
-            <Table<Ingredient> dataSource={rows} columns={stockColumns} rowKey="key" pagination={false} size="small" locale={{ emptyText: "No ingredients in this category." }} />
+            <Table<StockRow> dataSource={ingredients} columns={stockColumns} rowKey="key" loading={loading} pagination={false} size="small" locale={{ emptyText: "No ingredients in this category." }} />
           </Card>
-          <Card title="Recipe Mapping" extra={<Button size="small" onClick={openRecipes}>Manage</Button>}>
-            <Table<Recipe> dataSource={recipes} columns={recipeColumns} rowKey="key" pagination={false} size="small" />
+          <Card title="Purchase Orders">
+            <Table<PurchaseOrder> dataSource={purchaseOrders} columns={poColumns} rowKey="id" loading={loading} pagination={false} size="small" locale={{ emptyText: "No purchase orders yet." }} />
           </Card>
         </Col>
         <Col span={8}>
@@ -268,7 +289,7 @@ export const InventoryPage: React.FC = () => {
             {lowItems.length === 0 ? (
               <Typography.Text type="secondary">All ingredients above PAR.</Typography.Text>
             ) : (
-              lowItems.map((i: Ingredient): React.ReactNode => (
+              lowItems.map((i: StockRow): React.ReactNode => (
                 <AlertBanner
                   key={i.key}
                   type={stockStatus(i) === "Critical" ? "error" : "warning"}
@@ -281,35 +302,15 @@ export const InventoryPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Modal title={adjusting ? `Adjust ${adjusting.name}` : "Adjust Stock"} open={adjusting !== null} onOk={saveAdjust} onCancel={(): void => setAdjusting(null)} okText="Save">
+      <Modal title={adjusting ? `Adjust ${adjusting.name}` : "Adjust Stock"} open={adjusting !== null} onOk={(): void => { void saveAdjust(); }} onCancel={(): void => setAdjusting(null)} okText="Save">
         <Space>
           <InputNumber min={0} value={adjustValue} onChange={(v: number | null): void => setAdjustValue(v ?? 0)} />
           <Typography.Text>{adjusting?.unit} on hand</Typography.Text>
         </Space>
       </Modal>
 
-      <Modal title="Add Ingredient" open={adding} onOk={(): void => { void form.submit(); }} onCancel={(): void => setAdding(false)} okText="Add">
-        <Form form={form} layout="vertical" onFinish={saveAdded} preserve={false}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: "Name is required" }]}>
-            <Input placeholder="Ingredient name" />
-          </Form.Item>
-          <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-            <Select options={CATEGORIES.map((c: string) => ({ label: c, value: c }))} />
-          </Form.Item>
-          <Form.Item name="unit" label="Unit" rules={[{ required: true }]}>
-            <Select options={["kg", "L", "pcs", "pack"].map((u: string) => ({ label: u, value: u }))} />
-          </Form.Item>
-          <Form.Item name="current" label="Current stock" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="par" label="PAR level" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
       <Modal title="Stock Count" open={counting} onOk={saveCount} onCancel={(): void => setCounting(false)} okText="Save Count" width={560}>
-        <Table<Ingredient>
+        <Table<StockRow>
           dataSource={ingredients}
           rowKey="key"
           pagination={false}
@@ -320,7 +321,7 @@ export const InventoryPage: React.FC = () => {
               title: "Counted",
               key: "counted",
               width: 160,
-              render: (_: unknown, row: Ingredient): React.ReactNode => (
+              render: (_: unknown, row: StockRow): React.ReactNode => (
                 <InputNumber
                   min={0}
                   value={counts[row.key] ?? row.current}
@@ -333,30 +334,6 @@ export const InventoryPage: React.FC = () => {
         />
       </Modal>
 
-      <Modal title="Manage Recipes" open={recipesOpen} onOk={saveRecipes} onCancel={(): void => setRecipesOpen(false)} okText="Save" width={560}>
-        <Table<Recipe>
-          dataSource={recipes}
-          rowKey="key"
-          pagination={false}
-          size="small"
-          columns={[
-            { title: "Menu Item", dataIndex: "item", key: "item" },
-            {
-              title: "Cost/Serving (₹)",
-              key: "cost",
-              width: 180,
-              render: (_: unknown, row: Recipe): React.ReactNode => (
-                <InputNumber
-                  min={0}
-                  value={recipeCosts[row.key] ?? row.cost}
-                  onChange={(v: number | null): void => setRecipeCosts((prev) => ({ ...prev, [row.key]: v ?? 0 }))}
-                />
-              ),
-            },
-          ]}
-        />
-      </Modal>
-
       <StockCountSheet
         open={sheetOpen}
         onClose={(): void => setSheetOpen(false)}
@@ -364,19 +341,12 @@ export const InventoryPage: React.FC = () => {
       />
 
       <PurchaseOrderCreator
-        items={ingredients.map((i: Ingredient): string => i.name)}
+        vendors={vendors}
+        stockItems={stockItemOptions}
         open={poOpen}
         onClose={(): void => setPoOpen(false)}
-        onSubmit={(po: PurchaseOrder): void => {
-          const res = receivePurchaseOrder(ingredients, po.lines);
-          setIngredients(res.updated);
-          void logAudit(client, "PO_RECEIVE", "supplier", po.supplier);
-          if (res.unmatched.length > 0) {
-            void message.warning(`Received ${res.received} lines; unmatched: ${res.unmatched.join(", ")}.`);
-          } else {
-            void message.success(`PO for ${po.supplier} received: ${res.received} lines into stock.`);
-          }
-          setPoOpen(false);
+        onSubmit={(req: CreatePurchaseOrderRequest): void => {
+          void submitPo(req);
         }}
       />
     </div>
