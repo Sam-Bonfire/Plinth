@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { PurchaseOrderCreator, type StockItemOption } from "../components/PurchaseOrderCreator.js";
 import { StockCountSheet } from "../components/StockCountSheet.js";
 import { logAudit } from "../lib/auditTrail.js";
+import { formatInr } from "../lib/moneyBilling.js";
 import { useAuth } from "../providers/AuthProvider.js";
 import { RecipesPage } from "./RecipesPage.js";
 import { VendorsPage } from "./VendorsPage.js";
@@ -39,8 +40,7 @@ const seedVariance = (): VariancePoint[] => [
   { cat: "Beverages", kind: "Actual", value: 5300 },
 ];
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+const inr = (n: number): string => formatInr(n, { maximumFractionDigits: 0 });
 
 type StockStatus = "OK" | "Low" | "Critical";
 const stockStatus = (ing: StockRow): StockStatus => {

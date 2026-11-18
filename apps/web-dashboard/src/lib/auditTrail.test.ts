@@ -13,7 +13,10 @@ describe("logAudit", () => {
       ingestAudit: vi.fn().mockResolvedValue({}),
     } as unknown as PlinthApiClient;
 
-    await logAudit(client, "VOID_ORDER", "order", "ORD-123");
+    await expect(logAudit(client, "VOID_ORDER", "order", "ORD-123")).resolves.toEqual({
+      ok: true,
+      queued: false,
+    });
 
     expect(client.ingestAudit).toHaveBeenCalledWith({
       action: "VOID_ORDER",
@@ -30,7 +33,11 @@ describe("logAudit", () => {
       ingestAudit: vi.fn().mockRejectedValue(new Error("Network error")),
     } as unknown as PlinthApiClient;
 
-    await expect(logAudit(client, "VOID_ORDER", "order", "ORD-123")).resolves.toBeUndefined();
+    await expect(logAudit(client, "VOID_ORDER", "order", "ORD-123")).resolves.toEqual({
+      ok: false,
+      queued: true,
+      reason: "Network error",
+    });
 
     expect(getAuditFailures()).toHaveLength(1);
     expect(getAuditFailures()[0]?.reason).toBe("Network error");

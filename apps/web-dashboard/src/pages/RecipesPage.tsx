@@ -1,6 +1,7 @@
 import type { Recipe } from "@plinth/ui-kit";
 import { Card, Col, Input, Row, Space, Statistic, Table, Typography, type TableColumnsType } from "antd";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { formatInr } from "../lib/moneyBilling.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 interface RecipeRow {
@@ -11,8 +12,7 @@ interface RecipeRow {
   margin: string;
 }
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+const inr = (n: number): string => formatInr(n, { maximumFractionDigits: 0 });
 
 export const RecipesPage: React.FC = () => {
   const { client } = useAuth();

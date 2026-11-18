@@ -3,23 +3,25 @@ import { Button, Card, Col, Input, InputNumber, List, Modal, Radio, Row, Segment
 import React, { useMemo, useState } from "react";
 import { usePosShortcuts } from "../hooks/usePosShortcuts.js";
 import { logAudit } from "../lib/auditTrail.js";
+import { formatInr, formatInrMinor, toMinor } from "../lib/moneyBilling.js";
+import { settleTender } from "../lib/orderLifecycle.js";
 import { useAuth } from "../providers/AuthProvider.js";
 import { useCartStore, type CartRow } from "../stores/cartStore.js";
 
 const CHANNELS: string[] = ["Dine-in", "Takeaway", "Swiggy", "Zomato"];
 const PAY_METHODS: string[] = ["UPI", "Cash", "Card"];
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+const inr = (n: number): string => formatInr(n);
 
 /** Change due (negative when under-tendered). */
 export const tenderChange = (total: number, tendered: number): number => tendered - total;
 
 /** Returns an error message when the tender cannot settle the bill, else null. */
 export const validateTender = (method: string, total: number, tendered: number | null): string | null => {
-  if (method !== "Cash") return null;
-  if (tendered === null || !(tendered > 0)) return "Enter the cash tendered.";
-  if (tendered < total) return `Short by ${inr(total - tendered)}.`;
+  const result = settleTender(method, toMinor(total), tendered === null ? null : toMinor(tendered));
+  if (result.ok) return null;
+  if (result.reason === "missing_tender") return "Enter the cash tendered.";
+  if (result.reason === "short_tender") return `Short by ${formatInrMinor(result.shortfallMinor ?? 0)}.`;
   return null;
 };
 
@@ -180,12 +182,13 @@ export const PosPage: React.FC = () => {
   };
 
   const confirmTender = (): void => {
-    const err = validateTender(payMethod, total, tendered);
-    if (err !== null) {
-      void message.error(err);
+    const tenderResult = settleTender(payMethod, toMinor(total), tendered === null ? null : toMinor(tendered));
+    if (!tenderResult.ok) {
+      const err = validateTender(payMethod, total, tendered);
+      if (err !== null) void message.error(err);
       return;
     }
-    const change = payMethod === "Cash" ? tenderChange(total, tendered ?? total) : 0;
+    const change = tenderResult.changeMinor / 100;
     const itemCount = cartTotals(useCartStore.getState().lines).count;
     setCompleted({ id: orderSeq, change });
     setOrderSeq((seq: number): number => seq + 1);

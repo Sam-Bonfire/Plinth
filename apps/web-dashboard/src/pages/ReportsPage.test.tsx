@@ -36,7 +36,7 @@ describe("ReportsPage", () => {
 
     // Check Tax summary
     expect(await screen.findAllByText("Tax Liability (GST) Summary")).toBeDefined();
-    expect(await screen.findAllByText("0")).toBeDefined(); // (145000*0.05 + 42000*0.12 + 97500*0.18) = 7250 + 5040 + 17550 = 29840
+    expect(await screen.findAllByText(/₹0/)).toBeDefined(); // mocked total_tax_minor: 0, rendered via money-billing module
 
   });
 
