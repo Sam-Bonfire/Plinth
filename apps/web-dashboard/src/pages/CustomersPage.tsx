@@ -2,6 +2,7 @@ import { FrequencyChart, PlinthAvatar } from "@plinth/ui-kit";
 import { Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Modal, Rate, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Timeline, Typography, message, type TableColumnsType } from "antd";
 import React, { useMemo, useState } from "react";
 import { logAudit } from "../lib/auditTrail.js";
+import { formatInr } from "../lib/moneyBilling.js";
 import { useAuth } from "../providers/AuthProvider.js";
 type Tier = "Gold" | "Silver" | "Bronze" | "New";
 
@@ -86,8 +87,7 @@ export const avgRating = (feedbacks: Feedback[]): number => {
 };
 
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+const inr = (n: number): string => formatInr(n, { maximumFractionDigits: 0 });
 
 const tierColor = (t: Tier): string => (t === "Gold" ? "gold" : t === "Silver" ? "geekblue" : t === "Bronze" ? "orange" : "green");
 

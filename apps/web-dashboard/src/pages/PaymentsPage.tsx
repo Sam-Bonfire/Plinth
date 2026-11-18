@@ -4,6 +4,7 @@ import { CashDropModal, type CashDrop } from "../components/CashDropModal.js";
 import { FraudAlerts } from "../components/FraudAlerts.js";
 import { UpiQrModal } from "../components/UpiQrModal.js";
 import { logAudit } from "../lib/auditTrail.js";
+import { formatInr } from "../lib/moneyBilling.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 type PayMethod = "UPI" | "Card" | "Cash";
@@ -40,8 +41,7 @@ const seedRecon = (): ReconRow[] => [
   { key: "Zomato", platform: "Zomato", expected: 39840, received: 38600 },
 ];
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+const inr = (n: number): string => formatInr(n);
 
 const statusColor = (s: TxnStatus): string => (s === "Settled" ? "success" : s === "Pending" ? "processing" : "default");
 

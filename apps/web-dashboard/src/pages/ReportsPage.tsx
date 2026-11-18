@@ -3,6 +3,7 @@ import { BarChart, LineChart } from "@plinth/ui-kit";
 import { Button, Card, Col, Row, Segmented, Space, Statistic, Table, Typography, message, type TableColumnsType } from "antd";
 import React, { useState, useEffect } from "react";
 import { buildAnalyticsCsv, type CsvSection } from "../lib/analyticsExport.js";
+import { formatInr, formatInrMinor } from "../lib/moneyBilling.js";
 import { useAuth } from "../providers/AuthProvider.js";
 
 type RevenuePoint = {
@@ -86,8 +87,7 @@ const TOP_ITEMS: TopItem[] = [
   { key: "5", rank: 5, item: "Mango Lassi", qty: 203, revenue: 22330, share: "8%" },
 ];
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+const inr = (n: number): string => formatInr(n, { maximumFractionDigits: 0 });
 
 export const ReportsPage: React.FC = () => {
   const [period, setPeriod] = useState<string>("week");
@@ -331,7 +331,7 @@ export const ReportsPage: React.FC = () => {
       </Row>
       <Row gutter={16}>
         <Col span={24}>
-          <Card title="Tax Liability (GST) Summary" extra={<Statistic value={gstSummary.total_tax_minor / 100} prefix="Total Tax: ₹" valueStyle={{ fontSize: 16, fontWeight: "bold" }} formatter={(val) => new Intl.NumberFormat("en-IN").format(Number(val))} />}>
+          <Card title="Tax Liability (GST) Summary" extra={<Statistic value={formatInrMinor(gstSummary.total_tax_minor, { maximumFractionDigits: 0 })} prefix="Total Tax: " valueStyle={{ fontSize: 16, fontWeight: "bold" }} />}>
             <Table<GstSlabSummaryDto> dataSource={gstSummary.slabs} columns={gstColumns} rowKey="rate" pagination={false} size="small" loading={loadingGst} />
           </Card>
         </Col>

@@ -29,9 +29,15 @@ export const onAuditFailures = (listener: (failures: readonly FailedAudit[]) => 
 /** Audit events waiting to be retried. */
 export const getAuditFailures = (): readonly FailedAudit[] => pending;
 
+export interface AuditLogResult {
+  ok: boolean;
+  queued: boolean;
+  reason?: string;
+}
+
 /**
  * Logs an audit event to the backend and records a retryable failure instead
- * of silently dropping it.
+ * of silently dropping it. Returns a result callers can surface.
  * @param client The API client instance
  * @param action The action performed
  * @param targetType The type of the target
@@ -42,7 +48,7 @@ export const logAudit = async (
   action: string,
   targetType: string,
   targetId: string,
-): Promise<void> => {
+): Promise<AuditLogResult> => {
   try {
     await client.ingestAudit({
       action,
@@ -51,12 +57,12 @@ export const logAudit = async (
       payload_json: null,
       is_anomaly: false,
     });
+    return { ok: true, queued: false };
   } catch (error: unknown) {
-    pending = [
-      ...pending,
-      { action, targetType, targetId, reason: error instanceof Error ? error.message : "unknown error" },
-    ];
+    const reason = error instanceof Error ? error.message : "unknown error";
+    pending = [...pending, { action, targetType, targetId, reason }];
     notify();
+    return { ok: false, queued: true, reason };
   }
 };
 

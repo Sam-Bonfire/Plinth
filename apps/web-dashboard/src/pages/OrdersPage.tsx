@@ -11,6 +11,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ReceiptPreview, type OrderProp } from "../components/ReceiptPreview.js";
 import { RiderPickupModal } from "../components/RiderPickupModal.js";
 import { logAudit } from "../lib/auditTrail.js";
+import { formatInr } from "../lib/moneyBilling.js";
+import { advanceOrder, voidOrder as guardVoid } from "../lib/orderLifecycle.js";
 import { useAuth } from "../providers/AuthProvider.js";
 import { TrackingPage } from "./TrackingPage.js";
 
@@ -26,12 +28,6 @@ interface OrderRow {
   payment: string;
 }
 
-const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  Preparing: "Ready",
-  Ready: "Served",
-  Served: "Settled",
-};
-
 const STATUS_OPTIONS: string[] = ["all", "Preparing", "Ready", "Served", "Settled", "Voided"];
 const CHANNEL_OPTIONS: { label: string; value: string }[] = [
   { label: "All", value: "all" },
@@ -41,8 +37,7 @@ const CHANNEL_OPTIONS: { label: string; value: string }[] = [
   { label: "Zomato", value: "Zomato" },
 ];
 
-const inr = (n: number): string =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+const inr = (n: number): string => formatInr(n);
 
 export const OrdersPage: React.FC = () => {
   const { client } = useAuth();
@@ -93,15 +88,38 @@ export const OrdersPage: React.FC = () => {
   const advance = (key: string): void => {
     setOrders((prev: OrderRow[]): OrderRow[] =>
       prev.map((o: OrderRow): OrderRow => {
-        const next = NEXT_STATUS[o.status];
-        return o.key === key && next !== undefined ? { ...o, status: next } : o;
+        if (o.key !== key) return o;
+        const result = advanceOrder(o.status);
+        if (!result.ok) {
+          void message.error(result.reason === "terminal" ? "Cannot advance a closed order." : "Cannot advance this order.");
+          return o;
+        }
+        return { ...o, status: result.status as OrderStatus };
       }),
     );
   };
 
   const voidOrder = (key: string): void => {
-    setOrders((prev: OrderRow[]): OrderRow[] => prev.map((o: OrderRow): OrderRow => (o.key === key ? { ...o, status: "Voided" } : o)));
-    void logAudit(client, "VOID_ORDER", "order", key);
+    setOrders((prev: OrderRow[]): OrderRow[] =>
+      prev.map((o: OrderRow): OrderRow => {
+        if (o.key !== key) return o;
+        const result = guardVoid(o.status);
+        if (!result.ok) {
+          const reason =
+            result.reason === "settled"
+              ? "Cannot void a settled order."
+              : result.reason === "refunded"
+                ? "Cannot void a refunded order."
+                : result.reason === "cancelled"
+                  ? "Cannot void a cancelled order."
+                  : "Order is already voided.";
+          void message.error(reason);
+          return o;
+        }
+        void logAudit(client, "VOID_ORDER", "order", key);
+        return { ...o, status: "Voided" };
+      }),
+    );
   };
 
   const columns: TableColumnsType<OrderRow> = [
@@ -157,7 +175,7 @@ export const OrdersPage: React.FC = () => {
       key: "actions",
       render: (_: unknown, row: OrderRow): React.ReactNode => (
         <Space>
-          {NEXT_STATUS[row.status] !== undefined && (
+          {advanceOrder(row.status).ok && (
             <Button size="small" onClick={(): void => advance(row.key)}>
               Advance
             </Button>
@@ -189,7 +207,7 @@ export const OrdersPage: React.FC = () => {
               Pickup
             </Button>
           )}
-          {row.status !== "Voided" && row.status !== "Settled" && (
+          {guardVoid(row.status).ok && (
             <Popconfirm title="Void this order?" okText="Yes" cancelText="No" onConfirm={(): void => voidOrder(row.key)}>
               <Button size="small" danger>
                 Void
