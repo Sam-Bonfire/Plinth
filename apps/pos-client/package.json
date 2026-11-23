@@ -22,15 +22,15 @@
     "@lingui/macro": "^5.9.5",
     "@lingui/react": "^6.12.0",
     "@plinth/ui-kit": "workspace:*",
-    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/api": "^2.12.5",
     "antd": "^5.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.5",
+    "react-router-dom": "^7.18.6",
     "zustand": "^5.1.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.4",
+    "@tauri-apps/cli": "^2.12.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
